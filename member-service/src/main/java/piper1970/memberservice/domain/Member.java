@@ -1,4 +1,4 @@
-package piper1970.customerservice.domain;
+package piper1970.memberservice.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,10 +10,14 @@ import org.springframework.data.annotation.Id;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Customer {
+public class Member {
 
   @Id
   private Integer id;
+
+  private String username;
+  private String password;
   private String firstName;
   private String lastName;
+  private String email;
 }

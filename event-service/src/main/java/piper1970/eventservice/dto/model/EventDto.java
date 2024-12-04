@@ -1,4 +1,4 @@
-package piper1970.eventservice.domain;
+package piper1970.eventservice.dto.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -6,14 +6,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
 
 @Data
 @Builder(toBuilder = true)
-@NoArgsConstructor
 @AllArgsConstructor
-public class Event {
-  @Id
+@NoArgsConstructor
+public class EventDto {
   private Integer id;
   private String title;
   private String description;

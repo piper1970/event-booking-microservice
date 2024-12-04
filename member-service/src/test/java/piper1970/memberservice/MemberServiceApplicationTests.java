@@ -1,10 +1,10 @@
-package piper1970.customerservice;
+package piper1970.memberservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class CustomerServiceApplicationTests {
+class MemberServiceApplicationTests {
 
   @Test
   void contextLoads() {

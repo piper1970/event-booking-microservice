@@ -1,19 +1,16 @@
-package piper1970.bookingservice.domain;
+package piper1970.bookingservice.dto.model;
 
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
 
 @Data
 @Builder(toBuilder = true)
-@NoArgsConstructor
 @AllArgsConstructor
-public class Booking {
-
-  @Id
+@NoArgsConstructor
+public class BookingDto {
   private Integer id;
   private String event;
   private String username;
