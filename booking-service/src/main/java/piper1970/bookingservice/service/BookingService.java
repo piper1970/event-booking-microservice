@@ -7,4 +7,7 @@ import reactor.core.publisher.Mono;
 public interface BookingService {
   Flux<Booking> findAllBookings();
   Mono<Booking> findBookingById(Integer id);
+  Mono<Booking> createBooking(Booking booking);
+  Mono<Booking> updateBooking(Booking booking);
+  Mono<Void> deleteBooking(Integer id);
 }
