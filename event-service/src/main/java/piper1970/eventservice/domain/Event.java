@@ -21,4 +21,5 @@ public class Event {
   private LocalDateTime eventDateTime;
   private BigDecimal cost;
   private Integer availableBookings;
+  private EventStatus eventStatus;
 }

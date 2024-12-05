@@ -18,4 +18,5 @@ public class Booking {
   private String event;
   private String username;
   private LocalDateTime eventDateTime;
+  private boolean confirmed;
 }

@@ -19,4 +19,5 @@ public class EventDto {
   private LocalDateTime eventDateTime;
   private BigDecimal cost;
   private Integer availableBookings;
+  private String eventStatus;
 }

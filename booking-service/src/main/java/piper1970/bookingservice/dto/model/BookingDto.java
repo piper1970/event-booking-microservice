@@ -15,4 +15,5 @@ public class BookingDto {
   private String event;
   private String username;
   private LocalDateTime eventDateTime;
+  private boolean confirmed;
 }

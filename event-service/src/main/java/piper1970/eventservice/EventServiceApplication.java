@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 import piper1970.eventservice.domain.Event;
+import piper1970.eventservice.domain.EventStatus;
 import piper1970.eventservice.repository.EventRepository;
 
 @SpringBootApplication
@@ -35,6 +36,7 @@ public class EventServiceApplication {
                 .eventDateTime(LocalDateTime.now().plusDays(2))
                 .cost(new BigDecimal("100.00"))
                 .availableBookings(100)
+                .eventStatus(EventStatus.AWAITING)
                 .build(), Event.builder()
                 .title("Event2")
                 .description("Description2")
@@ -42,6 +44,7 @@ public class EventServiceApplication {
                 .eventDateTime(LocalDateTime.now().plusDays(4))
                 .cost(new BigDecimal("150.00"))
                 .availableBookings(100)
+                .eventStatus(EventStatus.IN_PROGRESS)
                 .build(),
             Event.builder()
                 .title("Event3")
@@ -50,6 +53,7 @@ public class EventServiceApplication {
                 .eventDateTime(LocalDateTime.now().plusDays(6))
                 .cost(new BigDecimal("200.00"))
                 .availableBookings(100)
+                .eventStatus(EventStatus.COMPLETED)
                 .build())
     ).subscribe(event -> log.info(event.toString()));
   }
