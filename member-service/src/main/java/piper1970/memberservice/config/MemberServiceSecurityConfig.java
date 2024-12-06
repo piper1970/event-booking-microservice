@@ -53,6 +53,7 @@ public class MemberServiceSecurityConfig {
         .cors(CorsSpec::disable)
         .authorizeExchange(exchanges ->
             exchanges
+                .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
                 .pathMatchers(HttpMethod.POST, "/api/v1/members").hasRole("ADMIN")
                 .pathMatchers(HttpMethod.PUT, "/api/v1/members/**").hasRole("ADMIN")
                 .pathMatchers(HttpMethod.DELETE, "/api/v1/members/**").hasRole("ADMIN")
