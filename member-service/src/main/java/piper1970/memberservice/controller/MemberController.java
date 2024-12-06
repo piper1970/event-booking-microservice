@@ -20,7 +20,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("api/v1/members")
+@RequestMapping("/api/v1/members")
 @RequiredArgsConstructor
 public class MemberController {
 
@@ -33,7 +33,7 @@ public class MemberController {
         .map(memberMapper::toDto);
   }
 
-  @GetMapping("{id}")
+  @GetMapping("/{id}")
   public Mono<MemberDto> getMember(@PathVariable("id") Integer id) {
     return memberService.getMember(id)
         .map(memberMapper::toDto)
@@ -47,13 +47,13 @@ public class MemberController {
         .map(memberMapper::toDto);
   }
 
-  @PutMapping("{id}")
+  @PutMapping("/{id}")
   public Mono<MemberDto> updateMember(@PathVariable Integer id, @Valid @RequestBody MemberDto memberDto) {
     return memberService.updateMember(memberMapper.toEntity(memberDto).withId(id))
         .map(memberMapper::toDto);
   }
 
-  @DeleteMapping("{id}")
+  @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public Mono<Void> deleteMember(@PathVariable Integer id) {
     return memberService.deleteMember(id);
