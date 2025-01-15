@@ -7,6 +7,8 @@ import piper1970.memberservice.dto.model.MemberDto;
 
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface MemberMapper {
+
+  // TODO: make sure password not captured
   Member toEntity(MemberDto dto);
   MemberDto toDto(Member entity);
 }

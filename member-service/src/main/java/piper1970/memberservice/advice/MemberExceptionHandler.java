@@ -45,8 +45,6 @@ public class MemberExceptionHandler {
     });
   }
 
-
-  // Helper method for building base portion of problem-detail message
   private ProblemDetail buildProblemDetail(HttpStatus status, String message,
       Consumer<ProblemDetail> handler) {
     var problem = ProblemDetail.forStatusAndDetail(status, message);
