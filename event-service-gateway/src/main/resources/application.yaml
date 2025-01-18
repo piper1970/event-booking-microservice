@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: event-service-gateway
+  config:
+    import: optional:configserver:http://localhost:8888
+
+# distinct dev-tools reload port
+  devtools.livereload.port: 2720
+
+
+#  Security
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_ID}
+            client-secret: ${GOOGLE_SECRET}
+
+# logging
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: TRACE
+    org.springframework.cloud.gateway: TRACE
+    piper1970.eventgateway: DEBUG
+
+# disable discovery with eureka
+eureka:
+  client:
+    register-with-eureka: false
+
