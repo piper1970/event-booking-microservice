@@ -3,6 +3,8 @@ package piper1970.bookingservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,12 +30,14 @@ public class BookingController {
   private final BookingMapper bookingMapper;
 
   @GetMapping
-  public Flux<BookingDto> getAllBookings() {
+//  @PreAuthorize("hasRole('MEMBER')")
+  public Flux<BookingDto> getAllBookings(OidcUserAuthority userAuthority) {
     return bookingService.findAllBookings()
         .map(bookingMapper::toDto);
   }
 
   @GetMapping("{id}")
+  @PreAuthorize("hasRole('MEMBER')")
   public Mono<BookingDto> getBookingById(@PathVariable Integer id) {
     return bookingService.findBookingById(id)
         .map(bookingMapper::toDto)
@@ -42,12 +46,14 @@ public class BookingController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("hasRole('MEMBER')")
   public Mono<BookingDto> createBooking(@Valid @RequestBody BookingDto bookingDto) {
     return bookingService.createBooking(bookingMapper.toEntity(bookingDto))
         .map(bookingMapper::toDto);
   }
 
   @PutMapping("{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public Mono<BookingDto> updateBooking(@PathVariable Integer id,
       @Valid @RequestBody BookingDto bookingDto) {
     return bookingService.updateBooking(bookingMapper.toEntity(bookingDto).withId(id))
@@ -56,6 +62,7 @@ public class BookingController {
 
   @DeleteMapping("{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasRole('ADMIN')")
   public Mono<Void> deleteBooking(@PathVariable Integer id) {
     return bookingService.deleteBooking(id);
   }
