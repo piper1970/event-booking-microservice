@@ -4,7 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,8 +31,8 @@ public class BookingController {
   private final BookingMapper bookingMapper;
 
   @GetMapping
-//  @PreAuthorize("hasRole('MEMBER')")
-  public Flux<BookingDto> getAllBookings(OidcUserAuthority userAuthority) {
+  @PreAuthorize("hasRole('MEMBER')")
+  public Flux<BookingDto> getAllBookings(@AuthenticationPrincipal OidcUser user) {
     return bookingService.findAllBookings()
         .map(bookingMapper::toDto);
   }

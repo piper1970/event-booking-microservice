@@ -1,8 +1,11 @@
 package piper1970.event_service_gateway.controllers;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
@@ -36,8 +39,9 @@ public class GatewayController {
 
 
   @GetMapping("/token")
-  public Mono<String> getHome(@RegisteredOAuth2AuthorizedClient("event-service-client") OAuth2AuthorizedClient authorizedClient) {
-    var message = "Hello World!";
+  @PreAuthorize("hasRole('MEMBER')")
+  public Mono<String> getHome(@RegisteredOAuth2AuthorizedClient("event-service-client") OAuth2AuthorizedClient authorizedClient,
+      @AuthenticationPrincipal OidcUser user) {
     return Mono.just(authorizedClient.getAccessToken().getTokenValue());
   }
 

@@ -1,8 +1,6 @@
 server:
   port: 8080
 
-keycloak.client.id: event-service-client
-
 spring:
   application:
     name: event-service-gateway
@@ -24,13 +22,13 @@ spring:
             authorization-grant-type: authorization_code
             client-id: event-service-client
             client-secret: ${KC_CLIENT_SECRET}
-            scope: openid
+            scope: openid,profile
         provider:
           keycloak:
-            issuer-uri: http://localhost:9090/realms/piper-realm
+            issuer-uri: http://localhost:9090/realms/piper1970
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:9090/realms/piper-realm/protocol/openid-connect/certs
+          jwk-set-uri: http://localhost:9090/realms/piper1970/protocol/openid-connect/certs
 
 
 
@@ -41,7 +39,7 @@ logging:
     org.springframework.web.reactive.function.client: TRACE
     org.springframework.security: DEBUG
     org.springframework.security.oauth2: TRACE
-    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway.routes: TRACE
     piper1970.eventgateway: DEBUG
 
 # disable discovery with eureka
