@@ -1,5 +1,6 @@
 package piper1970.bookingservice.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -14,7 +15,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-import piper1970.bookingservice.config.extractors.GrantedAuthoritiesExtractor;
+import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
 import reactor.core.publisher.Mono;
 
 @Configuration
@@ -25,8 +26,8 @@ public class BookingServiceConfig {
   private final GrantedAuthoritiesExtractor grantedAuthoritiesExtractor;
 
   public BookingServiceConfig(
-      GrantedAuthoritiesExtractor grantedAuthoritiesExtractor) {
-    this.grantedAuthoritiesExtractor = grantedAuthoritiesExtractor;
+      @Value("${oauth2.client.id}") String clientId) {
+    this.grantedAuthoritiesExtractor = new GrantedAuthoritiesExtractor(clientId);
   }
 
   @Bean
@@ -41,11 +42,9 @@ public class BookingServiceConfig {
           .authenticated();
     });
 
-    http.oauth2ResourceServer(oauth2 -> {
-      oauth2.jwt(jwt -> {
-        jwt.jwtAuthenticationConverter(grantedAuthenticationConverter());
-      });
-    });
+    http.oauth2ResourceServer(oauth2 ->
+        oauth2.jwt(jwt ->
+            jwt.jwtAuthenticationConverter(grantedAuthenticationConverter())));
 
     return http.build();
   }

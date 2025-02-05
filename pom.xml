@@ -31,14 +31,14 @@
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter</artifactId>
 		</dependency>
-<!--		    <dependency>-->
-<!--      <groupId>io.micrometer</groupId>-->
-<!--      <artifactId>micrometer-tracing-bridge-brave</artifactId>-->
-<!--    </dependency>-->
-<!--    <dependency>-->
-<!--      <groupId>io.zipkin.reporter2</groupId>-->
-<!--      <artifactId>zipkin-reporter-brave</artifactId>-->
-<!--    </dependency>-->
+		    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-brave</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.zipkin.reporter2</groupId>
+      <artifactId>zipkin-reporter-brave</artifactId>
+    </dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
@@ -106,6 +106,7 @@
 		<module>event-service-gateway</module>
 		<module>event-service-config</module>
 		<module>discovery-server</module>
+		<module>event-service-common</module>
 	</modules>
 
 </project>

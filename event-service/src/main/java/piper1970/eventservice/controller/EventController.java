@@ -3,6 +3,7 @@ package piper1970.eventservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,12 +29,14 @@ public class EventController {
   private final EventMapper eventMapper;
 
   @GetMapping
+  @PreAuthorize("hasAuthority('MEMBER')")
   public Flux<EventDto> getEvents() {
     return eventService.getEvents()
         .map(eventMapper::toDto);
   }
 
   @GetMapping("{id}")
+  @PreAuthorize("hasAuthority('MEMBER')")
   public Mono<EventDto> getEvent(@PathVariable Integer id) {
     return eventService.getEvent(id)
         .map(eventMapper::toDto)
@@ -42,12 +45,14 @@ public class EventController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("hasAuthority('PERFORMER')")
   public Mono<EventDto> createEvent(@Valid @RequestBody EventDto eventDto) {
     return eventService.createEvent(eventMapper.toEntity(eventDto))
         .map(eventMapper::toDto);
   }
 
   @PutMapping("{id}")
+  @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<EventDto> updateEvent(@PathVariable Integer id, @Valid @RequestBody EventDto eventDto) {
     return eventService.updateEvent(eventMapper.toEntity(eventDto).withId(id))
         .map(eventMapper::toDto);
@@ -55,6 +60,7 @@ public class EventController {
 
   @DeleteMapping("{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<Void> deleteEvent(@PathVariable Integer id) {
     return eventService.deleteEvent(id);
   }

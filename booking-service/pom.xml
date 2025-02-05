@@ -32,17 +32,18 @@
   </dependencyManagement>
 
   <dependencies>
+
+    <!--  common module  -->
+    <dependency>
+      <groupId>piper1970</groupId>
+      <artifactId>event-service-common</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+    </dependency>
+
+    <!--    Database R2DBC modules-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-r2dbc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.cloud</groupId>
-      <artifactId>spring-cloud-starter-bootstrap</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-webflux</artifactId>
     </dependency>
     <dependency>
       <groupId>com.h2database</groupId>
@@ -54,11 +55,25 @@
       <artifactId>r2dbc-h2</artifactId>
       <scope>runtime</scope>
     </dependency>
+
+    <!--    Spring Boot Starter-->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-bootstrap</artifactId>
+    </dependency>
+
+    <!--    Webflux/Project Reactor -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
     <dependency>
       <groupId>io.projectreactor</groupId>
       <artifactId>reactor-test</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!--    MapStruct-->
     <dependency>
       <groupId>org.mapstruct</groupId>
       <artifactId>mapstruct</artifactId>
@@ -69,14 +84,20 @@
       <artifactId>lombok-mapstruct-binding</artifactId>
       <version>${lombok.mapstruct.binding.version}</version>
     </dependency>
+
+    <!--    Validation -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
+
+    <!--    Discovery-->
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
     </dependency>
+
+    <!--    Security/Oauth2-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
@@ -87,6 +108,7 @@
     </dependency>
   </dependencies>
 
+  <!--  Build-->
   <build>
     <plugins>
       <plugin>
