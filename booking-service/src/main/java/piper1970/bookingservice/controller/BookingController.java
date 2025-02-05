@@ -36,7 +36,7 @@ public class BookingController {
   }
 
   @GetMapping("{id}")
-  @PreAuthorize("hasRole('MEMBER')")
+  @PreAuthorize("hasAuthority('MEMBER')") // need to ensure proper user
   public Mono<BookingDto> getBookingById(@PathVariable Integer id) {
     return bookingService.findBookingById(id)
         .map(bookingMapper::toDto)
@@ -45,14 +45,14 @@ public class BookingController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  @PreAuthorize("hasRole('MEMBER')")
+  @PreAuthorize("hasAuthority('MEMBER')")
   public Mono<BookingDto> createBooking(@Valid @RequestBody BookingDto bookingDto) {
     return bookingService.createBooking(bookingMapper.toEntity(bookingDto))
         .map(bookingMapper::toDto);
   }
 
   @PutMapping("{id}")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<BookingDto> updateBooking(@PathVariable Integer id,
       @Valid @RequestBody BookingDto bookingDto) {
     return bookingService.updateBooking(bookingMapper.toEntity(bookingDto).withId(id))
@@ -61,7 +61,7 @@ public class BookingController {
 
   @DeleteMapping("{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<Void> deleteBooking(@PathVariable Integer id) {
     return bookingService.deleteBooking(id);
   }

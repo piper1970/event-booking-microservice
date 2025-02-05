@@ -1,13 +1,12 @@
 package piper1970.bookingservice.config.extractors;
 
-import com.nimbusds.jose.shaded.gson.internal.LinkedTreeMap;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -24,16 +23,15 @@ public class GrantedAuthoritiesExtractor implements Converter<Jwt, Collection<Gr
 
   @Override
   @SuppressWarnings("unchecked")
-  public Collection<GrantedAuthority> convert(Jwt jwt) {
-    Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
-    Object client = resourceAccess.get(clientId);
+  public Collection<GrantedAuthority> convert(@NonNull Jwt jwt) {
 
-    LinkedTreeMap<String, List<String>> clientRoleMap = (LinkedTreeMap<String, List<String>>) client;
-
-    List<String> clientRoles = new ArrayList<>(clientRoleMap.get("roles"));
-
-    return clientRoles.stream()
+    return Optional.ofNullable((Map<String, Object>) jwt.getClaim("resource_access"))
+        .map(map -> (Map<String,List<String>>) map.get(clientId))
+        .map(map -> map.get("roles"))
+        .stream()
+        .flatMap(List::stream)
         .map(SimpleGrantedAuthority::new)
-        .collect(Collectors.toList());
+        .map(GrantedAuthority.class::cast)
+        .toList();
   }
 }
