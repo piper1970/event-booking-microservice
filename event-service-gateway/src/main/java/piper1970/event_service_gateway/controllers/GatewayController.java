@@ -39,7 +39,7 @@ public class GatewayController {
 
 
   @GetMapping("/token")
-  @PreAuthorize("hasRole('MEMBER')")
+  @PreAuthorize("hasAuthority('MEMBER')")
   public Mono<String> getHome(@RegisteredOAuth2AuthorizedClient("event-service-client") OAuth2AuthorizedClient authorizedClient,
       @AuthenticationPrincipal OidcUser user) {
     return Mono.just(authorizedClient.getAccessToken().getTokenValue());

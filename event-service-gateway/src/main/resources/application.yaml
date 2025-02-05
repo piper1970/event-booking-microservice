@@ -22,13 +22,14 @@ spring:
             authorization-grant-type: authorization_code
             client-id: event-service-client
             client-secret: ${KC_CLIENT_SECRET}
-            scope: openid,profile
+            scope: openid
         provider:
           keycloak:
             issuer-uri: http://localhost:9090/realms/piper1970
       resourceserver:
         jwt:
           jwk-set-uri: http://localhost:9090/realms/piper1970/protocol/openid-connect/certs
+          issuer-uri: http://localhost:9090/realms/piper1970
 
 
 

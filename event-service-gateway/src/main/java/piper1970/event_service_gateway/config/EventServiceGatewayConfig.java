@@ -29,7 +29,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
 @EnableWebFluxSecurity
-@EnableReactiveMethodSecurity()
+@EnableReactiveMethodSecurity
 @RequiredArgsConstructor
 public class EventServiceGatewayConfig {
 
@@ -58,12 +58,14 @@ public class EventServiceGatewayConfig {
   interface AuthoritiesConverter extends
       Converter<Map<String, Object>, Collection<GrantedAuthority>> {}
 
-  @Bean
+
+//  @Bean
   @SuppressWarnings("unchecked")
-  AuthoritiesConverter realmRolesConverter() {
+  AuthoritiesConverter clientRolesConverter() {
     return claims -> {
-      var roles = Optional.ofNullable((Map<String, Object>)claims.get("realm_access"))
-          .flatMap(map -> Optional.ofNullable((List<String>)map.get("roles")));
+      var roles = Optional.ofNullable((Map<String, Object>)claims.get("resource_access"))
+          .flatMap(map -> Optional.ofNullable((Map<String, List<String>>)map.get("event-service-client")))
+          .map(client -> client.get("roles"));
 
       return roles.stream()
           .flatMap(Collection::stream)
@@ -73,8 +75,8 @@ public class EventServiceGatewayConfig {
     };
   }
 
-  @Bean
-  GrantedAuthoritiesMapper authoritiesConverter(AuthoritiesConverter realmRolesConverter) {
+//  @Bean
+  GrantedAuthoritiesMapper grantedAuthoritiesConverter(AuthoritiesConverter clientRolesConverter) {
 
     return authorities ->
       authorities.stream()
@@ -82,7 +84,7 @@ public class EventServiceGatewayConfig {
           .map(OidcUserAuthority.class::cast)
           .map(OidcUserAuthority::getIdToken)
           .map(OidcIdToken::getClaims)
-          .map(realmRolesConverter::convert)
+          .map(clientRolesConverter::convert)
           .filter(Objects::nonNull)
           .flatMap(Collection::stream)
           .collect(Collectors.toSet());

@@ -1,33 +1,33 @@
 package piper1970.bookingservice.config;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity.CorsSpec;
 import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
-import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import piper1970.bookingservice.config.extractors.GrantedAuthoritiesExtractor;
+import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
-@RequiredArgsConstructor
 public class BookingServiceConfig {
+
+  private final GrantedAuthoritiesExtractor grantedAuthoritiesExtractor;
+
+  public BookingServiceConfig(
+      GrantedAuthoritiesExtractor grantedAuthoritiesExtractor) {
+    this.grantedAuthoritiesExtractor = grantedAuthoritiesExtractor;
+  }
 
   @Bean
   public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
@@ -38,44 +38,21 @@ public class BookingServiceConfig {
           .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
           .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
           .anyExchange()
-          .permitAll();
+          .authenticated();
+    });
+
+    http.oauth2ResourceServer(oauth2 -> {
+      oauth2.jwt(jwt -> {
+        jwt.jwtAuthenticationConverter(grantedAuthenticationConverter());
+      });
     });
 
     return http.build();
-
   }
 
-  interface AuthoritiesConverter extends
-      Converter<Map<String, Object>, Collection<GrantedAuthority>> {}
-
-  @Bean
-  @SuppressWarnings("unchecked")
-  AuthoritiesConverter realmRolesConverter() {
-    return claims -> {
-      var roles = Optional.ofNullable((Map<String, Object>)claims.get("realm_access"))
-          .flatMap(map -> Optional.ofNullable((List<String>)map.get("roles")));
-
-      return roles.stream()
-          .flatMap(Collection::stream)
-          .map(SimpleGrantedAuthority::new)
-          .map(GrantedAuthority.class::cast)
-          .toList();
-    };
+  Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {
+    JwtAuthenticationConverter authConverter = new JwtAuthenticationConverter();
+    authConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesExtractor);
+    return new ReactiveJwtAuthenticationConverterAdapter(authConverter);
   }
-
-  @Bean
-  GrantedAuthoritiesMapper authoritiesConverter(AuthoritiesConverter realmRolesConverter) {
-
-    return authorities ->
-        authorities.stream()
-            .filter(OidcUserAuthority.class::isInstance)
-            .map(OidcUserAuthority.class::cast)
-            .map(OidcUserAuthority::getIdToken)
-            .map(OidcIdToken::getClaims)
-            .map(realmRolesConverter::convert)
-            .filter(Objects::nonNull)
-            .flatMap(Collection::stream)
-            .collect(Collectors.toSet());
-  }
-
 }
