@@ -36,15 +36,56 @@ spring:
 # logging
 logging:
   level:
+
+    org:
+      springframework:
+        cloud:
+          config: OFF
+        web:
+          server:
+            adapter: OFF
     org.springframework.web: DEBUG
-    org.springframework.web.reactive.function.client: TRACE
+    org.springframework.boot: OFF
+    org.springframework.web.reactive.function.client: OFF
     org.springframework.security: DEBUG
     org.springframework.security.oauth2: TRACE
     org.springframework.cloud.gateway.routes: TRACE
-    piper1970.eventgateway: DEBUG
+    piper1970:
+      event_service_gateway: INFO
+    com:
+      netflix:
+        discovery: OFF
 
 # disable discovery with eureka
 eureka:
   client:
     register-with-eureka: false
+
+# From Config
+#server:
+#  port: 8080
+#
+#spring:
+#  application:
+#    name: events-gateway
+#  r2dbc.url: r2dbc:h2:mem:///authentication
+#
+#  # Routing
+#  cloud:
+#    gateway:
+#      default-filters:
+#        - TokenRelay=
+#        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+#      routes:
+#        - id: booking-service
+#          uri: lb://booking-service
+#          predicates:
+#            - Path=/api/v1/bookings/**
+#            - Path=/api/v1/bookings
+#        - id: event-service
+#          uri: lb://event-service
+#          predicates:
+#            - Path=/api/v1/events/**
+#            - Path=/api/v1/events
+
 

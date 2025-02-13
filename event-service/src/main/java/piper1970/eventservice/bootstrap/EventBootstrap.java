@@ -23,16 +23,20 @@ public class EventBootstrap implements CommandLineRunner {
     eventRepository.count()
         .filter(count -> count == 0) // only hydrate empty db
         .flatMapMany(count -> eventRepository.saveAll(
-            List.of(Event.builder()
+            List.of(
+                Event.builder()
                     .title("Event1")
+                    .facilitator("test_performer")
                     .description("Description1")
                     .location("Location1")
                     .eventDateTime(LocalDateTime.now().plusDays(2))
                     .cost(new BigDecimal("100.00"))
                     .availableBookings(100)
                     .eventStatus(EventStatus.AWAITING)
-                    .build(), Event.builder()
+                    .build(),
+                Event.builder()
                     .title("Event2")
+                    .facilitator("test_performer")
                     .description("Description2")
                     .location("Location2")
                     .eventDateTime(LocalDateTime.now().plusDays(4))
@@ -42,6 +46,7 @@ public class EventBootstrap implements CommandLineRunner {
                     .build(),
                 Event.builder()
                     .title("Event3")
+                    .facilitator("test_performer")
                     .description("Description3")
                     .location("Location3")
                     .eventDateTime(LocalDateTime.now().plusDays(6))

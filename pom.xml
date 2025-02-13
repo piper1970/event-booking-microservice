@@ -101,7 +101,6 @@
 
 	<modules>
 		<module>event-service</module>
-		<module>member-service</module>
 		<module>booking-service</module>
 		<module>event-service-gateway</module>
 		<module>event-service-config</module>

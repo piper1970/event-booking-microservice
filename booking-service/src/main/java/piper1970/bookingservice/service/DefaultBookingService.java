@@ -19,7 +19,8 @@ public class DefaultBookingService implements BookingService {
 
   @Override
   public Flux<Booking> findAllBookings() {
-    return bookingRepository.findAll();
+    return bookingRepository.findAll()
+        .log();
   }
 
   @Override

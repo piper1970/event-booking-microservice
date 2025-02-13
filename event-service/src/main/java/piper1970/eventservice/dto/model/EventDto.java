@@ -1,6 +1,7 @@
 package piper1970.eventservice.dto.model;
 
 import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -20,6 +21,10 @@ import piper1970.eventservice.dto.validation.annotations.EnumValues;
 @NoArgsConstructor
 public class EventDto {
   private Integer id;
+
+  @NotBlank(message = "[facilitator] field cannot be empty")
+  @Size(max = 60, message = "[facilitator] field must be within 60 charactor range")
+  private String facilitator;
 
   @NotBlank(message = "[title] field cannot be empty")
   @Size(max = 255, message = "[title] field must be within 255 character range")
@@ -43,6 +48,7 @@ public class EventDto {
 
   @NotNull(message = "[availableBookings] field must be present and non-null")
   @PositiveOrZero(message = "[availableBookings] field cannot be negative")
+  @Max(value=32767)
   private Integer availableBookings;
 
 

@@ -22,13 +22,13 @@ public class BookingBootstrap implements CommandLineRunner {
         .filter(count -> count == 0) // only hydrate empty db
         .flatMapMany(ignored -> bookingRepository.saveAll(
             List.of(Booking.builder()
-                    .event("Event1")
-                    .username("User1")
+                    .eventId(1)
+                    .username("test_member")
                     .eventDateTime(LocalDateTime.now().plusDays(2))
                     .build(),
                 Booking.builder()
-                    .event("Event2")
-                    .username("User2")
+                    .eventId(2)
+                    .username("test_member")
                     .eventDateTime(LocalDateTime.now().plusDays(3))
                     .build())
         )).subscribe(booking -> log.info(booking.toString()));

@@ -37,8 +37,6 @@ build/
 .env
 **/.env
 
-data/
-
 ### Docker Compose File
 docker-compose.yaml
 docker-compose.yml
