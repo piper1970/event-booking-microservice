@@ -25,6 +25,7 @@ public class BookingServiceConfig {
 
   private final GrantedAuthoritiesExtractor grantedAuthoritiesExtractor;
 
+
   public BookingServiceConfig(
       @Value("${oauth2.client.id}") String clientId) {
     this.grantedAuthoritiesExtractor = new GrantedAuthoritiesExtractor(clientId);

@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS bookings
     event_date_time   timestamp   NOT NULL,
     created_date_time timestamp,
     updated_date_time timestamp,
-    confirmed         boolean     NOT NULL
+    booking_status    varchar(30) NOT NULL
 );

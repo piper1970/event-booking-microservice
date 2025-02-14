@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import piper1970.bookingservice.domain.Booking;
+import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.repository.BookingRepository;
 
 @Component
@@ -23,13 +24,15 @@ public class BookingBootstrap implements CommandLineRunner {
         .flatMapMany(ignored -> bookingRepository.saveAll(
             List.of(Booking.builder()
                     .eventId(1)
-                    .username("test_member")
+                    .username("test-member")
                     .eventDateTime(LocalDateTime.now().plusDays(2))
+                    .bookingStatus(BookingStatus.CONFIRMED)
                     .build(),
                 Booking.builder()
                     .eventId(2)
-                    .username("test_member")
+                    .username("test-member")
                     .eventDateTime(LocalDateTime.now().plusDays(3))
+                    .bookingStatus(BookingStatus.IN_PROGRESS)
                     .build())
         )).subscribe(booking -> log.info(booking.toString()));
   }

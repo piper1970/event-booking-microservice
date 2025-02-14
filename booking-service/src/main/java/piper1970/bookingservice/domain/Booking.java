@@ -24,7 +24,7 @@ public class Booking {
   private Integer eventId;
   private String username;
   private LocalDateTime eventDateTime;
-  private boolean confirmed;
+  private BookingStatus bookingStatus;
 
   @CreatedDate
   private LocalDateTime createdDateTime;

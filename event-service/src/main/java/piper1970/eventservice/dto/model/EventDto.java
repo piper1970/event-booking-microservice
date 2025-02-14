@@ -1,6 +1,7 @@
 package piper1970.eventservice.dto.model;
 
-import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -12,14 +13,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import piper1970.eventservice.common.validation.annotations.EnumValues;
 import piper1970.eventservice.domain.EventStatus;
-import piper1970.eventservice.dto.validation.annotations.EnumValues;
 
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
 public class EventDto {
+
   private Integer id;
 
   @NotBlank(message = "[facilitator] field cannot be empty")
@@ -38,22 +40,21 @@ public class EventDto {
   private String location;
 
   @NotNull(message = "[eventDateTime] field must be present and non-null")
-  @FutureOrPresent(message= "[eventDateTime] field cannot be in the past")
   private LocalDateTime eventDateTime;
 
   @NotNull(message = "[cost] field must be present and non-null")
-  @PositiveOrZero(message = "[cost] field cannot be negative")
+  @DecimalMin(value = "0.0") // positive-or-zero
+  @Digits(integer = 4, fraction = 2) // numeric(6,2)
   private BigDecimal cost;
-
 
   @NotNull(message = "[availableBookings] field must be present and non-null")
   @PositiveOrZero(message = "[availableBookings] field cannot be negative")
-  @Max(value=32767)
+  @Max(value=32767) // smallint
   private Integer availableBookings;
 
 
   @NotBlank(message = "[eventStatus] field cannot be empty")
-  @EnumValues(enumClass = EventStatus.class, message = "[eventStatus] field must be either 'AWAITING', 'IN_PROGRESS', or 'COMPLETED'")
+  @EnumValues(enumClass = EventStatus.class, message = "[eventStatus] field must be either 'AWAITING', 'IN_PROGRESS', 'COMPLETED', or 'CANCELLED'")
   private String eventStatus;
 
 }

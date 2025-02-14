@@ -26,7 +26,7 @@ public class EventBootstrap implements CommandLineRunner {
             List.of(
                 Event.builder()
                     .title("Event1")
-                    .facilitator("test_performer")
+                    .facilitator("test-performer")
                     .description("Description1")
                     .location("Location1")
                     .eventDateTime(LocalDateTime.now().plusDays(2))
@@ -36,7 +36,7 @@ public class EventBootstrap implements CommandLineRunner {
                     .build(),
                 Event.builder()
                     .title("Event2")
-                    .facilitator("test_performer")
+                    .facilitator("test-performer")
                     .description("Description2")
                     .location("Location2")
                     .eventDateTime(LocalDateTime.now().plusDays(4))
@@ -46,7 +46,7 @@ public class EventBootstrap implements CommandLineRunner {
                     .build(),
                 Event.builder()
                     .title("Event3")
-                    .facilitator("test_performer")
+                    .facilitator("test-performer")
                     .description("Description3")
                     .location("Location3")
                     .eventDateTime(LocalDateTime.now().plusDays(6))

@@ -1,4 +1,4 @@
-package piper1970.eventservice.dto.validation.annotations;
+package piper1970.eventservice.common.validation.annotations;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
@@ -7,7 +7,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import piper1970.eventservice.dto.validation.validators.EnumValuesValidator;
+import piper1970.eventservice.common.validation.validators.EnumValuesValidator;
 
 /**
  * Validation annotation used for binding String values to given Enum class

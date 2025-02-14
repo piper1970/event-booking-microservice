@@ -1,0 +1,63 @@
+#server:
+#  port: 8080
+#
+#api:
+#  uri:
+#    booking-service: http://localhost:8083
+#    event-service: http://localhost:8081
+
+spring:
+#  application:
+#    name: event-service-gateway
+#  config:
+#    import: optional:configserver:http://localhost:8888
+#
+#  devtools.livereload.port: 2720
+
+
+#  Security (Oauth2/Keycloak/OIDC)
+  security:
+    oauth2:
+      client:
+        registration:
+          event-service-client:
+            client-name: event-service-client
+            provider: keycloak
+            authorization-grant-type: authorization_code
+            client-id: event-service-client
+            client-secret: dummySecret
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:9090/realms/piper1970
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9090/realms/piper1970/protocol/openid-connect/certs
+          issuer-uri: http://localhost:9090/realms/piper1970
+
+
+
+# logging
+#logging:
+#  level:
+#    org:
+#      springframework:
+#        cloud:
+#          config: OFF
+#        web:
+#          server:
+#            adapter: OFF
+#    org.springframework.web: DEBUG
+#    org.springframework.boot: OFF
+#    org.springframework.web.reactive.function.client: OFF
+#    org.springframework.security: DEBUG
+#    org.springframework.security.oauth2: TRACE
+#    org.springframework.cloud.gateway.routes: TRACE
+#    piper1970:
+#      event_service_gateway: INFO
+#    com:
+#      netflix:
+#        discovery: OFF
+
+
+

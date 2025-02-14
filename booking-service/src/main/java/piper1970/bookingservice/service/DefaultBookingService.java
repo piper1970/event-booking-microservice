@@ -19,8 +19,12 @@ public class DefaultBookingService implements BookingService {
 
   @Override
   public Flux<Booking> findAllBookings() {
-    return bookingRepository.findAll()
-        .log();
+    return bookingRepository.findAll();
+  }
+
+  @Override
+  public Flux<Booking> findBookingsByUsername(String username) {
+    return bookingRepository.findByUsername(username);
   }
 
   @Override
@@ -29,14 +33,24 @@ public class DefaultBookingService implements BookingService {
   }
 
   @Override
+  public Mono<Booking> findBookingIdByIdAndUsername(Integer id, String username) {
+    return bookingRepository.findBookingIdByIdAndUsername(id, username);
+  }
+
+  @Override
   public Mono<Booking> createBooking(Booking booking) {
     // database generates id upon insert
-    return bookingRepository.save(booking.withId(null));
+    // logic must be added here to ensure event datatime is in the future
+    return bookingRepository.save(booking.withId(null))
+        .doOnNext(cbk -> {
+          // TODO: send event to kafka channel using eventId and bookingId
+        });
   }
 
   @Transactional
   @Override
   public Mono<Booking> updateBooking(Booking booking) {
+    // ensure event date time is in the future
     return bookingRepository.findById(booking.getId())
         .flatMap(b -> bookingRepository.save(booking))
         .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id " + booking.getId())));

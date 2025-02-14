@@ -19,6 +19,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @With
 @Table(name="events", schema="event_service")
 public class Event {
+
   @Id
   private Integer id;
 
@@ -27,15 +28,13 @@ public class Event {
   private String description;
   private String location;
   private LocalDateTime eventDateTime;
+  private BigDecimal cost;
+  private Integer availableBookings;
+  private EventStatus eventStatus;
 
   @CreatedDate
   private LocalDateTime createdDateTime;
 
   @LastModifiedDate
   private LocalDateTime updatedDateTime;
-
-  private BigDecimal cost;
-  private Integer availableBookings;
-
-  private EventStatus eventStatus;
 }
