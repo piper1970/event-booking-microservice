@@ -28,6 +28,9 @@ public class EnumValuesValidator implements ConstraintValidator<EnumValues, Stri
 
   @Override
   public boolean isValid(String value, ConstraintValidatorContext context) {
+    if (value == null) {
+      return true;
+    }
     return valuesList.contains(value);
   }
 }

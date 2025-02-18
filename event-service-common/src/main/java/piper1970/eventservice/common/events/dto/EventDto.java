@@ -1,4 +1,4 @@
-package piper1970.eventservice.dto.model;
+package piper1970.eventservice.common.events.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -13,8 +13,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.common.validation.annotations.EnumValues;
-import piper1970.eventservice.domain.EventStatus;
 
 @Data
 @Builder(toBuilder = true)

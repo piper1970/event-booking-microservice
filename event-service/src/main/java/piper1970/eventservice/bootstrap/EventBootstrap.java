@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.domain.Event;
-import piper1970.eventservice.domain.EventStatus;
 import piper1970.eventservice.repository.EventRepository;
 
 @Component
@@ -25,8 +25,8 @@ public class EventBootstrap implements CommandLineRunner {
         .flatMapMany(count -> eventRepository.saveAll(
             List.of(
                 Event.builder()
-                    .title("Event1")
                     .facilitator("test-performer")
+                    .title("Event1")
                     .description("Description1")
                     .location("Location1")
                     .eventDateTime(LocalDateTime.now().plusDays(2))
@@ -35,8 +35,8 @@ public class EventBootstrap implements CommandLineRunner {
                     .eventStatus(EventStatus.AWAITING)
                     .build(),
                 Event.builder()
-                    .title("Event2")
                     .facilitator("test-performer")
+                    .title("Event2")
                     .description("Description2")
                     .location("Location2")
                     .eventDateTime(LocalDateTime.now().plusDays(4))
@@ -45,8 +45,8 @@ public class EventBootstrap implements CommandLineRunner {
                     .eventStatus(EventStatus.IN_PROGRESS)
                     .build(),
                 Event.builder()
-                    .title("Event3")
                     .facilitator("test-performer")
+                    .title("Event3")
                     .description("Description3")
                     .location("Location3")
                     .eventDateTime(LocalDateTime.now().plusDays(6))

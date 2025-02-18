@@ -27,10 +27,9 @@ public class BookingDto {
   @Size(max = 60, message = "[username] field must be within 60 character range")
   private String username;
 
-  // will be set on Kafka via eventservice
+  // will be set via eventservice
   private LocalDateTime eventDateTime;
 
-  @NotNull(message = "[status field must be present non-null")
   @EnumValues(enumClass = BookingStatus.class, message = "[status] must be either 'IN_PROGRESS', 'CONFIRMED', or 'CANCELLED'")
   private String bookingStatus;
 

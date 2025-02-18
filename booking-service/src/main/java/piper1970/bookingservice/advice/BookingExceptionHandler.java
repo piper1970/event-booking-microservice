@@ -9,7 +9,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
-import piper1970.bookingservice.exceptions.BookingNotFoundException;
+import piper1970.eventservice.common.exceptions.BookingNotFoundException;
+import piper1970.eventservice.common.exceptions.EventNotFoundException;
 
 @ControllerAdvice
 public class BookingExceptionHandler {
@@ -19,6 +20,14 @@ public class BookingExceptionHandler {
     return buildProblemDetail(HttpStatus.NOT_FOUND, nfe.getMessage(), pd -> {
       pd.setTitle("Booking not found");
       pd.setType(URI.create("http://booking-service/problem/booking-not-found"));
+    });
+  }
+
+  @ExceptionHandler(EventNotFoundException.class)
+  public ProblemDetail handleException(EventNotFoundException enfe){
+    return buildProblemDetail(HttpStatus.GONE, enfe.getMessage(), pd -> {
+      pd.setTitle("Event not available for booking");
+      pd.setType(URI.create("http://booking-service/problem/event-not-available"));
     });
   }
 

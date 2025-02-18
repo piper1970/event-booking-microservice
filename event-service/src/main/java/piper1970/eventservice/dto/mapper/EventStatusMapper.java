@@ -4,7 +4,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.MappingConstants;
 import org.mapstruct.ValueMapping;
 import org.mapstruct.ValueMappings;
-import piper1970.eventservice.domain.EventStatus;
+import piper1970.eventservice.common.events.status.EventStatus;
 
 @Mapper
 public interface EventStatusMapper {

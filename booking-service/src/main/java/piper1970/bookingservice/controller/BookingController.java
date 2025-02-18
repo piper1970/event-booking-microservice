@@ -19,8 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.mapper.BookingMapper;
 import piper1970.bookingservice.dto.model.BookingDto;
-import piper1970.bookingservice.exceptions.BookingNotFoundException;
-import piper1970.bookingservice.service.BookingService;
+import piper1970.bookingservice.service.BookingWebService;
+import piper1970.eventservice.common.exceptions.BookingNotFoundException;
+import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,7 +30,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class BookingController {
 
-  private final BookingService bookingService;
+  private final BookingWebService bookingWebService;
   private final BookingMapper bookingMapper;
 
   @GetMapping
@@ -39,12 +40,12 @@ public class BookingController {
     var isAdmin = determineIfAdmin(token);
 
     if (isAdmin) {
-      return bookingService.findAllBookings()
+      return bookingWebService.findAllBookings()
           .map(bookingMapper::toDto);
     }
 
     var creds = (Jwt)token.getCredentials();
-    return bookingService.findBookingsByUsername(getUserFromToken(creds))
+    return bookingWebService.findBookingsByUsername(getUserFromToken(creds))
         .map(bookingMapper::toDto);
   }
 
@@ -56,13 +57,13 @@ public class BookingController {
     var isAdmin = determineIfAdmin(token);
 
     if (isAdmin) {
-      return bookingService.findBookingById(id)
+      return bookingWebService.findBookingById(id)
           .map(bookingMapper::toDto)
           .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
     }
 
     var creds = (Jwt)token.getCredentials();
-    return bookingService.findBookingIdByIdAndUsername(id, getUserFromToken(creds))
+    return bookingWebService.findBookingIdByIdAndUsername(id, getUserFromToken(creds))
         .map(bookingMapper::toDto)
         .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
   }
@@ -70,27 +71,29 @@ public class BookingController {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasAuthority('MEMBER')")
-  public Mono<BookingDto> createBooking(@AuthenticationPrincipal JwtAuthenticationToken token,
+  public Mono<BookingDto> createBooking(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
       @Valid @RequestBody BookingDto bookingDto) {
 
     // ensure username in dto is set to current user
-    var creds = (Jwt)token.getCredentials();
+    var creds = (Jwt)jwtToken.getCredentials();
     var username = getUserFromToken(creds);
+    var token = jwtToken.getToken().getTokenValue();
 
     // ensure bookingStatus is at beginning (IN_PROGRESS) and username is current user
     var entity = bookingMapper.toEntity(bookingDto);
     entity.setUsername(username);
     entity.setBookingStatus(BookingStatus.IN_PROGRESS);
 
-    return bookingService.createBooking(entity)
-        .map(bookingMapper::toDto);
+    return bookingWebService.createBooking(entity, token)
+        .map(bookingMapper::toDto)
+        .switchIfEmpty(Mono.error(new EventNotFoundException("Event not available for id: " + bookingDto.getEventId())));
   }
 
   @PutMapping("{id}")
   @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<BookingDto> updateBooking(@PathVariable Integer id,
       @Valid @RequestBody BookingDto bookingDto) {
-    return bookingService.updateBooking(bookingMapper.toEntity(bookingDto).withId(id))
+    return bookingWebService.updateBooking(bookingMapper.toEntity(bookingDto).withId(id))
         .map(bookingMapper::toDto);
   }
 
@@ -98,7 +101,7 @@ public class BookingController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<Void> deleteBooking(@PathVariable Integer id) {
-    return bookingService.deleteBooking(id);
+    return bookingWebService.cancelBooking(id);
   }
 
   // TODO: move these helper functions into a utility in commons
