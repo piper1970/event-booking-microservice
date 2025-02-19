@@ -1,6 +1,13 @@
 server:
   port: 8080
 
+
+oauth2:
+  client:
+    id: event-service-client
+  provider:
+    base-uri: http://localhost:9090/realms/piper1970
+
 api:
   uri:
     booking-service: http://localhost:8083
@@ -21,21 +28,19 @@ spring:
       client:
         registration:
           event-service-client:
-            client-name: event-service-client
+            client-name: ${oauth2.client.id}
             provider: keycloak
             authorization-grant-type: authorization_code
-            client-id: event-service-client
+            client-id: ${oauth2.client.id}
             client-secret: ${KC_CLIENT_SECRET}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope: openid
         provider:
           keycloak:
-            issuer-uri: http://localhost:9090/realms/piper1970
+            issuer-uri: ${oauth2.provider.base-uri}
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:9090/realms/piper1970/protocol/openid-connect/certs
-          issuer-uri: http://localhost:9090/realms/piper1970
-
-
+          issuer-uri: ${oauth2.provider.base-uri}
 
 # logging
 logging:

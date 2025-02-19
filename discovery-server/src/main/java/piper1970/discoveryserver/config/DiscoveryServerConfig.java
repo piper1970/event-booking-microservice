@@ -2,6 +2,7 @@ package piper1970.discoveryserver.config;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,6 +10,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@EnableDiscoveryClient
 public class DiscoveryServerConfig{
 
   @Bean

@@ -44,6 +44,4 @@ public class GatewayController {
       @AuthenticationPrincipal OidcUser user) {
     return Mono.just(authorizedClient.getAccessToken().getTokenValue());
   }
-
-  // how do we revalidate tokens...
 }

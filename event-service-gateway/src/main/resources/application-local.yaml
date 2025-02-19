@@ -1,4 +1,0 @@
-api:
-  uri:
-    booking-service: lb://booking-service
-    event-service: lb://event-service
