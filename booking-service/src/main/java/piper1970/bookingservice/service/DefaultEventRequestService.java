@@ -13,11 +13,12 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class DefaultEventRequestService implements EventRequestService {
 
-  private final WebClient webClient;
+  private final WebClient.Builder webClientBuilder;
 
   @Override
   public Mono<EventDto> requestEvent(Integer eventId, String token) {
-    return webClient
+    return webClientBuilder
+        .build()
         .get()
         .uri("/{eventId}", eventId)
         .accept(MediaType.APPLICATION_JSON)

@@ -1,13 +1,16 @@
 package piper1970.bookingservice.service;
 
+import java.time.LocalDateTime;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import piper1970.bookingservice.domain.Booking;
-import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.repository.BookingRepository;
+import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
+import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -43,10 +46,14 @@ public class DefaultBookingWebService implements BookingWebService {
   @Override
   public Mono<Booking> createBooking(Booking booking, String token) {
 
+    Predicate<EventDto> validEvent = dto ->
+        dto.getAvailableBookings() >= 1
+            && dto.getEventStatus().equals(EventStatus.AWAITING.name())
+            && dto.getEventDateTime().isAfter(LocalDateTime.now());
+
     // TODO: contact EventService to see if event is available and get the time
     return eventRequestService.requestEvent(booking.getEventId(), token)
-        .filter(dto -> dto.getAvailableBookings() >= 1)
-        .filter(dto -> EventStatus.AWAITING.name().equals(dto.getEventStatus()))
+        .filter(validEvent)
         .flatMap(dto -> {
           var adjustedBooking = booking.toBuilder()
               .id(null)

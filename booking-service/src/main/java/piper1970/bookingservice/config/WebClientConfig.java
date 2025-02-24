@@ -1,6 +1,7 @@
 package piper1970.bookingservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -17,10 +18,10 @@ public class WebClientConfig {
   }
 
   @Bean
-  public WebClient webClient() {
+  @LoadBalanced
+  public WebClient.Builder webClientBuilder() {
     return WebClient.builder()
         .baseUrl(apiUri)
-        .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-        .build();
+        .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
   }
 }

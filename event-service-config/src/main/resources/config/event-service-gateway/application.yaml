@@ -46,11 +46,11 @@ spring:
         - id: booking-service
           uri: ${api.uri.booking-service}
           predicates:
-            - Path=/api/v1/bookings/**,/api/v1/bookings
+            - Path=/api/bookings/**,/api/bookings
         - id: event-service
           uri: ${api.uri.event-service}
           predicates:
-            - Path=/api/v1/events/**,/api/v1/events
+            - Path=/api/events/**,/api/events
 
 # logging
 logging:
