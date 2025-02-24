@@ -1,12 +1,41 @@
 server:
   port: 8080
 
+api:
+  uri:
+    booking-service: http://localhost:8083
+    event-service: http://localhost:8081
+
+oauth2:
+  client:
+    id: event-service-client
+  provider:
+    base-uri: http://localhost:9090/realms/piper1970
+
 spring:
-  application:
-    name: events-gateway
   r2dbc.url: r2dbc:h2:mem:///authentication
 
-    # Routing
+  # Oauth2 security
+  security:
+    oauth2:
+      client:
+        registration:
+          event-service-client:
+            client-name: ${oauth2.client.id}
+            provider: keycloak
+            authorization-grant-type: authorization_code
+            client-id: ${oauth2.client.id}
+            client-secret: ${KC_CLIENT_SECRET}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: ${oauth2.provider.base-uri}
+      resourceserver:
+        jwt:
+          issuer-uri: ${oauth2.provider.base-uri}
+
+  # Routing
   cloud:
     gateway:
       default-filters:
@@ -22,6 +51,28 @@ spring:
           uri: ${api.uri.event-service}
           predicates:
             - Path=/api/v1/events/**,/api/v1/events
+
+# logging
+logging:
+  level:
+    org:
+      springframework:
+        cloud:
+          config: OFF
+        web:
+          server:
+            adapter: OFF
+    org.springframework.web: DEBUG
+    org.springframework.boot: OFF
+    org.springframework.web.reactive.function.client: OFF
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: TRACE
+    org.springframework.cloud.gateway.routes: TRACE
+    piper1970:
+      event_service_gateway: INFO
+    com:
+      netflix:
+        discovery: OFF
 
 
 
