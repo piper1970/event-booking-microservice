@@ -2,10 +2,10 @@ package piper1970.eventservice.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +28,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("api/events")
 @RequiredArgsConstructor
+@Slf4j
 public class EventController {
 
   private final EventWebService eventWebService;
@@ -35,14 +36,23 @@ public class EventController {
 
   @GetMapping
   @PreAuthorize("hasAuthority('MEMBER')")
-  public Flux<EventDto> getEvents() {
+  public Flux<EventDto> getEvents(@AuthenticationPrincipal JwtAuthenticationToken jwtToken) {
+
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("User [{}] is retrieving all events", user);
+
     return eventWebService.getEvents()
         .map(eventMapper::toDto);
   }
 
   @GetMapping("{id}")
   @PreAuthorize("hasAuthority('MEMBER')")
-  public Mono<EventDto> getEvent(@PathVariable Integer id) {
+  public Mono<EventDto> getEvent(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
+      @PathVariable Integer id) {
+
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("User [{}] is retrieving event [{}]", user, id);
+
     return eventWebService.getEvent(id)
         .map(eventMapper::toDto);
   }
@@ -53,8 +63,10 @@ public class EventController {
   public Mono<EventDto> createEvent(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
       @Valid @RequestBody EventCreateRequest createRequest) {
 
-    var creds = (Jwt)jwtToken.getCredentials();
-    createRequest.setFacilitator(TokenUtilities.getUserFromToken(creds));
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("User [{}] is creating event", user);
+
+    createRequest.setFacilitator(user);
 
     return eventWebService.createEvent(createRequest)
         .map(eventMapper::toDto);
@@ -62,9 +74,12 @@ public class EventController {
 
   @PutMapping("{id}")
   @PreAuthorize("hasAuthority('ADMIN')")
-  public Mono<EventDto> updateEvent(@PathVariable Integer id,
+  public Mono<EventDto> updateEvent(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
+      @PathVariable Integer id,
       @Valid @RequestBody EventUpdateRequest updateRequest) {
 
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("User [{}] is updating event [{}]", user, id);
 
     return eventWebService.updateEvent(id, updateRequest)
         .map(eventMapper::toDto);
@@ -73,8 +88,13 @@ public class EventController {
   @DeleteMapping("{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @PreAuthorize("hasAuthority('ADMIN')")
-  public Mono<Void> cancelEvent(@PathVariable Integer id) {
-    return eventWebService.cancelEvent(id);
+  public Mono<Void> cancelEvent(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
+      @PathVariable Integer id) {
+
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("User [{}] is deleting event [{}]", user, id);
+
+    return eventWebService.deleteEvent(id);
   }
 
 }

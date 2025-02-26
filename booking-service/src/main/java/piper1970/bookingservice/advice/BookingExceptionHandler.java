@@ -3,6 +3,7 @@ package piper1970.bookingservice.advice;
 import java.net.URI;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -13,30 +14,38 @@ import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 
 @ControllerAdvice
+@Slf4j
 public class BookingExceptionHandler {
 
   @ExceptionHandler(BookingNotFoundException.class)
-  public ProblemDetail handleException(BookingNotFoundException nfe){
-    return buildProblemDetail(HttpStatus.NOT_FOUND, nfe.getMessage(), pd -> {
+  public ProblemDetail handleException(BookingNotFoundException exc){
+    log.warn("Booking not found [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.NOT_FOUND, exc.getMessage(), pd -> {
       pd.setTitle("Booking not found");
       pd.setType(URI.create("http://booking-service/problem/booking-not-found"));
     });
   }
 
   @ExceptionHandler(EventNotFoundException.class)
-  public ProblemDetail handleException(EventNotFoundException enfe){
-    return buildProblemDetail(HttpStatus.GONE, enfe.getMessage(), pd -> {
+  public ProblemDetail handleException(EventNotFoundException exc){
+    log.warn("Event not found [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.GONE, exc.getMessage(), pd -> {
       pd.setTitle("Event not available for booking");
       pd.setType(URI.create("http://booking-service/problem/event-not-available"));
     });
   }
 
   @ExceptionHandler(WebExchangeBindException.class)
-  public ProblemDetail handleException(WebExchangeBindException be){
-    var message = be.getBindingResult().getAllErrors()
+  public ProblemDetail handleException(WebExchangeBindException exc){
+    var message = exc.getBindingResult().getAllErrors()
         .stream()
         .map(DefaultMessageSourceResolvable::getDefaultMessage)
         .collect(Collectors.joining("; "));
+
+    log.warn("Validation errors occurred [{}]", message, exc);
+
     return buildProblemDetail(HttpStatus.BAD_REQUEST, message, pd -> {
       pd.setTitle("Validation Errors");
       pd.setType(URI.create("http://booking-service/problem/booking-validation-errors"));

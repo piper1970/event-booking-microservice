@@ -24,16 +24,18 @@ public class DefaultEventWebService implements EventWebService {
 
   private final EventMapper eventMapper;
 
-  // TODO: needs to talk to bookingService, either via kafka
+  // TODO: needs to talk to bookingService, via kafka
 
   @Override
   public Flux<Event> getEvents() {
-    return eventRepository.findAll();
+    return eventRepository.findAll()
+        .doOnNext(this::logEventRetrieval);
   }
 
   @Override
   public Mono<Event> getEvent(Integer id) {
-    return eventRepository.findById(id);
+    return eventRepository.findById(id)
+        .doOnNext(this::logEventRetrieval);
   }
 
   @Override
@@ -43,6 +45,7 @@ public class DefaultEventWebService implements EventWebService {
     event.setEventStatus(EventStatus.IN_PROGRESS);
     return eventRepository.save(event)
         .doOnNext(newEvent -> {
+          log.debug("Event [{}] has been created", newEvent.getId());
           // TODO: send NewEvent event to kafka (performer)
         });
   }
@@ -54,17 +57,23 @@ public class DefaultEventWebService implements EventWebService {
         .map(event -> mergeWithUpdateRequest(event, updateRequest))
         .flatMap(eventRepository::save)
         .doOnNext(updatedEvent -> {
+          log.debug("Event [{}] has been updated", updatedEvent.getId());
           // TODO: send UpdatedEvent event to kafka (bookings and performer)
         })
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event not found for id: " + id)));
   }
 
   @Override
-  public Mono<Void> cancelEvent(Integer id) {
+  public Mono<Void> deleteEvent(Integer id) {
     return eventRepository.deleteById(id)
         .doOnSuccess(deletedEvent -> {
+          log.debug("Event [{}] has been deleted", id);
           // TODO: send CancelledEvent event to kafka (performer, booking members)
         });
+  }
+
+  private void logEventRetrieval(Event event) {
+    log.debug("Event {} has been retrieved", event.getId());
   }
 
   private Event mergeWithUpdateRequest(Event event, @NonNull EventUpdateRequest updateRequest) {

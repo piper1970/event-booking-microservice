@@ -2,10 +2,10 @@ package piper1970.bookingservice.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +30,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/bookings")
 @RequiredArgsConstructor
+@Slf4j
 public class BookingController {
 
   private final BookingWebService bookingWebService;
@@ -39,13 +40,15 @@ public class BookingController {
   @PreAuthorize("hasAuthority('MEMBER')")
   public Flux<BookingDto> getAllBookings(@AuthenticationPrincipal JwtAuthenticationToken token) {
 
+    var username = TokenUtilities.getUserFromToken(token);
+    log.debug("Getting all bookings called by [{}]", username);
+
     if (TokenUtilities.isAdmin(token)) {
       return bookingWebService.findAllBookings()
           .map(bookingMapper::entityToDto);
     }
 
-    var creds = (Jwt)token.getCredentials();
-    return bookingWebService.findBookingsByUsername(TokenUtilities.getUserFromToken(creds))
+    return bookingWebService.findBookingsByUsername(username)
         .map(bookingMapper::entityToDto);
   }
 
@@ -54,14 +57,16 @@ public class BookingController {
   public Mono<BookingDto> getBookingById(@AuthenticationPrincipal JwtAuthenticationToken token,
       @PathVariable Integer id) {
 
+    var username = TokenUtilities.getUserFromToken(token);
+    log.debug("Getting booking[{}] called by [{}]", id, username);
+
     if (TokenUtilities.isAdmin(token)) {
       return bookingWebService.findBookingById(id)
           .map(bookingMapper::entityToDto)
           .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
     }
 
-    var creds = (Jwt)token.getCredentials();
-    return bookingWebService.findBookingIdByIdAndUsername(id, TokenUtilities.getUserFromToken(creds))
+    return bookingWebService.findBookingIdByIdAndUsername(id, username)
         .map(bookingMapper::entityToDto)
         .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
   }
@@ -72,9 +77,10 @@ public class BookingController {
   public Mono<BookingDto> createBooking(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
       @Valid @RequestBody BookingCreateRequest createRequest) {
 
-    // ensure username in dto is set to current user
-    var creds = (Jwt)jwtToken.getCredentials();
-    createRequest.setUsername(TokenUtilities.getUserFromToken(creds));
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("Creating booking called by [{}]", user);
+
+    createRequest.setUsername(user);
 
     var token = jwtToken.getToken().getTokenValue(); // needed for event-service call
 
@@ -85,8 +91,13 @@ public class BookingController {
 
   @PutMapping("{id}")
   @PreAuthorize("hasAuthority('ADMIN')")
-  public Mono<BookingDto> updateBooking(@PathVariable Integer id,
+  public Mono<BookingDto> updateBooking(
+      @AuthenticationPrincipal JwtAuthenticationToken jwtToken,
+      @PathVariable Integer id,
       @Valid @RequestBody BookingUpdateRequest updateRequest) {
+
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("Updating booking[{}] called by [{}]", id, user);
 
     return bookingWebService.updateBooking(id, updateRequest)
         .map(bookingMapper::entityToDto);
@@ -95,8 +106,12 @@ public class BookingController {
   @DeleteMapping("{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @PreAuthorize("hasAuthority('ADMIN')")
-  public Mono<Void> deleteBooking(@PathVariable Integer id) {
-    return bookingWebService.cancelBooking(id);
+  public Mono<Void> deleteBooking(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
+      @PathVariable Integer id) {
+    var user = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("Deleting booking[{}] called by [{}]", id, user);
+
+    return bookingWebService.deleteBooking(id);
   }
 
 }

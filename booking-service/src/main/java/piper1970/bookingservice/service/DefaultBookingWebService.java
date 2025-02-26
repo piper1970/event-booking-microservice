@@ -28,22 +28,26 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Flux<Booking> findAllBookings() {
-    return bookingRepository.findAll();
+    return bookingRepository.findAll()
+        .doOnNext(this::logBookingRetrieval);
   }
 
   @Override
   public Flux<Booking> findBookingsByUsername(String username) {
-    return bookingRepository.findByUsername(username);
+    return bookingRepository.findByUsername(username)
+        .doOnNext(booking -> logBookingRetrieval(booking, username));
   }
 
   @Override
   public Mono<Booking> findBookingById(Integer id) {
-    return bookingRepository.findById(id);
+    return bookingRepository.findById(id)
+        .doOnNext(this::logBookingRetrieval);
   }
 
   @Override
   public Mono<Booking> findBookingIdByIdAndUsername(Integer id, String username) {
-    return bookingRepository.findBookingIdByIdAndUsername(id, username);
+    return bookingRepository.findBookingIdByIdAndUsername(id, username)
+        .doOnNext(booking -> logBookingRetrieval(booking, username));
   }
 
   @Override
@@ -65,7 +69,8 @@ public class DefaultBookingWebService implements BookingWebService {
               .bookingStatus(BookingStatus.IN_PROGRESS)
               .build();
           return bookingRepository.save(booking);
-        }).doOnNext(addedEvent -> {
+        }).doOnNext(booking -> {
+          log.debug("Booking [{}] has been created for [{}]", booking.getId(), booking.getUsername());
           // TODO: need to send CREATED_BOOKING event
         });
   }
@@ -87,6 +92,8 @@ public class DefaultBookingWebService implements BookingWebService {
         })
         .flatMap(bookingRepository::save)
         .doOnNext(updatedBooking -> {
+          log.debug("Booking [{}] has been updated for [{}]", id, updatedBooking.getUsername());
+
           // TODO: Emit UpdatedBooking event to Kafka (booker, event??)
         })
         .switchIfEmpty(Mono.error(
@@ -94,10 +101,21 @@ public class DefaultBookingWebService implements BookingWebService {
   }
 
   @Override
-  public Mono<Void> cancelBooking(Integer id) {
+  public Mono<Void> deleteBooking(Integer id) {
     return bookingRepository.deleteById(id)
-        .doOnSuccess(cancelledBooking -> {
+        .doOnSuccess(_void -> {
+          log.debug("Booking [{}] has been deleted", id);
+
           // TODO: Emit CancelBooking event to kafka (event, booker)
         });
   }
+
+  private void logBookingRetrieval(Booking booking) {
+    log.debug("Booking [{}] has been retrieved", booking.getEventId());
+  }
+
+  private void logBookingRetrieval(Booking booking, String username) {
+    log.debug("Booking [{}] has been retrieved for [{}]", booking.getEventId(), username);
+  }
+
 }

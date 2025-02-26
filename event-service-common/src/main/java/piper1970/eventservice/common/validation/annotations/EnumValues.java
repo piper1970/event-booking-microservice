@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
 import piper1970.eventservice.common.validation.validators.EnumValuesValidator;
 
 /**
- * Validation annotation used for binding String values to given Enum class
+ * Validation annotation used for binding String values to given Enum class. Allows for nulls
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

@@ -27,5 +27,4 @@ public class WebClientConfig {
   ){
     return new AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager(clientRegistrationRepository, oAuth2AuthorizedClientService);
   }
-
 }

@@ -3,6 +3,7 @@ package piper1970.eventservice.advice;
 import java.net.URI;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -13,22 +14,28 @@ import org.springframework.web.bind.support.WebExchangeBindException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 
 @ControllerAdvice
+@Slf4j
 public class EventExceptionHandler {
 
   @ExceptionHandler(EventNotFoundException.class)
-  public ProblemDetail handleNotFound(EventNotFoundException ex) {
-    return buildProblemDetail(HttpStatus.NOT_FOUND, ex.getMessage(), pd -> {
+  public ProblemDetail handleNotFound(EventNotFoundException exc) {
+    log.warn("Event not found [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.NOT_FOUND, exc.getMessage(), pd -> {
       pd.setTitle("Event not found");
       pd.setType(URI.create("http://event-service/problem/event-not-found"));
     });
   }
 
   @ExceptionHandler(WebExchangeBindException.class)
-  public ProblemDetail handleException(WebExchangeBindException be){
-    var message = be.getBindingResult().getAllErrors()
+  public ProblemDetail handleException(WebExchangeBindException exc){
+    var message = exc.getBindingResult().getAllErrors()
         .stream()
         .map(DefaultMessageSourceResolvable::getDefaultMessage)
         .collect(Collectors.joining("; "));
+
+    log.warn("Validation errors occurred [{}]", message, exc);
+
     return buildProblemDetail(HttpStatus.BAD_REQUEST, message, pd -> {
       pd.setTitle("Validation Errors");
       pd.setType(URI.create("http://event-service/problem/event-validation-errors"));
@@ -37,7 +44,9 @@ public class EventExceptionHandler {
 
   // Title field must be unique for posting new events
   @ExceptionHandler(DuplicateKeyException.class)
-  public ProblemDetail handleException(DuplicateKeyException dke){
+  public ProblemDetail handleException(DuplicateKeyException exc){
+    log.warn("Duplicate key [{}]", exc.getMessage(), exc);
+
     var message = "Duplicate [title] field found in the system. Please choose another.";
     return buildProblemDetail(HttpStatus.CONFLICT, message, pd -> {
       pd.setTitle("Duplicate [title]");

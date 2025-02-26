@@ -13,6 +13,6 @@ public interface BookingWebService {
   Mono<Booking> findBookingIdByIdAndUsername(Integer id, String username);
   Mono<Booking> createBooking(BookingCreateRequest booking, String token);
   Mono<Booking> updateBooking(Integer id, BookingUpdateRequest updateRequest);
-  Mono<Void> cancelBooking(Integer id);
+  Mono<Void> deleteBooking(Integer id);
 
 }

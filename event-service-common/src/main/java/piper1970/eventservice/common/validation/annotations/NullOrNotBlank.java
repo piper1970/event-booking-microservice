@@ -12,6 +12,14 @@ import java.lang.annotation.Target;
 import org.hibernate.validator.constraints.CompositionType;
 import org.hibernate.validator.constraints.ConstraintComposition;
 
+/**
+ * Validation annotation allowing for either a null value, or a blank value
+ * <p>
+ * NotBlank annotation fails on null. This annotation allows for null, along with the
+ * other features of NotBlank annotation
+ *
+ * @see NotBlank
+ */
 @ConstraintComposition(CompositionType.OR)
 @Null
 @NotBlank

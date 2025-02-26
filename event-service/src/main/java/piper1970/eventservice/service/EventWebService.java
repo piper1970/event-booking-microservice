@@ -11,5 +11,5 @@ public interface EventWebService {
   Mono<Event> getEvent(Integer id);
   Mono<Event> createEvent(EventCreateRequest event);
   Mono<Event> updateEvent(Integer id, EventUpdateRequest event);
-  Mono<Void> cancelEvent(Integer id);
+  Mono<Void> deleteEvent(Integer id);
 }
