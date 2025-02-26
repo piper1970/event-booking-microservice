@@ -5,8 +5,7 @@ import org.mapstruct.ReportingPolicy;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.dto.model.BookingDto;
 
-@Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE)
+@Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, uses = {BookingStatusMapper.class})
 public interface BookingMapper {
-  Booking toEntity(BookingDto bookingDto);
-  BookingDto toDto(Booking booking);
+  BookingDto entityToDto(Booking booking);
 }

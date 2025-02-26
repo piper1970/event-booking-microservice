@@ -6,6 +6,10 @@ api:
     booking-service: http://localhost:8083
     event-service: http://localhost:8081
 
+csrf:enabled: false
+
+cors:allowedOrigin: "*"
+
 oauth2:
   client:
     id: event-service-client
@@ -27,13 +31,14 @@ spring:
             client-id: ${oauth2.client.id}
             client-secret: ${KC_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-            scope: openid
+            scope: openid, profile, roles
         provider:
           keycloak:
             issuer-uri: ${oauth2.provider.base-uri}
       resourceserver:
         jwt:
-          issuer-uri: ${oauth2.provider.base-uri}
+          jwk-set-uri: "${oauth2.provider.base-uri}/protocol/openid-connect/certs"
+#          issuer-uri: ${oauth2.provider.base-uri}
 
   # Routing
   cloud:

@@ -2,6 +2,7 @@ package piper1970.event_service_gateway.config;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,8 +12,6 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.config.web.server.ServerHttpSecurity.CorsSpec;
-import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
@@ -22,6 +21,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
 import reactor.core.publisher.Mono;
 
@@ -29,6 +31,12 @@ import reactor.core.publisher.Mono;
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
 public class EventServiceGatewayConfig {
+
+  @Value("${csrf.enabled:false}")
+  private boolean csrfEnabled;
+
+  @Value("${cors.allowedOrigin:*}")
+  private String allowedOrigin;
 
   private final ReactiveClientRegistrationRepository clientRegistrationRepository;
 
@@ -43,8 +51,12 @@ public class EventServiceGatewayConfig {
 
   @Bean
   public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
-    http.csrf(CsrfSpec::disable);
-    http.cors(CorsSpec::disable);
+    http.csrf(csrf -> {
+      if(!csrfEnabled) {
+        csrf.disable();
+      }
+    });
+    http.cors(withDefaults());
     http.authorizeExchange(exchange -> {
       exchange
           .pathMatchers("/eureka/**").permitAll()
@@ -65,6 +77,21 @@ public class EventServiceGatewayConfig {
 
 
     return http.build();
+  }
+
+  @Bean
+  public CorsWebFilter corsWebFilter() {
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowCredentials(true);
+    config.addAllowedOrigin(allowedOrigin);
+    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+    config.setMaxAge(3600L);
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+
+    return new CorsWebFilter(source);
   }
 
   @Bean

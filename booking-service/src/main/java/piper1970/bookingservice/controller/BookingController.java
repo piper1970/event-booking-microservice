@@ -16,12 +16,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.mapper.BookingMapper;
+import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
+import piper1970.bookingservice.dto.model.BookingUpdateRequest;
 import piper1970.bookingservice.service.BookingWebService;
 import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
+import piper1970.eventservice.common.tokens.TokenUtilities;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -37,16 +39,14 @@ public class BookingController {
   @PreAuthorize("hasAuthority('MEMBER')")
   public Flux<BookingDto> getAllBookings(@AuthenticationPrincipal JwtAuthenticationToken token) {
 
-    var isAdmin = determineIfAdmin(token);
-
-    if (isAdmin) {
+    if (TokenUtilities.isAdmin(token)) {
       return bookingWebService.findAllBookings()
-          .map(bookingMapper::toDto);
+          .map(bookingMapper::entityToDto);
     }
 
     var creds = (Jwt)token.getCredentials();
-    return bookingWebService.findBookingsByUsername(getUserFromToken(creds))
-        .map(bookingMapper::toDto);
+    return bookingWebService.findBookingsByUsername(TokenUtilities.getUserFromToken(creds))
+        .map(bookingMapper::entityToDto);
   }
 
   @GetMapping("{id}")
@@ -54,17 +54,15 @@ public class BookingController {
   public Mono<BookingDto> getBookingById(@AuthenticationPrincipal JwtAuthenticationToken token,
       @PathVariable Integer id) {
 
-    var isAdmin = determineIfAdmin(token);
-
-    if (isAdmin) {
+    if (TokenUtilities.isAdmin(token)) {
       return bookingWebService.findBookingById(id)
-          .map(bookingMapper::toDto)
+          .map(bookingMapper::entityToDto)
           .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
     }
 
     var creds = (Jwt)token.getCredentials();
-    return bookingWebService.findBookingIdByIdAndUsername(id, getUserFromToken(creds))
-        .map(bookingMapper::toDto)
+    return bookingWebService.findBookingIdByIdAndUsername(id, TokenUtilities.getUserFromToken(creds))
+        .map(bookingMapper::entityToDto)
         .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
   }
 
@@ -72,29 +70,26 @@ public class BookingController {
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasAuthority('MEMBER')")
   public Mono<BookingDto> createBooking(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
-      @Valid @RequestBody BookingDto bookingDto) {
+      @Valid @RequestBody BookingCreateRequest createRequest) {
 
     // ensure username in dto is set to current user
     var creds = (Jwt)jwtToken.getCredentials();
-    var username = getUserFromToken(creds);
-    var token = jwtToken.getToken().getTokenValue();
+    createRequest.setUsername(TokenUtilities.getUserFromToken(creds));
 
-    // ensure bookingStatus is at beginning (IN_PROGRESS) and username is current user
-    var entity = bookingMapper.toEntity(bookingDto);
-    entity.setUsername(username);
-    entity.setBookingStatus(BookingStatus.IN_PROGRESS);
+    var token = jwtToken.getToken().getTokenValue(); // needed for event-service call
 
-    return bookingWebService.createBooking(entity, token)
-        .map(bookingMapper::toDto)
-        .switchIfEmpty(Mono.error(new EventNotFoundException("Event not available for id: " + bookingDto.getEventId())));
+    return bookingWebService.createBooking(createRequest, token)
+        .map(bookingMapper::entityToDto)
+        .switchIfEmpty(Mono.error(new EventNotFoundException("Event not available for id: " + createRequest.getEventId())));
   }
 
   @PutMapping("{id}")
   @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<BookingDto> updateBooking(@PathVariable Integer id,
-      @Valid @RequestBody BookingDto bookingDto) {
-    return bookingWebService.updateBooking(bookingMapper.toEntity(bookingDto).withId(id))
-        .map(bookingMapper::toDto);
+      @Valid @RequestBody BookingUpdateRequest updateRequest) {
+
+    return bookingWebService.updateBooking(id, updateRequest)
+        .map(bookingMapper::entityToDto);
   }
 
   @DeleteMapping("{id}")
@@ -104,15 +99,4 @@ public class BookingController {
     return bookingWebService.cancelBooking(id);
   }
 
-  // TODO: move these helper functions into a utility in commons
-  // helper to extract username from JWT token
-  private String getUserFromToken(Jwt token){
-    return token.getClaimAsString("preferred_username");
-  }
-
-  // helper to extract requested authority from token
-  private boolean determineIfAdmin(JwtAuthenticationToken token){
-    return token.getAuthorities().stream()
-        .anyMatch(auth -> "ADMIN".equals(auth.getAuthority()));
-  }
 }

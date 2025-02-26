@@ -1,5 +1,8 @@
 package piper1970.eventservice.config;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,12 +12,14 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.config.web.server.ServerHttpSecurity.CorsSpec;
 import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
 import reactor.core.publisher.Mono;
 
@@ -32,7 +37,7 @@ public class EventServiceConfig {
   @Bean
   public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
     http.csrf(CsrfSpec::disable);
-    http.cors(CorsSpec::disable);
+    http.cors(withDefaults());
     http.authorizeExchange(exchange -> {
       exchange
           .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
@@ -46,6 +51,21 @@ public class EventServiceConfig {
             jwt.jwtAuthenticationConverter(grantedAuthenticationConverter())));
 
     return http.build();
+  }
+
+  @Bean
+  public CorsWebFilter corsWebFilter() {
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowCredentials(true);
+    config.addAllowedOrigin("*");
+    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+    config.setMaxAge(3600L);
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+
+    return new CorsWebFilter(source);
   }
 
   Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {

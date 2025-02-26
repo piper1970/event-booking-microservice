@@ -7,6 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import piper1970.bookingservice.domain.Booking;
+import piper1970.bookingservice.domain.BookingStatus;
+import piper1970.bookingservice.dto.model.BookingCreateRequest;
+import piper1970.bookingservice.dto.model.BookingUpdateRequest;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
@@ -44,7 +47,7 @@ public class DefaultBookingWebService implements BookingWebService {
   }
 
   @Override
-  public Mono<Booking> createBooking(Booking booking, String token) {
+  public Mono<Booking> createBooking(BookingCreateRequest createRequest, String token) {
 
     Predicate<EventDto> validEvent = dto ->
         dto.getAvailableBookings() >= 1
@@ -52,15 +55,16 @@ public class DefaultBookingWebService implements BookingWebService {
             && dto.getEventDateTime().isAfter(LocalDateTime.now());
 
     // TODO: contact EventService to see if event is available and get the time
-    return eventRequestService.requestEvent(booking.getEventId(), token)
+    return eventRequestService.requestEvent(createRequest.getEventId(), token)
         .filter(validEvent)
         .flatMap(dto -> {
-          var adjustedBooking = booking.toBuilder()
-              .id(null)
-              .eventId(dto.getId())
+          var booking = Booking.builder()
+              .eventId(createRequest.getEventId())
+              .username(createRequest.getUsername())
               .eventDateTime(dto.getEventDateTime())
+              .bookingStatus(BookingStatus.IN_PROGRESS)
               .build();
-          return bookingRepository.save(adjustedBooking);
+          return bookingRepository.save(booking);
         }).doOnNext(addedEvent -> {
           // TODO: need to send CREATED_BOOKING event
         });
@@ -68,16 +72,25 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Transactional
   @Override
-  public Mono<Booking> updateBooking(Booking booking) {
+  public Mono<Booking> updateBooking(Integer id, BookingUpdateRequest updateRequest) {
     // ensure event date time is in the future
-    return bookingRepository.existsById(booking.getId())
-        .filter(Boolean.TRUE::equals)
-        .flatMap(b -> bookingRepository.save(booking))
+    return bookingRepository.findById(id)
+        .map(entity -> {
+          // update only can change status and/or time
+          if(updateRequest.getBookingStatus() != null) {
+            entity.setBookingStatus(BookingStatus.valueOf(updateRequest.getBookingStatus()));
+          }
+          if(updateRequest.getEventDateTime() != null) {
+            entity.setEventDateTime(updateRequest.getEventDateTime());
+          }
+          return entity;
+        })
+        .flatMap(bookingRepository::save)
         .doOnNext(updatedBooking -> {
           // TODO: Emit UpdatedBooking event to Kafka (booker, event??)
         })
         .switchIfEmpty(Mono.error(
-            new BookingNotFoundException("Booking not found for id " + booking.getId())));
+            new BookingNotFoundException("Booking not found for id " + id)));
   }
 
   @Override
@@ -87,5 +100,4 @@ public class DefaultBookingWebService implements BookingWebService {
           // TODO: Emit CancelBooking event to kafka (event, booker)
         });
   }
-
 }
