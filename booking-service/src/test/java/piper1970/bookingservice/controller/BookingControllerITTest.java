@@ -26,7 +26,10 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Predicate;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -56,10 +59,11 @@ import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
+import reactor.core.publisher.Mono;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnabledIf(expression = "#{environment.acceptsProfiles('integration')}", loadContext = true)
-//@ActiveProfiles("integration")
+@ActiveProfiles("integration")
 @Testcontainers
 @EnableWireMock({
     @ConfigureWireMock(
@@ -109,16 +113,377 @@ class BookingControllerITTest {
         .baseUrl("http://localhost:" + port)
         .build();
     bookingRepository.deleteAll()
+        .then()
         .block();
 
     mockKeycloakServer(keycloakServer);
   }
 
   @Test
-  @DisplayName("should retrieve all bookings when authorized")
-  void getAllBookings_Authenticated_And_Authorized() throws JOSEException {
+  @DisplayName("should retrieve all bookings owned by user when authenticated and authorized")
+  void getAllBookings_Authenticated_And_Authorized_Owner_Of_Bookings() throws JOSEException {
     //add bookings to the repo
-    bookingRepository.saveAll(List.of(
+
+    initializeDatabase()
+        .then()
+        .block();
+
+    var token = getJwtToken("test_member", "MEMBER");
+
+    webClient.get()
+        .uri("/api/bookings")
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isOk()
+        .expectBodyList(BookingDto.class)
+        .hasSize(2);
+  }
+
+  @Test
+  @DisplayName("should retrieve empty list when authenticated and authorized but not owner of book")
+  void getAllBookings_Authenticated_And_Authorized_Not_Owner_Of_Bookings() throws JOSEException {
+    //add bookings to the repo
+
+    initializeDatabase()
+        .then()
+        .block();
+
+    var token = getJwtToken("non_test_member", "MEMBER");
+
+    webClient.get()
+        .uri("/api/bookings")
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isOk()
+        .expectBodyList(BookingDto.class)
+        .hasSize(0);
+  }
+
+  @Test
+  @DisplayName("should retrieve full list (all users) when authenticated and authorized as admin")
+  void getAllBookings_Authenticated_And_Authorized_As_Admin() throws JOSEException {
+    //add bookings to the repo
+
+    var books = initializeDatabase()
+        .block();
+
+    // ADMIN implies MEMBER
+    var token = getJwtToken("non_test_member", "ADMIN", "MEMBER");
+
+    assert books != null;
+    webClient.get()
+        .uri("/api/bookings")
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isOk()
+        .expectBodyList(BookingDto.class)
+        .hasSize(books.size());
+  }
+
+  @Test
+  @DisplayName("should return 'Unauthorized' bookings when not authenticated")
+  void getAllBookings_Not_Authenticated() throws JOSEException {
+    //add bookings to the repo
+
+    initializeDatabase()
+        .then()
+        .block();
+
+    webClient.get()
+        .uri("/api/bookings")
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+        })
+        .exchange()
+        .expectStatus().isUnauthorized();
+
+  }
+
+  @Test
+  @DisplayName("should return 'Forbidden' if not authorized")
+  void getAllBookings_Authenticated_And_Authorized_Not_Authorized() throws JOSEException {
+    //add bookings to the repo
+
+    initializeDatabase()
+        .then()
+        .block();
+
+    var token = getJwtToken("test_member", "NON-AUTHORIZED_MEMBER");
+
+    webClient.get()
+        .uri("/api/bookings")
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isForbidden();
+  }
+
+
+  @Test
+  @DisplayName("should return book if owner and authenticated and authorized")
+  void getBookingById_Authenticated_Authorized_Owner() throws JOSEException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(booking -> booking.getUsername().equals("test_member"))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "MEMBER");
+
+    webClient.get()
+        .uri("/api/bookings/{id}", id)
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(BookingDto.class);
+  }
+
+  @Test
+  @DisplayName("should return book if admin and authenticated and authorized")
+  void getBookingById_Authenticated_Authorized_Admin() throws JOSEException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(Predicate.not(booking -> booking.getUsername().equals("test_member")))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "MEMBER", "ADMIN");
+
+    webClient.get()
+        .uri("/api/bookings/{id}", id)
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(BookingDto.class);
+  }
+
+  @Test
+  @DisplayName("should return 'UnAuthorized' if not authenticated")
+  void getBookingById_Not_Authenticated() throws JOSEException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(booking -> booking.getUsername().equals("test_member"))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "MEMBER");
+
+    webClient.get()
+        .uri("/api/bookings/{id}", id)
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+        })
+        .exchange()
+        .expectStatus().isUnauthorized();
+  }
+
+  @Test
+  @DisplayName("should return 'UnAuthorized' if authenticated and authorized, but not owner of booking")
+  void getBookingById_Auth_Auth_Not_Owner() throws JOSEException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(Predicate.not(booking -> booking.getUsername().equals("test_member")))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "MEMBER");
+
+    webClient.get()
+        .uri("/api/bookings/{id}", id)
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isNotFound();
+  }
+
+  @Test
+  @DisplayName("should return 'Forbidden' if authenticated but not authorized")
+  void getBookingById_Authenticated_Not_Authorized_Owner() throws JOSEException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(booking -> booking.getUsername().equals("test_member"))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "UNMAPPED");
+
+    webClient.get()
+        .uri("/api/bookings/{id}", id)
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers -> {
+          headers.setContentType(MediaType.APPLICATION_JSON);
+          headers.setBearerAuth(token);
+        })
+        .exchange()
+        .expectStatus().isForbidden();
+  }
+
+  @Test
+  @Disabled()
+  void createBooking() {
+    fail("Not Yet Implemented...");
+  }
+
+  @Test
+  @Disabled()
+  void updateBooking() {
+    fail("Not Yet Implemented...");
+  }
+
+  @Test
+  @DisplayName("should delete the given booking by id if authenticated, authorized, and an ADMIN")
+  void deleteBooking_Authenticated_Admin() throws JOSEException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(booking -> booking.getUsername().equals("test_member"))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "MEMBER", "ADMIN");
+
+    webClient.delete()
+        .uri("/api/bookings/{id}", id)
+        .headers(headers -> headers.setBearerAuth(token))
+        .exchange()
+        .expectStatus().isNoContent();
+
+    assertEquals(Boolean.FALSE, bookingRepository.existsById(id).block());
+  }
+
+  @Test
+  @DisplayName("should return 'Forbidden' if authenticated, authorized, but not an ADMIN")
+  void deleteBooking_Authenticated_Non_Admin() throws JOSEException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(booking -> booking.getUsername().equals("test_member"))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "MEMBER", "PERFORMER");
+
+    webClient.delete()
+        .uri("/api/bookings/{id}", id)
+        .headers(headers -> headers.setBearerAuth(token))
+        .exchange()
+        .expectStatus().isForbidden();
+  }
+
+  @Test
+  @DisplayName("should return 'Unauthorized' if non-authenticated")
+  void deleteBooking_Non_Authenticated(){
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var id = Objects.requireNonNull(bookings).stream()
+        .filter(booking -> booking.getUsername().equals("test_member"))
+        .map(Booking::getId)
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    webClient.delete()
+        .uri("/api/bookings/{id}", id)
+        .exchange()
+        .expectStatus().isUnauthorized();
+  }
+
+  /**
+   * Stubs wiremock server to return event-dto based on given parameters. Parameters
+   * given - other than id -  are used by calling service as criteria for whether the
+   * booking should be allowed to be created.
+   *
+   * @param eventsServer      WireMockServer to stub
+   * @param id                id for event
+   * @param availableBookings Number of bookings available
+   * @param eventStatus       status of the event
+   * @param eventDateTime     date of the event
+   * @throws JsonProcessingException if event cannot be marshalled to JSON
+   */
+  private void mockEventServer(WireMockServer eventsServer,
+      Integer id,
+      Integer availableBookings,
+      EventStatus eventStatus,
+      LocalDateTime eventDateTime
+  )
+      throws JsonProcessingException {
+    var event = EventDto.builder()
+        .id(id)
+        .availableBookings(availableBookings)
+        .description("Test description")
+        .title("Test title")
+        .facilitator("Test Facilitator")
+        .eventDateTime(eventDateTime)
+        .location("Test location")
+        .cost(BigDecimal.valueOf(100))
+        .eventStatus(eventStatus.name())
+        .build();
+
+    eventsServer.stubFor(WireMock.get(String.format("/%s/%d", eventsPath, id))
+        .willReturn(aResponse()
+            .withStatus(200)
+            .withHeader("Content-Type", "application/json")
+            .withBody(objectMapper.writeValueAsString(event))
+        ));
+  }
+
+  private Mono<List<Booking>> initializeDatabase() {
+    return bookingRepository.saveAll(List.of(
             Booking.builder()
                 .eventId(1)
                 .username("test_member")
@@ -137,71 +502,10 @@ class BookingControllerITTest {
                 .eventDateTime(LocalDateTime.now().plusDays(5))
                 .bookingStatus(BookingStatus.IN_PROGRESS)
                 .build()
-        ))
-        .then()
-        .block();
-
-    var token = getJwtToken("test_member", "MEMBER");
-
-    webClient.get()
-        .uri("/api/bookings")
-        .accept(MediaType.APPLICATION_JSON)
-        .headers(headers -> {
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          headers.setBearerAuth(token);
-        })
-        .exchange()
-        .expectStatus().isOk()
-        .expectBodyList(BookingDto.class)
-        .hasSize(2);
-
+        )).collectList();
   }
 
-  @Test
-  @Disabled()
-  void getBookingById() {
-    fail("Not Yet Implemented...");
-  }
-
-  @Test
-  @Disabled()
-  void createBooking() {
-    fail("Not Yet Implemented...");
-  }
-
-  @Test
-  @Disabled()
-  void updateBooking() {
-    fail("Not Yet Implemented...");
-  }
-
-  @Test
-  @Disabled()
-  void deleteBooking() {
-    fail("Not Yet Implemented...");
-  }
-
-  private void mockEventServer(WireMockServer eventsServer, Integer id)
-      throws JsonProcessingException {
-    var event = EventDto.builder()
-        .id(id)
-        .availableBookings(100)
-        .description("Test")
-        .title("Test")
-        .facilitator("test_facilitator")
-        .eventDateTime(LocalDateTime.now().plusDays(2))
-        .eventStatus(EventStatus.IN_PROGRESS.name())
-        .location("Test Location")
-        .cost(BigDecimal.valueOf(100))
-        .build();
-    eventsServer.stubFor(WireMock.get(String.format("/%s/%d", eventsPath, id))
-        .willReturn(aResponse()
-            .withStatus(200)
-            .withHeader("Content-Type", "application/json")
-            .withBody(objectMapper.writeValueAsString(event))
-        ));
-  }
-
+  /// Initialize RSA Key and set mock oauth2 server to return it when prompted
   private void mockKeycloakServer(WireMockServer keycloakServer)
       throws JOSEException, JsonProcessingException {
 
@@ -227,6 +531,7 @@ class BookingControllerITTest {
     keycloakServerInitialized = true;
   }
 
+  ///  Generate Token based of RSA Key returned by Wire-mocked OAuth2 server
   private String getJwtToken(String username, String... authorities) throws JOSEException {
 
     var iat = Instant.now();
@@ -270,6 +575,8 @@ class BookingControllerITTest {
     return signedJwt.serialize();
   }
 
+
+  /// Needed for postgres test container to set up schema and tables
   @TestConfiguration
   @ActiveProfiles("integration")
   public static class TestDatabaseConfiguration {
