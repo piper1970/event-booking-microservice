@@ -2,11 +2,13 @@ package piper1970.bookingservice.dto.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingConstants;
+import org.mapstruct.ReportingPolicy;
 import org.mapstruct.ValueMapping;
 import org.mapstruct.ValueMappings;
 import piper1970.bookingservice.domain.BookingStatus;
 
-@Mapper
+@Mapper(componentModel = "spring",
+    unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface BookingStatusMapper {
 
   @ValueMappings({

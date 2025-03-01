@@ -52,7 +52,7 @@ public class BookingController {
         .map(bookingMapper::entityToDto);
   }
 
-  @GetMapping("{id}")
+  @GetMapping("/{id}")
   @PreAuthorize("hasAuthority('MEMBER')") // need to ensure proper user
   public Mono<BookingDto> getBookingById(@AuthenticationPrincipal JwtAuthenticationToken token,
       @PathVariable Integer id) {
@@ -89,7 +89,7 @@ public class BookingController {
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event not available for id: " + createRequest.getEventId())));
   }
 
-  @PutMapping("{id}")
+  @PutMapping("/{id}")
   @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<BookingDto> updateBooking(
       @AuthenticationPrincipal JwtAuthenticationToken jwtToken,
@@ -103,7 +103,7 @@ public class BookingController {
         .map(bookingMapper::entityToDto);
   }
 
-  @DeleteMapping("{id}")
+  @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<Void> deleteBooking(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
