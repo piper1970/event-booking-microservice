@@ -29,7 +29,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
+import lombok.extern.slf4j.Slf4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -41,29 +43,34 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.r2dbc.connection.init.CompositeDatabasePopulator;
 import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
+import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnabledIf(expression = "#{environment.acceptsProfiles('integration')}", loadContext = true)
-@ActiveProfiles("integration")
+//@ActiveProfiles("integration")
 @Testcontainers
 @EnableWireMock({
     @ConfigureWireMock(
@@ -101,9 +108,6 @@ class BookingControllerITTest {
   @Value("${oauth2.client.id}")
   String oauthClientId;
 
-  @Value("${api.event-service.path}")
-  String eventsPath;
-
   WebTestClient webClient;
 
   @BeforeEach
@@ -116,7 +120,7 @@ class BookingControllerITTest {
         .then()
         .block();
 
-    mockKeycloakServer(keycloakServer);
+    mockKeycloakServer();
   }
 
   @Test
@@ -178,7 +182,6 @@ class BookingControllerITTest {
     // ADMIN implies MEMBER
     var token = getJwtToken("non_test_member", "ADMIN", "MEMBER");
 
-    assert books != null;
     webClient.get()
         .uri("/api/bookings")
         .accept(MediaType.APPLICATION_JSON)
@@ -189,13 +192,12 @@ class BookingControllerITTest {
         .exchange()
         .expectStatus().isOk()
         .expectBodyList(BookingDto.class)
-        .hasSize(books.size());
+        .hasSize(Objects.requireNonNull(books).size());
   }
 
   @Test
   @DisplayName("should return 'Unauthorized' bookings when not authenticated")
   void getAllBookings_Not_Authenticated() throws JOSEException {
-    //add bookings to the repo
 
     initializeDatabase()
         .then()
@@ -302,8 +304,6 @@ class BookingControllerITTest {
         .findAny()
         .orElseThrow(() -> new IllegalStateException("Booking not found"));
 
-    var token = getJwtToken("test_member", "MEMBER");
-
     webClient.get()
         .uri("/api/bookings/{id}", id)
         .accept(MediaType.APPLICATION_JSON)
@@ -367,9 +367,37 @@ class BookingControllerITTest {
   }
 
   @Test
-  @Disabled()
-  void createBooking() {
-    fail("Not Yet Implemented...");
+  @DisplayName("should successfully create booking for upcoming event if authenticated and authorized")
+  void createBooking() throws JsonProcessingException, JOSEException {
+
+    var eventId = 1;
+
+    var createRequest = BookingCreateRequest.builder()
+        .eventId(eventId)
+        .build();
+
+    var token = getJwtToken("test_member", "MEMBER");
+
+    // mock event server
+    mockEventServer(eventId, 50, EventStatus.AWAITING,
+        LocalDateTime.now().plusHours(5), token);
+
+    var results = webClient.post()
+        .uri("/api/bookings")
+        .contentType(MediaType.APPLICATION_JSON)
+        .headers(headers ->
+            headers.setBearerAuth(token)
+        ).accept(MediaType.APPLICATION_JSON)
+        .body(Mono.just(createRequest), BookingCreateRequest.class)
+        .exchange()
+        .expectStatus()
+        .isCreated()
+        .expectBody(BookingDto.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertNotNull(results);
+    assertEquals(Boolean.TRUE, bookingRepository.existsById(results.getId()).block());
   }
 
   @Test
@@ -444,27 +472,27 @@ class BookingControllerITTest {
   }
 
   /**
-   * Stubs wiremock server to return event-dto based on given parameters. Parameters
-   * given - other than id -  are used by calling service as criteria for whether the
-   * booking should be allowed to be created.
+   * Stubs wiremock server to return event-dto based on given parameters. Parameters given - other
+   * than id -  are used by calling service as criteria for whether the booking should be allowed to
+   * be created.
    *
-   * @param eventsServer      WireMockServer to stub
-   * @param id                id for event
-   * @param availableBookings Number of bookings available
-   * @param eventStatus       status of the event
-   * @param eventDateTime     date of the event
+   * @param eventId                   id for event
+   * @param availableBookingsForEvent Number of bookings available
+   * @param eventStatus               status of the event
+   * @param eventDateTime             date of the event
    * @throws JsonProcessingException if event cannot be marshalled to JSON
    */
-  private void mockEventServer(WireMockServer eventsServer,
-      Integer id,
-      Integer availableBookings,
+  private void mockEventServer(
+      Integer eventId,
+      Integer availableBookingsForEvent,
       EventStatus eventStatus,
-      LocalDateTime eventDateTime
+      LocalDateTime eventDateTime,
+      String token
   )
       throws JsonProcessingException {
     var event = EventDto.builder()
-        .id(id)
-        .availableBookings(availableBookings)
+        .id(eventId)
+        .availableBookings(availableBookingsForEvent)
         .description("Test description")
         .title("Test title")
         .facilitator("Test Facilitator")
@@ -474,7 +502,10 @@ class BookingControllerITTest {
         .eventStatus(eventStatus.name())
         .build();
 
-    eventsServer.stubFor(WireMock.get(String.format("/%s/%d", eventsPath, id))
+    String path = "/api/events/" + eventId;
+
+    eventsServer.stubFor(WireMock.get(WireMock.urlPathEqualTo(path))
+            .withHeader("Authorization", WireMock.equalTo("Bearer " + token))
         .willReturn(aResponse()
             .withStatus(200)
             .withHeader("Content-Type", "application/json")
@@ -484,32 +515,33 @@ class BookingControllerITTest {
 
   private Mono<List<Booking>> initializeDatabase() {
     return bookingRepository.saveAll(List.of(
-            Booking.builder()
-                .eventId(1)
-                .username("test_member")
-                .eventDateTime(LocalDateTime.now().plusDays(5))
-                .bookingStatus(BookingStatus.IN_PROGRESS)
-                .build(),
-            Booking.builder()
-                .eventId(2)
-                .username("test_member")
-                .eventDateTime(LocalDateTime.now().plusDays(6))
-                .bookingStatus(BookingStatus.IN_PROGRESS)
-                .build(),
-            Booking.builder()
-                .eventId(1)
-                .username("test_member-2")
-                .eventDateTime(LocalDateTime.now().plusDays(5))
-                .bookingStatus(BookingStatus.IN_PROGRESS)
-                .build()
-        )).collectList();
+        Booking.builder()
+            .eventId(1)
+            .username("test_member")
+            .eventDateTime(LocalDateTime.now().plusDays(5))
+            .bookingStatus(BookingStatus.IN_PROGRESS)
+            .build(),
+        Booking.builder()
+            .eventId(2)
+            .username("test_member")
+            .eventDateTime(LocalDateTime.now().plusDays(6))
+            .bookingStatus(BookingStatus.IN_PROGRESS)
+            .build(),
+        Booking.builder()
+            .eventId(1)
+            .username("test_member-2")
+            .eventDateTime(LocalDateTime.now().plusDays(5))
+            .bookingStatus(BookingStatus.IN_PROGRESS)
+            .build()
+    )).collectList();
   }
 
   /// Initialize RSA Key and set mock oauth2 server to return it when prompted
-  private void mockKeycloakServer(WireMockServer keycloakServer)
+  private void mockKeycloakServer()
       throws JOSEException, JsonProcessingException {
 
     if (!keycloakServerInitialized) {
+
       rsaKey = new RSAKeyGenerator(2048)
           .keyUse(KeyUse.SIGNATURE)
           .algorithm(new Algorithm("RS256"))
@@ -576,11 +608,18 @@ class BookingControllerITTest {
   }
 
 
-  /// Needed for postgres test container to set up schema and tables
   @TestConfiguration
-  @ActiveProfiles("integration")
-  public static class TestDatabaseConfiguration {
+  @Profile("integration")
+//  @ActiveProfiles("integration")
+  public static class TestIntegrationConfiguration {
 
+    private final String apiUri;
+
+    public TestIntegrationConfiguration(@Value("${api.event-service.uri}") String apiUri) {
+      this.apiUri = apiUri;
+    }
+
+    ///  Initializes database structure from schema
     @Bean
     public ConnectionFactoryInitializer connectionFactoryInitializer(
         ConnectionFactory connectionFactory) {
@@ -590,6 +629,20 @@ class BookingControllerITTest {
       populator.addPopulators(new ResourceDatabasePopulator(new ClassPathResource("schema.sql")));
       initializer.setDatabasePopulator(populator);
       return initializer;
+    }
+
+    ///  Need to override webClientBuilder to disable @LoadBalanced behavior
+    /// spring.main.allow-bean-definition-overriding=true added to application-integration.properties
+    /// to ensure this works
+    @Bean
+    @Primary
+    public WebClient.Builder  webClientBuilder() {
+
+      log.info("Setting up web client with base uri {}", apiUri);
+
+      return WebClient.builder()
+          .baseUrl(apiUri)
+          .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
     }
   }
 

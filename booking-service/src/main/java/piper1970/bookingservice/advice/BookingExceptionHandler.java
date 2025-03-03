@@ -10,6 +10,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 
@@ -49,6 +50,16 @@ public class BookingExceptionHandler {
     return buildProblemDetail(HttpStatus.BAD_REQUEST, message, pd -> {
       pd.setTitle("Validation Errors");
       pd.setType(URI.create("http://booking-service/problem/booking-validation-errors"));
+    });
+  }
+
+  @ExceptionHandler(WebClientResponseException.class)
+  public ProblemDetail handleException(WebClientResponseException exc){
+    log.warn("Problems accessing event-service [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+      pd.setTitle("Events-Service-Not-Available");
+      pd.setType(URI.create("http://booking-service/problem/events-service-not-available"));
     });
   }
 

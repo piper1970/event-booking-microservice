@@ -19,10 +19,13 @@ public class DefaultEventRequestService implements EventRequestService {
 
   @Override
   public Mono<EventDto> requestEvent(Integer eventId, String token) {
+
+    log.debug("Making request to /api/events/{}", eventId);
+
     return webClientBuilder
         .build()
         .get()
-        .uri("/{eventId}", eventId)
+        .uri("/api/events/{eventId}", eventId)
         .accept(MediaType.APPLICATION_JSON)
         .headers(httpHeaders -> httpHeaders.setBearerAuth(token))
         .retrieve()
