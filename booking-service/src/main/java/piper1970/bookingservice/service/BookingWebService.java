@@ -2,7 +2,6 @@ package piper1970.bookingservice.service;
 
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
-import piper1970.bookingservice.dto.model.BookingUpdateRequest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -12,7 +11,6 @@ public interface BookingWebService {
   Mono<Booking> findBookingById(Integer id);
   Mono<Booking> findBookingIdByIdAndUsername(Integer id, String username);
   Mono<Booking> createBooking(BookingCreateRequest booking, String token);
-  Mono<Booking> updateBooking(Integer id, BookingUpdateRequest updateRequest);
-  Mono<Void> deleteBooking(Integer id);
+  Mono<Void> deleteBooking(Integer id, String token);
 
 }

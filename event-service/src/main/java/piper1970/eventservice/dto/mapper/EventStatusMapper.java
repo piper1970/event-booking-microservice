@@ -2,11 +2,12 @@ package piper1970.eventservice.dto.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingConstants;
+import org.mapstruct.ReportingPolicy;
 import org.mapstruct.ValueMapping;
 import org.mapstruct.ValueMappings;
 import piper1970.eventservice.common.events.status.EventStatus;
 
-@Mapper
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface EventStatusMapper {
 
   @ValueMappings({

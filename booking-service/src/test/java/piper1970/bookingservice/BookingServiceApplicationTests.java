@@ -1,13 +1,14 @@
-package piper1970.eventservice;
+package piper1970.bookingservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class EventWebServiceApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
+@SpringBootTest
+class BookingServiceApplicationTests {
+
+  @Test
+  void contextLoads() {
+  }
 
 }

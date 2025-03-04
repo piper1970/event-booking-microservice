@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 import piper1970.bookingservice.dto.mapper.BookingMapper;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
-import piper1970.bookingservice.dto.model.BookingUpdateRequest;
 import piper1970.bookingservice.service.BookingWebService;
 import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
@@ -89,20 +87,6 @@ public class BookingController {
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event not available for id: " + createRequest.getEventId())));
   }
 
-  @PutMapping("/{id}")
-  @PreAuthorize("hasAuthority('ADMIN')")
-  public Mono<BookingDto> updateBooking(
-      @AuthenticationPrincipal JwtAuthenticationToken jwtToken,
-      @PathVariable Integer id,
-      @Valid @RequestBody BookingUpdateRequest updateRequest) {
-
-    var user = TokenUtilities.getUserFromToken(jwtToken);
-    log.debug("Updating booking[{}] called by [{}]", id, user);
-
-    return bookingWebService.updateBooking(id, updateRequest)
-        .map(bookingMapper::entityToDto);
-  }
-
   @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @PreAuthorize("hasAuthority('ADMIN')")
@@ -111,7 +95,9 @@ public class BookingController {
     var user = TokenUtilities.getUserFromToken(jwtToken);
     log.debug("Deleting booking[{}] called by [{}]", id, user);
 
-    return bookingWebService.deleteBooking(id);
+    var token = jwtToken.getToken().getTokenValue();
+
+    return bookingWebService.deleteBooking(id, token);
   }
 
 }

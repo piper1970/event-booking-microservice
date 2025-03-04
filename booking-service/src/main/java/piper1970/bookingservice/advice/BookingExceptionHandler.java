@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import piper1970.eventservice.common.exceptions.BookingCancellationException;
 import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 
@@ -25,6 +26,16 @@ public class BookingExceptionHandler {
     return buildProblemDetail(HttpStatus.NOT_FOUND, exc.getMessage(), pd -> {
       pd.setTitle("Booking not found");
       pd.setType(URI.create("http://booking-service/problem/booking-not-found"));
+    });
+  }
+
+  @ExceptionHandler(BookingCancellationException.class)
+  public ProblemDetail handleException(BookingCancellationException exc){
+    log.warn("Attempt to cancel booking failed [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.CONFLICT, exc.getMessage(), pd -> {
+      pd.setTitle("Booking cannot be cancelled");
+      pd.setType(URI.create("http://booking-service/problem/booking-cannot-be-cancelled"));
     });
   }
 

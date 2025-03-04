@@ -9,10 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
-import piper1970.bookingservice.dto.model.BookingUpdateRequest;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
+import piper1970.eventservice.common.exceptions.BookingCancellationException;
 import piper1970.eventservice.common.exceptions.BookingNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -70,39 +70,27 @@ public class DefaultBookingWebService implements BookingWebService {
               .build();
           return bookingRepository.save(booking);
         }).doOnNext(booking -> {
-          log.debug("Booking [{}] has been created for [{}]", booking.getId(), booking.getUsername());
+          log.debug("Booking [{}] has been created for [{}]", booking.getId(),
+              booking.getUsername());
           // TODO: need to send CREATED_BOOKING event
         });
   }
 
   @Transactional
   @Override
-  public Mono<Booking> updateBooking(Integer id, BookingUpdateRequest updateRequest) {
-    // ensure event date time is in the future
+  public Mono<Void> deleteBooking(Integer id, String token) {
+
+    Predicate<EventDto> validEvent = dto ->
+        (dto.getEventStatus().equals(EventStatus.AWAITING.name())
+            || dto.getEventStatus().equals(EventStatus.CANCELLED.name()))
+            && dto.getEventDateTime().isAfter(LocalDateTime.now());
+
     return bookingRepository.findById(id)
-        .map(entity -> {
-          // update only can change status and/or time
-          if(updateRequest.getBookingStatus() != null) {
-            entity.setBookingStatus(BookingStatus.valueOf(updateRequest.getBookingStatus()));
-          }
-          if(updateRequest.getEventDateTime() != null) {
-            entity.setEventDateTime(updateRequest.getEventDateTime());
-          }
-          return entity;
-        })
-        .flatMap(bookingRepository::save)
-        .doOnNext(updatedBooking -> {
-          log.debug("Booking [{}] has been updated for [{}]", id, updatedBooking.getUsername());
-
-          // TODO: Emit UpdatedBooking event to Kafka (booker, event??)
-        })
-        .switchIfEmpty(Mono.error(
-            new BookingNotFoundException("Booking not found for id " + id)));
-  }
-
-  @Override
-  public Mono<Void> deleteBooking(Integer id) {
-    return bookingRepository.deleteById(id)
+        .switchIfEmpty(Mono.defer(() -> Mono.error(new BookingNotFoundException("Booking not found for id: " + id))))
+        .flatMap(booking -> eventRequestService.requestEvent(booking.getEventId(), token))
+        .filter(validEvent)
+        .switchIfEmpty(Mono.defer(() -> Mono.error(new BookingCancellationException(String.format("Booking [%s] can no longer be cancelled for the event", id)))))
+        .flatMap(ignored -> bookingRepository.deleteById(id))
         .doOnSuccess(_void -> {
           log.debug("Booking [{}] has been deleted", id);
 

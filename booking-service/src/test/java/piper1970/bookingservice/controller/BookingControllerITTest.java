@@ -32,13 +32,13 @@ import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -46,11 +46,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.r2dbc.connection.init.CompositeDatabasePopulator;
 import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -70,8 +71,9 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnabledIf(expression = "#{environment.acceptsProfiles('integration')}", loadContext = true)
-//@ActiveProfiles("integration")
+@ActiveProfiles("integration")
 @Testcontainers
+@AutoConfigureTestDatabase(replace = Replace.NONE)
 @EnableWireMock({
     @ConfigureWireMock(
         name = "event-service",
@@ -83,7 +85,6 @@ import reactor.core.publisher.Mono;
 })
 class BookingControllerITTest {
 
-  // set in BeforeAll class runner
   private static RSAKey rsaKey;
 
   @Autowired
@@ -94,7 +95,7 @@ class BookingControllerITTest {
   boolean keycloakServerInitialized;
 
   @InjectWireMock("event-service")
-  WireMockServer eventsServer;
+  WireMockServer eventsServer; // used only in post/put calls
 
   @Autowired
   BookingRepository bookingRepository;
@@ -119,12 +120,13 @@ class BookingControllerITTest {
     bookingRepository.deleteAll()
         .then()
         .block();
-
-    mockKeycloakServer();
+    setupKeyCloakServer();
   }
 
+  //region GET ALL BOOKINGS
+
   @Test
-  @DisplayName("should retrieve all bookings owned by user when authenticated and authorized")
+  @DisplayName("authorized users should be able to retrieve all their bookings")
   void getAllBookings_Authenticated_And_Authorized_Owner_Of_Bookings() throws JOSEException {
     //add bookings to the repo
 
@@ -148,7 +150,7 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should retrieve empty list when authenticated and authorized but not owner of book")
+  @DisplayName("authorized users (non-admin) should not be able to retrieve bookings from other users")
   void getAllBookings_Authenticated_And_Authorized_Not_Owner_Of_Bookings() throws JOSEException {
     //add bookings to the repo
 
@@ -172,7 +174,7 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should retrieve full list (all users) when authenticated and authorized as admin")
+  @DisplayName("authorized admin users should be able to retrieve all bookings from all users")
   void getAllBookings_Authenticated_And_Authorized_As_Admin() throws JOSEException {
     //add bookings to the repo
 
@@ -196,8 +198,8 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should return 'Unauthorized' bookings when not authenticated")
-  void getAllBookings_Not_Authenticated() throws JOSEException {
+  @DisplayName("non-authenticated users should not be able to retrieve bookings")
+  void getAllBookings_Not_Authenticated(){
 
     initializeDatabase()
         .then()
@@ -215,8 +217,8 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should return 'Forbidden' if not authorized")
-  void getAllBookings_Authenticated_And_Authorized_Not_Authorized() throws JOSEException {
+  @DisplayName("non-authorized users should not be able to retrieve bookings")
+  void getAllBookings_Authenticated_And_Not_Authorized() throws JOSEException {
     //add bookings to the repo
 
     initializeDatabase()
@@ -236,9 +238,12 @@ class BookingControllerITTest {
         .expectStatus().isForbidden();
   }
 
+  //endregion
+
+  //region GET BOOKING BY ID
 
   @Test
-  @DisplayName("should return book if owner and authenticated and authorized")
+  @DisplayName("authorized user should be able to retrieve a booking made by that user")
   void getBookingById_Authenticated_Authorized_Owner() throws JOSEException {
 
     var bookings = initializeDatabase()
@@ -265,7 +270,7 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should return book if admin and authenticated and authorized")
+  @DisplayName("authorized admin user should be able to retrieve any booking from any users")
   void getBookingById_Authenticated_Authorized_Admin() throws JOSEException {
 
     var bookings = initializeDatabase()
@@ -292,8 +297,8 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should return 'UnAuthorized' if not authenticated")
-  void getBookingById_Not_Authenticated() throws JOSEException {
+  @DisplayName("non-authenticated user should not be able to access a booking")
+  void getBookingById_Not_Authenticated(){
 
     var bookings = initializeDatabase()
         .block();
@@ -315,7 +320,7 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should return 'UnAuthorized' if authenticated and authorized, but not owner of booking")
+  @DisplayName("authorized user should not be able to access other another users' booking")
   void getBookingById_Auth_Auth_Not_Owner() throws JOSEException {
 
     var bookings = initializeDatabase()
@@ -341,8 +346,8 @@ class BookingControllerITTest {
   }
 
   @Test
-  @DisplayName("should return 'Forbidden' if authenticated but not authorized")
-  void getBookingById_Authenticated_Not_Authorized_Owner() throws JOSEException {
+  @DisplayName("non-authorized user should not be able to access a booking")
+  void getBookingById_Not_Authorized() throws JOSEException {
 
     var bookings = initializeDatabase()
         .block();
@@ -366,16 +371,18 @@ class BookingControllerITTest {
         .expectStatus().isForbidden();
   }
 
+  //endregion
+
+  //region CREATE BOOKING
+
   @Test
-  @DisplayName("should successfully create booking for upcoming event if authenticated and authorized")
-  void createBooking() throws JsonProcessingException, JOSEException {
-
+  @DisplayName("authorized user should be able to create booking for upcoming event")
+  void createBooking_user_authorized_event_still_upcoming()
+      throws JsonProcessingException, JOSEException {
     var eventId = 1;
-
     var createRequest = BookingCreateRequest.builder()
         .eventId(eventId)
         .build();
-
     var token = getJwtToken("test_member", "MEMBER");
 
     // mock event server
@@ -401,37 +408,159 @@ class BookingControllerITTest {
   }
 
   @Test
-  @Disabled()
-  void updateBooking() {
-    fail("Not Yet Implemented...");
+  @DisplayName("authorized user should not be able to create booking for event already in progress")
+  void createBooking_user_authenticated_and_authorized_event_in_progress()
+      throws JsonProcessingException, JOSEException {
+    var eventId = 5;
+    var createRequest = BookingCreateRequest.builder()
+        .eventId(eventId)
+        .build();
+    var token = getJwtToken("test_member", "MEMBER");
+
+    // mock event server
+    mockEventServer(eventId, 50, EventStatus.IN_PROGRESS,
+        LocalDateTime.now().minusMinutes(30), token);
+
+    webClient.post()
+        .uri("/api/bookings")
+        .contentType(MediaType.APPLICATION_JSON)
+        .headers(headers ->
+            headers.setBearerAuth(token)
+        ).accept(MediaType.APPLICATION_JSON)
+        .body(Mono.just(createRequest), BookingCreateRequest.class)
+        .exchange()
+        .expectStatus()
+        .isEqualTo(HttpStatus.GONE);
   }
 
   @Test
-  @DisplayName("should delete the given booking by id if authenticated, authorized, and an ADMIN")
-  void deleteBooking_Authenticated_Admin() throws JOSEException {
+  @DisplayName("non-authenticated user should not be able to create booking")
+  void createBooking_user_non_authenticated() {
+    var eventId = 5;
+    var createRequest = BookingCreateRequest.builder()
+        .eventId(eventId)
+        .build();
+
+    webClient.post()
+        .uri("/api/bookings")
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .body(Mono.just(createRequest), BookingCreateRequest.class)
+        .exchange()
+        .expectStatus()
+        .isUnauthorized();
+  }
+
+  @Test
+  @DisplayName("non-authorized user should not be able to create booking")
+  void createBooking_user_non_authorized() throws JOSEException {
+    var eventId = 5;
+    var createRequest = BookingCreateRequest.builder()
+        .eventId(eventId)
+        .build();
+    var token = getJwtToken("test_member", "NON_MEMBER");
+
+    webClient.post()
+        .uri("/api/bookings")
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .headers(headers ->
+            headers.setBearerAuth(token)
+        )
+        .body(Mono.just(createRequest), BookingCreateRequest.class)
+        .exchange()
+        .expectStatus()
+        .isForbidden();
+  }
+
+  @Test
+  @DisplayName("authorized user should not be able to create booking for upcoming event if event has to spots left")
+  void createBooking_user_authorized_no_bookings_left()
+      throws JOSEException, JsonProcessingException {
+    var eventId = 1;
+    var createRequest = BookingCreateRequest.builder()
+        .eventId(eventId)
+        .build();
+    var token = getJwtToken("test_member", "MEMBER");
+
+    // mock event server
+    mockEventServer(eventId, 0, EventStatus.AWAITING,
+        LocalDateTime.now().plusHours(5), token);
+
+    webClient.post()
+        .uri("/api/bookings")
+        .contentType(MediaType.APPLICATION_JSON)
+        .headers(headers ->
+            headers.setBearerAuth(token)
+        ).accept(MediaType.APPLICATION_JSON)
+        .body(Mono.just(createRequest), BookingCreateRequest.class)
+        .exchange()
+        .expectStatus()
+        .isEqualTo(HttpStatus.GONE);
+  }
+
+  //endregion
+
+  //region DELETE BOOKING
+
+  @Test
+  @DisplayName("authorized admin user should be able to delete a booking if booking event has not yet started")
+  void deleteBooking_Authenticated_Admin_Event_Still_Waiting()
+      throws JOSEException, JsonProcessingException {
 
     var bookings = initializeDatabase()
         .block();
 
-    var id = Objects.requireNonNull(bookings).stream()
-        .filter(booking -> booking.getUsername().equals("test_member"))
-        .map(Booking::getId)
+    var booking = Objects.requireNonNull(bookings).stream()
+        .filter(bkg -> bkg.getUsername().equals("test_member"))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("Booking not found"));
 
     var token = getJwtToken("test_member", "MEMBER", "ADMIN");
 
+    mockEventServer(booking.getEventId(), 50, EventStatus.AWAITING,
+        LocalDateTime.now().plusHours(5), token);
+
     webClient.delete()
-        .uri("/api/bookings/{id}", id)
+        .uri("/api/bookings/{id}", booking.getId())
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
-        .expectStatus().isNoContent();
+        .expectStatus()
+        .isNoContent();
 
-    assertEquals(Boolean.FALSE, bookingRepository.existsById(id).block());
+    assertEquals(Boolean.FALSE, bookingRepository.existsById(booking.getId()).block());
   }
 
   @Test
-  @DisplayName("should return 'Forbidden' if authenticated, authorized, but not an ADMIN")
+  @DisplayName("authorized admin user should not be able to delete a booking if booking event has already started")
+  void deleteBooking_Authenticated_Admin_Event_Started()
+      throws JOSEException, JsonProcessingException {
+
+    var bookings = initializeDatabase()
+        .block();
+
+    var booking = Objects.requireNonNull(bookings).stream()
+        .filter(bkg -> bkg.getUsername().equals("test_member"))
+        .findAny()
+        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+
+    var token = getJwtToken("test_member", "MEMBER", "ADMIN");
+
+    mockEventServer(booking.getEventId(), 50, EventStatus.IN_PROGRESS,
+        LocalDateTime.now().minusMinutes(10), token);
+
+    webClient.delete()
+        .uri("/api/bookings/{id}", booking.getId())
+        .headers(headers -> headers.setBearerAuth(token))
+        .exchange()
+        .expectStatus()
+        .isEqualTo(HttpStatus.CONFLICT);
+
+    assertEquals(Boolean.TRUE, bookingRepository.existsById(booking.getId()).block());
+  }
+
+  @Test
+  @DisplayName("non-admin authorized user should not be able to delete a booking")
   void deleteBooking_Authenticated_Non_Admin() throws JOSEException {
 
     var bookings = initializeDatabase()
@@ -449,12 +578,13 @@ class BookingControllerITTest {
         .uri("/api/bookings/{id}", id)
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
-        .expectStatus().isForbidden();
+        .expectStatus()
+        .isForbidden();
   }
 
   @Test
-  @DisplayName("should return 'Unauthorized' if non-authenticated")
-  void deleteBooking_Non_Authenticated(){
+  @DisplayName("non-authenticated user should not be able to delete a booking")
+  void deleteBooking_Non_Authenticated() {
 
     var bookings = initializeDatabase()
         .block();
@@ -468,8 +598,13 @@ class BookingControllerITTest {
     webClient.delete()
         .uri("/api/bookings/{id}", id)
         .exchange()
-        .expectStatus().isUnauthorized();
+        .expectStatus()
+        .isUnauthorized();
   }
+
+  //endregion
+
+  //region HELPER METHODS
 
   /**
    * Stubs wiremock server to return event-dto based on given parameters. Parameters given - other
@@ -505,7 +640,7 @@ class BookingControllerITTest {
     String path = "/api/events/" + eventId;
 
     eventsServer.stubFor(WireMock.get(WireMock.urlPathEqualTo(path))
-            .withHeader("Authorization", WireMock.equalTo("Bearer " + token))
+        .withHeader("Authorization", WireMock.equalTo("Bearer " + token))
         .willReturn(aResponse()
             .withStatus(200)
             .withHeader("Content-Type", "application/json")
@@ -537,7 +672,7 @@ class BookingControllerITTest {
   }
 
   /// Initialize RSA Key and set mock oauth2 server to return it when prompted
-  private void mockKeycloakServer()
+  private void setupKeyCloakServer()
       throws JOSEException, JsonProcessingException {
 
     if (!keycloakServerInitialized) {
@@ -607,10 +742,13 @@ class BookingControllerITTest {
     return signedJwt.serialize();
   }
 
+  //endregion
+
+  //region TestConfig
 
   @TestConfiguration
   @Profile("integration")
-//  @ActiveProfiles("integration")
+  @ActiveProfiles("integration")
   public static class TestIntegrationConfiguration {
 
     private final String apiUri;
@@ -626,24 +764,26 @@ class BookingControllerITTest {
       ConnectionFactoryInitializer initializer = new ConnectionFactoryInitializer();
       initializer.setConnectionFactory(connectionFactory);
       CompositeDatabasePopulator populator = new CompositeDatabasePopulator();
-      populator.addPopulators(new ResourceDatabasePopulator(new ClassPathResource("schema.sql")));
+      populator.addPopulators(new ResourceDatabasePopulator(new ClassPathResource(
+          "schema-integration.sql")));
       initializer.setDatabasePopulator(populator);
       return initializer;
     }
 
     ///  Need to override webClientBuilder to disable @LoadBalanced behavior
-    /// spring.main.allow-bean-definition-overriding=true added to application-integration.properties
-    /// to ensure this works
+    /// spring.main.allow-bean-definition-overriding=true added to
+    /// application-integration.properties to ensure this works
     @Bean
     @Primary
-    public WebClient.Builder  webClientBuilder() {
+    public WebClient.Builder webClientBuilder() {
 
       log.info("Setting up web client with base uri {}", apiUri);
 
       return WebClient.builder()
-          .baseUrl(apiUri)
-          .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+          .baseUrl(apiUri);
     }
   }
+
+  //endregion
 
 }
