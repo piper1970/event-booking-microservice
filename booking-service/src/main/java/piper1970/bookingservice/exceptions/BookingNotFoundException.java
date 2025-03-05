@@ -1,4 +1,4 @@
-package piper1970.eventservice.common.exceptions;
+package piper1970.bookingservice.exceptions;
 
 public class BookingNotFoundException extends RuntimeException {
   public BookingNotFoundException(String message) {

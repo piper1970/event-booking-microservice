@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import piper1970.eventservice.common.exceptions.BookingCancellationException;
-import piper1970.eventservice.common.exceptions.BookingNotFoundException;
+import piper1970.bookingservice.exceptions.BookingCancellationException;
+import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 
 @ControllerAdvice

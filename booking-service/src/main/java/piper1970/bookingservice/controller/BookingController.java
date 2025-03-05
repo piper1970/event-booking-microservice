@@ -19,7 +19,7 @@ import piper1970.bookingservice.dto.mapper.BookingMapper;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.service.BookingWebService;
-import piper1970.eventservice.common.exceptions.BookingNotFoundException;
+import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.tokens.TokenUtilities;
 import reactor.core.publisher.Flux;

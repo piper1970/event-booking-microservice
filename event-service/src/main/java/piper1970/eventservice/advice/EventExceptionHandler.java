@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
+import piper1970.eventservice.exceptions.EventCancellationException;
+import piper1970.eventservice.exceptions.EventUpdateException;
 
 @ControllerAdvice
 @Slf4j
@@ -24,6 +26,26 @@ public class EventExceptionHandler {
     return buildProblemDetail(HttpStatus.NOT_FOUND, exc.getMessage(), pd -> {
       pd.setTitle("Event not found");
       pd.setType(URI.create("http://event-service/problem/event-not-found"));
+    });
+  }
+
+  @ExceptionHandler(EventCancellationException.class)
+  public ProblemDetail handleCancellation(EventCancellationException exc) {
+    log.warn("Event cancellation failed. [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.BAD_REQUEST, exc.getMessage(), pd -> {
+      pd.setTitle("Event cancellation failed");
+      pd.setType(URI.create("http://event-service/problem/event-cancellation-failed"));
+    });
+  }
+
+  @ExceptionHandler(EventUpdateException.class)
+  public ProblemDetail handleTransition(EventUpdateException exc) {
+    log.warn("Event update failed. [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.BAD_REQUEST, exc.getMessage(), pd -> {
+      pd.setTitle("Event update failed");
+      pd.setType(URI.create("http://event-service/problem/event-update-failed"));
     });
   }
 

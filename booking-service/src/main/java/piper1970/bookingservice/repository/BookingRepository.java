@@ -9,5 +9,5 @@ import reactor.core.publisher.Mono;
 @Repository
 public interface BookingRepository extends ReactiveCrudRepository<Booking, Integer> {
   Flux<Booking> findByUsername(String username);
-  Mono<Booking> findBookingIdByIdAndUsername(Integer id, String username);
+  Mono<Booking> findBookingByIdAndUsername(Integer id, String username);
 }

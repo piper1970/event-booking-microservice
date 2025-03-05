@@ -12,8 +12,8 @@ import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
-import piper1970.eventservice.common.exceptions.BookingCancellationException;
-import piper1970.eventservice.common.exceptions.BookingNotFoundException;
+import piper1970.bookingservice.exceptions.BookingCancellationException;
+import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -46,7 +46,7 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<Booking> findBookingIdByIdAndUsername(Integer id, String username) {
-    return bookingRepository.findBookingIdByIdAndUsername(id, username)
+    return bookingRepository.findBookingByIdAndUsername(id, username)
         .doOnNext(booking -> logBookingRetrieval(booking, username));
   }
 
@@ -82,7 +82,7 @@ public class DefaultBookingWebService implements BookingWebService {
 
     Predicate<EventDto> validEvent = dto ->
         (dto.getEventStatus().equals(EventStatus.AWAITING.name())
-            || dto.getEventStatus().equals(EventStatus.CANCELLED.name()))
+            || dto.getEventStatus().equals(EventStatus.COMPLETED.name()))
             && dto.getEventDateTime().isAfter(LocalDateTime.now());
 
     return bookingRepository.findById(id)

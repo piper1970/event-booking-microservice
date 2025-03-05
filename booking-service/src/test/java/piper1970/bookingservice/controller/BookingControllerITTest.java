@@ -87,6 +87,8 @@ class BookingControllerITTest {
 
   private static RSAKey rsaKey;
 
+  private static final String DB_INITIALIZATION_FAILURE = "Database failed to initialize for testing";
+
   @Autowired
   private ObjectMapper objectMapper;
 
@@ -194,16 +196,12 @@ class BookingControllerITTest {
         .exchange()
         .expectStatus().isOk()
         .expectBodyList(BookingDto.class)
-        .hasSize(Objects.requireNonNull(books).size());
+        .hasSize(Objects.requireNonNull(books, DB_INITIALIZATION_FAILURE).size());
   }
 
   @Test
   @DisplayName("non-authenticated users should not be able to retrieve bookings")
   void getAllBookings_Not_Authenticated(){
-
-    initializeDatabase()
-        .then()
-        .block();
 
     webClient.get()
         .uri("/api/bookings")
@@ -219,11 +217,6 @@ class BookingControllerITTest {
   @Test
   @DisplayName("non-authorized users should not be able to retrieve bookings")
   void getAllBookings_Authenticated_And_Not_Authorized() throws JOSEException {
-    //add bookings to the repo
-
-    initializeDatabase()
-        .then()
-        .block();
 
     var token = getJwtToken("test_member", "NON-AUTHORIZED_MEMBER");
 
@@ -249,23 +242,21 @@ class BookingControllerITTest {
     var bookings = initializeDatabase()
         .block();
 
-    var id = Objects.requireNonNull(bookings).stream()
+    var id = Objects.requireNonNull(bookings, DB_INITIALIZATION_FAILURE).stream()
         .filter(booking -> booking.getUsername().equals("test_member"))
         .map(Booking::getId)
         .findAny()
-        .orElseThrow(() -> new IllegalStateException("Booking not found"));
+        .orElseThrow(() -> new IllegalStateException("Booking not found in database"));
 
     var token = getJwtToken("test_member", "MEMBER");
 
     webClient.get()
         .uri("/api/bookings/{id}", id)
         .accept(MediaType.APPLICATION_JSON)
-        .headers(headers -> {
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          headers.setBearerAuth(token);
-        })
+        .headers(headers -> headers.setBearerAuth(token))
         .exchange()
-        .expectStatus().isOk()
+        .expectStatus()
+        .isOk()
         .expectBody(BookingDto.class);
   }
 
@@ -276,7 +267,7 @@ class BookingControllerITTest {
     var bookings = initializeDatabase()
         .block();
 
-    var id = Objects.requireNonNull(bookings).stream()
+    var id = Objects.requireNonNull(bookings, DB_INITIALIZATION_FAILURE).stream()
         .filter(Predicate.not(booking -> booking.getUsername().equals("test_member")))
         .map(Booking::getId)
         .findAny()
@@ -303,7 +294,7 @@ class BookingControllerITTest {
     var bookings = initializeDatabase()
         .block();
 
-    var id = Objects.requireNonNull(bookings).stream()
+    var id = Objects.requireNonNull(bookings, DB_INITIALIZATION_FAILURE).stream()
         .filter(booking -> booking.getUsername().equals("test_member"))
         .map(Booking::getId)
         .findAny()
@@ -326,7 +317,7 @@ class BookingControllerITTest {
     var bookings = initializeDatabase()
         .block();
 
-    var id = Objects.requireNonNull(bookings).stream()
+    var id = Objects.requireNonNull(bookings, DB_INITIALIZATION_FAILURE).stream()
         .filter(Predicate.not(booking -> booking.getUsername().equals("test_member")))
         .map(Booking::getId)
         .findAny()
@@ -352,7 +343,7 @@ class BookingControllerITTest {
     var bookings = initializeDatabase()
         .block();
 
-    var id = Objects.requireNonNull(bookings).stream()
+    var id = Objects.requireNonNull(bookings, DB_INITIALIZATION_FAILURE).stream()
         .filter(booking -> booking.getUsername().equals("test_member"))
         .map(Booking::getId)
         .findAny()
@@ -404,6 +395,7 @@ class BookingControllerITTest {
         .getResponseBody();
 
     assertNotNull(results);
+    assertEquals(BookingStatus.IN_PROGRESS.name(), results.getBookingStatus(), "Booking status should be IN_PROGRESS");
     assertEquals(Boolean.TRUE, bookingRepository.existsById(results.getId()).block());
   }
 

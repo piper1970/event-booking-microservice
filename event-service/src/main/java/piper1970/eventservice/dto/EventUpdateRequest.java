@@ -46,7 +46,7 @@ public class EventUpdateRequest {
   private Integer availableBookings;
 
   @NullOrNotBlank(message = "[eventStatus] field cannot be empty, but may be omitted")
-  @EnumValues(enumClass = EventStatus.class, message = "[eventStatus] field must be either 'AWAITING', 'IN_PROGRESS', 'COMPLETED', or 'CANCELLED'")
+  @EnumValues(enumClass = EventStatus.class, message = "[eventStatus] field must be either 'AWAITING', 'IN_PROGRESS', or 'COMPLETED'")
   private String eventStatus;
 
 }
