@@ -20,6 +20,7 @@ import piper1970.eventservice.dto.EventCreateRequest;
 import piper1970.eventservice.dto.EventUpdateRequest;
 import reactor.core.publisher.Mono;
 
+@DisplayName("EventController")
 public class EventControllerTests extends EventControllerTestsBase {
 
   @Value("${event.change.cutoff.minutes}")
@@ -28,7 +29,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   //region GET ALL EVENTS
 
   @Test
-  @DisplayName("authorized users should be able to fetch all events")
+  @DisplayName("authorized members should be able to fetch all events")
   void getAllEvents_Authorized() throws JOSEException {
 
     var db = initializeDatabase()
@@ -83,7 +84,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   //region GET EVENT BY ID
 
   @Test
-  @DisplayName("authenticated user should be able to get individual event")
+  @DisplayName("authorized members should be able to get individual event")
   void getEventById_Authenticated() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -143,7 +144,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   //region CREATE EVENT
 
   @Test
-  @DisplayName("authorized (performer) user should be able to create event")
+  @DisplayName("authorized performers should be able to create event")
   void createEvent_user_authorized_as_performer() throws JOSEException {
 
     // performer role implies member as well
@@ -181,7 +182,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("non-authorized (performer) user should not be able to create event")
+  @DisplayName("authorized non-performers should not be able to create event")
   void createEvent_user_not_authorized_as_performer() throws JOSEException {
 
     var token = getJwtToken("test_member", "MEMBER");
@@ -237,7 +238,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   //region UPDATE EVENT
 
   @Test
-  @DisplayName("non-authorized user cannot update event")
+  @DisplayName("non-admins cannot update event")
   void updateEvent_non_authorized() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -297,7 +298,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("authorized admin can update event with non-temporal info before cutoff window prior to the event starting")
+  @DisplayName("authorized admin can update event with info before cutoff window")
   void updateEvent_authorized_admin_good_values() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -532,7 +533,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   //region DELETE EVENT
 
   @Test
-  @DisplayName("authorized (admin) user can delete event if it hasn't started yet")
+  @DisplayName("authorized admin can delete event if it hasn't started yet")
   void deleteEvent_Authorized_Admin_Event_Not_Started() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -558,7 +559,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("authorized (admin) user can delete event if it has been completed")
+  @DisplayName("authorized admin can delete event if it has been completed")
   void deleteEvent_Authorized_Admin_Event_Completed() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -585,7 +586,7 @@ public class EventControllerTests extends EventControllerTestsBase {
 
 
   @Test
-  @DisplayName("authorized (admin) user cannot delete event if it is in progress")
+  @DisplayName("authorized admin cannot delete event if it is in progress")
   void deleteEvent_Authorized_Admin_Event_Already_Started() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -610,7 +611,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("non-authorized (non-admin) user cannot delete event")
+  @DisplayName("authorized non-admin cannot delete event")
   void deleteEvent_NonAuthorized() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -634,7 +635,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("non-authenticated usercannot delete event")
+  @DisplayName("non-authenticated user cannot delete event")
   void deleteEvent_NonAuthenticated() {
     var db = initializeDatabase()
         .block();

@@ -33,11 +33,12 @@ import reactor.core.publisher.Mono;
 //@ActiveProfiles("integration")
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
+@DisplayName("EventController")
 class EventControllerITTests extends EventControllerTestsBase {
 
   @Test
-  @DisplayName("authorized users should be able to fetch all events")
-  void getAllEvents() throws JOSEException {
+  @DisplayName("authorized members should be able to fetch all events")
+  void getAllEvents_user_authorized_as_member() throws JOSEException {
 
     var db = initializeDatabase()
         .block();
@@ -56,8 +57,8 @@ class EventControllerITTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("authorized users should be able to get individual event")
-  void getEventById() throws JOSEException {
+  @DisplayName("authorized members should be able to get individual event")
+  void getEventById_user_authorized_as_member() throws JOSEException {
     var db = initializeDatabase()
         .block();
 
@@ -77,7 +78,7 @@ class EventControllerITTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("authorized (performer) users should be able to create event")
+  @DisplayName("authorized performers should be able to create event")
   void createEvent_user_authorized_as_performer() throws JOSEException {
 
     // performer role implies member as well
@@ -115,8 +116,8 @@ class EventControllerITTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("authorized admin can update event info before cutoff window prior to the event starting")
-  void updateEvent_authorized_admin_good_values() throws JOSEException {
+  @DisplayName("authorized admins should be able to update event if done prior to cutoff time")
+  void updateEvent_user_authorized_as_admin() throws JOSEException {
     var db = initializeDatabase()
         .block();
     var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
@@ -147,8 +148,8 @@ class EventControllerITTests extends EventControllerTestsBase {
   }
 
   @Test
-  @DisplayName("authorized (admin) user can delete event if it hasn't started yet")
-  void deleteEvent_Authorized_Admin_Event_Not_Started() throws JOSEException {
+  @DisplayName("authorized admins should be able to delete event if it hasn't started yet")
+  void deleteEvent__user_authorized_as_admin_event_not_started() throws JOSEException {
     var db = initializeDatabase()
         .block();
 
