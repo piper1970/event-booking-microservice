@@ -13,7 +13,6 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
-import piper1970.eventservice.common.events.status.EventStatus;
 
 @Getter
 @Setter
@@ -33,9 +32,9 @@ public class Event {
   private String description;
   private String location;
   private LocalDateTime eventDateTime;
+  private Integer durationInMinutes;
   private BigDecimal cost;
   private Integer availableBookings;
-  private EventStatus eventStatus;
 
   @CreatedDate
   private LocalDateTime createdDateTime;

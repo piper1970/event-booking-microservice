@@ -1,6 +1,5 @@
 package piper1970.bookingservice.service;
 
-import java.time.LocalDateTime;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,11 +8,12 @@ import org.springframework.transaction.annotation.Transactional;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
-import piper1970.bookingservice.repository.BookingRepository;
-import piper1970.eventservice.common.events.dto.EventDto;
-import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.bookingservice.exceptions.BookingCancellationException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
+import piper1970.bookingservice.repository.BookingRepository;
+import piper1970.eventservice.common.events.EventDtoToStatusMapper;
+import piper1970.eventservice.common.events.dto.EventDto;
+import piper1970.eventservice.common.events.status.EventStatus;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -25,6 +25,8 @@ public class DefaultBookingWebService implements BookingWebService {
   private final BookingRepository bookingRepository;
 
   private final EventRequestService eventRequestService;
+
+  private final EventDtoToStatusMapper eventDtoToStatusMapper;
 
   @Override
   public Flux<Booking> findAllBookings() {
@@ -55,8 +57,7 @@ public class DefaultBookingWebService implements BookingWebService {
 
     Predicate<EventDto> validEvent = dto ->
         dto.getAvailableBookings() >= 1
-            && dto.getEventStatus().equals(EventStatus.AWAITING.name())
-            && dto.getEventDateTime().isAfter(LocalDateTime.now());
+            && EventStatus.AWAITING == eventDtoToStatusMapper.apply(dto);
 
     // TODO: contact EventService to see if event is available and get the time
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
@@ -80,10 +81,7 @@ public class DefaultBookingWebService implements BookingWebService {
   @Override
   public Mono<Void> deleteBooking(Integer id, String token) {
 
-    Predicate<EventDto> validEvent = dto ->
-        (dto.getEventStatus().equals(EventStatus.AWAITING.name())
-            || dto.getEventStatus().equals(EventStatus.COMPLETED.name()))
-            && dto.getEventDateTime().isAfter(LocalDateTime.now());
+    Predicate<EventDto> validEvent = dto -> EventStatus.IN_PROGRESS != eventDtoToStatusMapper.apply(dto);
 
     return bookingRepository.findById(id)
         .switchIfEmpty(Mono.defer(() -> Mono.error(new BookingNotFoundException("Booking not found for id: " + id))))

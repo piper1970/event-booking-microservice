@@ -18,7 +18,7 @@ public class EventDto {
   private String description;
   private String location;
   private LocalDateTime eventDateTime;
+  private Integer durationInMinutes;
   private BigDecimal cost;
   private Integer availableBookings;
-  private String eventStatus;
 }

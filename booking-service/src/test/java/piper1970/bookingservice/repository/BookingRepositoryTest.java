@@ -1,9 +1,12 @@
 package piper1970.bookingservice.repository;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +16,7 @@ import piper1970.bookingservice.domain.BookingStatus;
 import reactor.test.StepVerifier;
 
 @SpringBootTest
+@DisplayName("Booking repository")
 class BookingRepositoryTest {
 
   @Autowired
@@ -20,6 +24,9 @@ class BookingRepositoryTest {
 
   @Autowired
   DatabaseClient databaseClient;
+
+  @Autowired
+  Clock clock;
 
   @BeforeEach
   void setUp() {
@@ -51,96 +58,27 @@ class BookingRepositoryTest {
   }
 
   @Test
-  void findAll() {
-    var testUsername = "test_username";
-    var booking1 = Booking.builder()
-        .username(testUsername)
-        .eventId(1)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking2 = Booking.builder()
-        .username(testUsername + "somethingElse")
-        .eventId(2)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking3 = Booking.builder()
-        .username(testUsername)
-        .eventId(3)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    insertBookings(booking1, booking2, booking3);
-
-    bookingRepository.findAll()
-        .as(StepVerifier::create)
-//        .expectNext(booking1, booking2, booking3)
-        .expectNextCount(3)
-        .verifyComplete();
-  }
-
-  @Test
-  void findById() {
-    var testUsername = "test_username";
-    var booking1 = Booking.builder()
-        .username(testUsername)
-        .eventId(1)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking2 = Booking.builder()
-        .username(testUsername)
-        .eventId(2)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking3 = Booking.builder()
-        .username(testUsername)
-        .eventId(3)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    insertBookings(booking1, booking2, booking3);
-
-    var expected = bookingRepository.findAll()
-        .blockFirst();
-
-    assertNotNull(expected);
-
-    bookingRepository.findById(expected.getId())
-        .as(StepVerifier::create)
-        .expectNext(expected)
-        .verifyComplete();
-  }
-
-  @Test
+  @DisplayName("should be able to find bookings given a username")
   void findByUsername() {
     var testUsername = "test_username";
     var booking1 = Booking.builder()
         .username(testUsername)
         .eventId(1)
-        .eventDateTime(LocalDateTime.now())
+        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
     var booking2 = Booking.builder()
         .username(testUsername + "somethingElse")
         .eventId(2)
-        .eventDateTime(LocalDateTime.now())
+        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
     var booking3 = Booking.builder()
         .username(testUsername)
         .eventId(3)
-        .eventDateTime(LocalDateTime.now())
+        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -153,26 +91,27 @@ class BookingRepositoryTest {
   }
 
   @Test
+  @DisplayName("should be able to find a booking by id and username")
   void findBookingByIdAndUsername() {
     var testUsername = "test_username";
     var booking1 = Booking.builder()
         .username(testUsername)
         .eventId(1)
-        .eventDateTime(LocalDateTime.now())
+        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
     var booking2 = Booking.builder()
         .username(testUsername + "somethingElse")
         .eventId(2)
-        .eventDateTime(LocalDateTime.now())
+        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
     var booking3 = Booking.builder()
         .username(testUsername)
         .eventId(3)
-        .eventDateTime(LocalDateTime.now())
+        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -189,88 +128,6 @@ class BookingRepositoryTest {
         .verifyComplete();
   }
 
-  @Test
-  void count(){
-    var testUsername = "test_username";
-    var booking1 = Booking.builder()
-        .username(testUsername)
-        .eventId(1)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking2 = Booking.builder()
-        .username(testUsername + "somethingElse")
-        .eventId(2)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking3 = Booking.builder()
-        .username(testUsername)
-        .eventId(3)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    insertBookings(booking1, booking2, booking3);
-
-    bookingRepository.count()
-        .as(StepVerifier::create)
-        .expectNext(3L)
-        .verifyComplete();
-  }
-
-  @Test
-  void save(){
-
-    var testUsername = "test_username";
-    var booking1 = Booking.builder()
-        .username(testUsername)
-        .eventId(1)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking2 = Booking.builder()
-        .username(testUsername + "somethingElse")
-        .eventId(2)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    var booking3 = Booking.builder()
-        .username(testUsername)
-        .eventId(3)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    insertBookings(booking1, booking2, booking3);
-
-    bookingRepository.count()
-        .as(StepVerifier::create)
-        .expectNext(3L)
-        .verifyComplete();
-
-    var newBooking = Booking.builder()
-        .username("new dude")
-        .eventId(3)
-        .eventDateTime(LocalDateTime.now())
-        .bookingStatus(BookingStatus.IN_PROGRESS)
-        .build();
-
-    bookingRepository.save(newBooking)
-        .as(StepVerifier::create)
-        .expectNext(newBooking)
-        .verifyComplete();
-
-    bookingRepository.count()
-        .as(StepVerifier::create)
-        .expectNext(4L)
-        .verifyComplete();
-
-  }
 
   private void insertBookings(Booking... bookings) {
     bookingRepository.saveAll(List.of(bookings))

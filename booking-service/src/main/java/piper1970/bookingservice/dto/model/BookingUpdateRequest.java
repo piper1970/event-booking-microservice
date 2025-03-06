@@ -1,12 +1,12 @@
 package piper1970.bookingservice.dto.model;
 
-import jakarta.validation.constraints.Future;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import piper1970.bookingservice.domain.BookingStatus;
+import piper1970.eventservice.common.validation.annotations.CustomFuture;
 import piper1970.eventservice.common.validation.annotations.EnumValues;
 import piper1970.eventservice.common.validation.annotations.NullOrNotBlank;
 
@@ -16,7 +16,7 @@ import piper1970.eventservice.common.validation.annotations.NullOrNotBlank;
 @NoArgsConstructor
 public class BookingUpdateRequest {
 
-  @Future(message = "[eventDateTime] must be in the future")
+  @CustomFuture(message = "[eventDateTime] must be in the future")
   private LocalDateTime eventDateTime;
 
   @NullOrNotBlank(message = "[status] field cannot be blank, but may be omitted")

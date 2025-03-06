@@ -1,11 +1,16 @@
 package piper1970.eventservice.service;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.domain.Event;
@@ -14,8 +19,6 @@ import piper1970.eventservice.dto.EventUpdateRequest;
 import piper1970.eventservice.dto.mapper.EventMapper;
 import piper1970.eventservice.exceptions.EventCancellationException;
 import piper1970.eventservice.exceptions.EventUpdateException;
-import piper1970.eventservice.helpers.EventStatusPair;
-import static piper1970.eventservice.helpers.EventStatusTransitionValidators.VALIDATION_MAP;
 import piper1970.eventservice.repository.EventRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -28,6 +31,13 @@ public class DefaultEventWebService implements EventWebService {
   private final EventRepository eventRepository;
 
   private final EventMapper eventMapper;
+
+  private final EventDtoToStatusMapper eventDtoToStatusMapper;
+
+  private final Clock clock;
+
+  @Value("${event.change.cutoff.minutes:30}")
+  private Integer updateCutoffMinutes;
 
   // TODO: needs to talk to bookingService, via kafka
 
@@ -48,8 +58,6 @@ public class DefaultEventWebService implements EventWebService {
 
     var event = eventMapper.toEntity(createRequest);
 
-    event.setEventStatus(EventStatus.AWAITING);
-
     return eventRepository.save(event)
         .doOnNext(newEvent -> {
           log.debug("Event [{}] has been created", newEvent.getId());
@@ -61,23 +69,26 @@ public class DefaultEventWebService implements EventWebService {
   @Override
   public Mono<Event> updateEvent(Integer id, EventUpdateRequest updateRequest) {
     return eventRepository.findById(id)
+        .switchIfEmpty(Mono.error(new EventNotFoundException("Event not found for id: " + id)))
         .map(event -> mergeWithUpdateRequest(event, updateRequest))
         .flatMap(eventRepository::save)
         .doOnNext(updatedEvent -> {
           log.debug("Event [{}] has been updated", updatedEvent.getId());
           // TODO: send UpdatedEvent event to kafka (bookings and performer)
-        })
-        .switchIfEmpty(Mono.error(new EventNotFoundException("Event not found for id: " + id)));
+        });
+
   }
 
   @Transactional
   @Override
   public Mono<Void> deleteEvent(Integer id) {
     return eventRepository.findById(id)
-        .filter(event ->  event.getEventStatus() != EventStatus.IN_PROGRESS)
-        .switchIfEmpty(Mono.defer(() -> Mono.error(new EventCancellationException("Cannot cancel event [%s] while it is in progress".formatted(id)))))
+        .switchIfEmpty(Mono.error(new EventNotFoundException("Event not found for id: " + id)))
+        .filter(this::eventNotInProgress)
+        .switchIfEmpty(Mono.defer(() -> Mono.error(new EventCancellationException(
+            "Cannot cancel event [%s] while it is in progress".formatted(id)))))
         .flatMap(eventRepository::delete)
-        .doOnSuccess(deletedEvent -> {
+        .doOnSuccess(_void -> {
           log.debug("Event [{}] has been deleted", id);
           // TODO: send CancelledEvent event to kafka (performer, booking members)
         });
@@ -87,72 +98,58 @@ public class DefaultEventWebService implements EventWebService {
     log.debug("Event {} has been retrieved", event.getId());
   }
 
+  /// Handles logic for merging update with current request
+  /// Updates can only happen if the event has not started, and
+  /// the updateCutoffMinutes window has already been passed
   private Event mergeWithUpdateRequest(Event event, @NonNull EventUpdateRequest updateRequest) {
 
-    // handle status updates first
-    EventStatus updateStatus = null;
+    EventStatus adjustedEventStatus = Optional.ofNullable(
+            getEventStatus(event.withEventDateTime(updateRequest.getEventDateTime())))
+        .orElseGet(() -> getEventStatus(event));
 
-    if(updateRequest.getEventStatus() != null) {
+    LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
+    LocalDateTime cutoffTime = event.getEventDateTime().minusMinutes(updateCutoffMinutes)
+        .truncatedTo(ChronoUnit.MINUTES);
 
-      final String updateStatusMessage = updateRequest.getEventStatus();
+    var safeToChange = now.isBefore(cutoffTime) && adjustedEventStatus == EventStatus.AWAITING;
 
-      updateStatus = EventStatus.valueOf(updateStatusMessage);
-
-      // more complex logic needed for transition states.
-      // handled in a separate validator class
-
-      var eventStatusTransitionValidator = Optional.ofNullable(VALIDATION_MAP.get(
-              EventStatusPair.of(event.getEventStatus(),updateStatus)))
-          .orElseThrow(() -> new RuntimeException("Unrecognized event status transition: %s to %s".formatted(event.getEventStatus().name(), updateStatusMessage)));
-
-      // throws EventUpdateException if the given transition is not logical.
-      eventStatusTransitionValidator.validate(event.getEventStatus(), updateStatus);
-
-      event.setEventStatus(EventStatus.valueOf(updateRequest.getEventStatus()));
-    }
-
-
-    var notSafeToChange = event.getEventStatus() != EventStatus.AWAITING ||
-        updateStatus == EventStatus.IN_PROGRESS ||
-        updateStatus == EventStatus.COMPLETED;
-
-    if(updateRequest.getTitle() != null) {
-      // no foul if title is changed throughout the event lifecycle
-      event.setTitle(updateRequest.getTitle());
-    }
-    if(updateRequest.getDescription() != null) {
-      // no foul if description is changed throughout the event lifecycle
-      event.setDescription(updateRequest.getDescription());
-    }
-    if(updateRequest.getLocation() != null) {
-      if(notSafeToChange) {
-        handleUpdateErrors(event.getId(), "location");
+    if (safeToChange) {
+      if (updateRequest.getEventDateTime() != null) {
+        event.setEventDateTime(updateRequest.getEventDateTime());
       }
-      event.setLocation(updateRequest.getLocation());
-    }
-    if(updateRequest.getEventDateTime() != null) {
-      if(notSafeToChange) {
-        handleUpdateErrors(event.getId(), "eventDateTime");
+      if (updateRequest.getTitle() != null) {
+        event.setTitle(updateRequest.getTitle());
       }
-      event.setEventDateTime(updateRequest.getEventDateTime());
-    }
-    if(updateRequest.getCost() != null) {
-      if(notSafeToChange) {
-        handleUpdateErrors(event.getId(), "cost");
+      if (updateRequest.getDescription() != null) {
+        event.setDescription(updateRequest.getDescription());
       }
-      event.setCost(updateRequest.getCost());
-    }
-    if(updateRequest.getAvailableBookings() != null) {
-      if(notSafeToChange) {
-        handleUpdateErrors(event.getId(), "availableBookings");
+      if (updateRequest.getLocation() != null) {
+        event.setLocation(updateRequest.getLocation());
       }
-      event.setAvailableBookings(updateRequest.getAvailableBookings());
+      if (updateRequest.getCost() != null) {
+        event.setCost(updateRequest.getCost());
+      }
+      if (updateRequest.getAvailableBookings() != null) {
+        event.setAvailableBookings(updateRequest.getAvailableBookings());
+      }
+      if (updateRequest.getDurationInMinutes() != null) {
+        event.setDurationInMinutes(updateRequest.getDurationInMinutes());
+      }
+    } else {
+      throw new EventUpdateException(
+          String.format("Cannot update event [%d] after cutoff window [%s]", event.getId(),
+              cutoffTime));
     }
 
     return event;
   }
 
-  void handleUpdateErrors(Integer id, String field) throws EventUpdateException {
-    throw new EventUpdateException(String.format("Cannot update event [%d] %s once it has started", id, field));
+  private boolean eventNotInProgress(Event event) {
+    return getEventStatus(event) != EventStatus.IN_PROGRESS;
   }
+
+  private EventStatus getEventStatus(Event event) {
+    return eventDtoToStatusMapper.apply(eventMapper.toDto(event));
+  }
+
 }

@@ -65,7 +65,6 @@ import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
-import piper1970.eventservice.common.events.status.EventStatus;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -83,7 +82,7 @@ import reactor.core.publisher.Mono;
         name = "keystore-service",
         baseUrlProperties = "keystore-service.url")
 })
-class BookingControllerITTest {
+class BookingControllerITTests {
 
   private static RSAKey rsaKey;
 
@@ -377,7 +376,7 @@ class BookingControllerITTest {
     var token = getJwtToken("test_member", "MEMBER");
 
     // mock event server
-    mockEventServer(eventId, 50, EventStatus.AWAITING,
+    mockEventServer(eventId, 50,
         LocalDateTime.now().plusHours(5), token);
 
     var results = webClient.post()
@@ -410,8 +409,8 @@ class BookingControllerITTest {
     var token = getJwtToken("test_member", "MEMBER");
 
     // mock event server
-    mockEventServer(eventId, 50, EventStatus.IN_PROGRESS,
-        LocalDateTime.now().minusMinutes(30), token);
+    mockEventServer(eventId, 50,
+        LocalDateTime.now().minusMinutes(5), token);
 
     webClient.post()
         .uri("/api/bookings")
@@ -476,7 +475,7 @@ class BookingControllerITTest {
     var token = getJwtToken("test_member", "MEMBER");
 
     // mock event server
-    mockEventServer(eventId, 0, EventStatus.AWAITING,
+    mockEventServer(eventId, 0,
         LocalDateTime.now().plusHours(5), token);
 
     webClient.post()
@@ -510,7 +509,7 @@ class BookingControllerITTest {
 
     var token = getJwtToken("test_member", "MEMBER", "ADMIN");
 
-    mockEventServer(booking.getEventId(), 50, EventStatus.AWAITING,
+    mockEventServer(booking.getEventId(), 50,
         LocalDateTime.now().plusHours(5), token);
 
     webClient.delete()
@@ -538,8 +537,8 @@ class BookingControllerITTest {
 
     var token = getJwtToken("test_member", "MEMBER", "ADMIN");
 
-    mockEventServer(booking.getEventId(), 50, EventStatus.IN_PROGRESS,
-        LocalDateTime.now().minusMinutes(10), token);
+    mockEventServer(booking.getEventId(), 50,
+        LocalDateTime.now().minusMinutes(5), token);
 
     webClient.delete()
         .uri("/api/bookings/{id}", booking.getId())
@@ -605,14 +604,12 @@ class BookingControllerITTest {
    *
    * @param eventId                   id for event
    * @param availableBookingsForEvent Number of bookings available
-   * @param eventStatus               status of the event
    * @param eventDateTime             date of the event
    * @throws JsonProcessingException if event cannot be marshalled to JSON
    */
   private void mockEventServer(
       Integer eventId,
       Integer availableBookingsForEvent,
-      EventStatus eventStatus,
       LocalDateTime eventDateTime,
       String token
   )
@@ -624,9 +621,9 @@ class BookingControllerITTest {
         .title("Test title")
         .facilitator("Test Facilitator")
         .eventDateTime(eventDateTime)
+        .durationInMinutes(60)
         .location("Test location")
         .cost(BigDecimal.valueOf(100))
-        .eventStatus(eventStatus.name())
         .build();
 
     String path = "/api/events/" + eventId;

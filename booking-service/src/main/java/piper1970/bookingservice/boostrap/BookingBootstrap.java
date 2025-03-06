@@ -1,5 +1,6 @@
 package piper1970.bookingservice.boostrap;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,8 @@ public class BookingBootstrap implements CommandLineRunner {
 
   private final BookingRepository bookingRepository;
 
+  private final Clock clock;
+
   @Override
   public void run(String... args){
     bookingRepository.count()
@@ -25,13 +28,13 @@ public class BookingBootstrap implements CommandLineRunner {
             List.of(Booking.builder()
                     .eventId(1)
                     .username("test-member")
-                    .eventDateTime(LocalDateTime.now().plusDays(2))
+                    .eventDateTime(LocalDateTime.now(clock).plusDays(2))
                     .bookingStatus(BookingStatus.CONFIRMED)
                     .build(),
                 Booking.builder()
                     .eventId(2)
                     .username("test-member")
-                    .eventDateTime(LocalDateTime.now().plusDays(3))
+                    .eventDateTime(LocalDateTime.now(clock).plusDays(3))
                     .bookingStatus(BookingStatus.IN_PROGRESS)
                     .build())
         )).subscribe(booking -> log.info(booking.toString()));

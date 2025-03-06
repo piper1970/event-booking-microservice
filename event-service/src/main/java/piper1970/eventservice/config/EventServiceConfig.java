@@ -1,7 +1,6 @@
 package piper1970.eventservice.config;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
+import java.time.Clock;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -20,7 +20,9 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
+import piper1970.eventservice.common.validation.validators.CustomFutureValidator;
 import reactor.core.publisher.Mono;
 
 @Configuration
@@ -38,13 +40,11 @@ public class EventServiceConfig {
   public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
     http.csrf(CsrfSpec::disable);
     http.cors(withDefaults());
-    http.authorizeExchange(exchange -> {
-      exchange
-          .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
-          .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
-          .anyExchange()
-          .authenticated();
-    });
+    http.authorizeExchange(exchange -> exchange
+        .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
+        .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
+        .anyExchange()
+        .authenticated());
 
     http.oauth2ResourceServer(oauth2 ->
         oauth2.jwt(jwt ->
@@ -66,6 +66,22 @@ public class EventServiceConfig {
     source.registerCorsConfiguration("/**", config);
 
     return new CorsWebFilter(source);
+  }
+
+  @Bean
+  public EventDtoToStatusMapper eventToStatusHandler() {
+    // from event-service-common
+    return new EventDtoToStatusMapper(clock());
+  }
+
+  @Bean
+  public Clock clock() {
+    return Clock.systemDefaultZone();
+  }
+
+  @Bean
+  public CustomFutureValidator customFutureValidator() {
+    return new CustomFutureValidator(clock());
   }
 
   Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {

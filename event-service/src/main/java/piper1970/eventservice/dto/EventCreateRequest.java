@@ -2,8 +2,8 @@ package piper1970.eventservice.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
@@ -16,6 +16,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.With;
+import piper1970.eventservice.common.validation.annotations.CustomFuture;
 import piper1970.eventservice.common.validation.annotations.NullOrNotBlank;
 
 @Data
@@ -41,8 +42,12 @@ public class EventCreateRequest {
   private String location;
 
   @NotNull(message = "[eventDateTime] field must be present and non-null")
-  @Future(message = "[eventDateTime] field must be a future date")
+  @CustomFuture(message = "[eventDateTime] field must be a future date")
   private LocalDateTime eventDateTime;
+
+  @NotNull(message = "[durationInMinutes] field must be present and non-null")
+  @Min(value = 30, message = "[durationInMinutes] field must be at least 30 minutes")
+  private Integer durationInMinutes;
 
   @NotNull(message = "[cost] field must be present and non-null")
   @DecimalMin(value = "0.0") // positive-or-zero

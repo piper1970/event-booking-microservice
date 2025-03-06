@@ -28,7 +28,7 @@ import org.hibernate.validator.constraints.ConstraintComposition;
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = {})
 public @interface NullOrNotBlank {
-  String message() default "{org.hibernate.validator.constraints.NullOrNotBlank.message}";
+  String message();
   Class<?>[] groups() default { };
   Class<? extends Payload>[] payload() default { };
 }
