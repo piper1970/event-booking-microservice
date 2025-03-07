@@ -64,7 +64,7 @@ public class BookingController {
           .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
     }
 
-    return bookingWebService.findBookingIdByIdAndUsername(id, username)
+    return bookingWebService.findBookingByIdAndUsername(id, username)
         .map(bookingMapper::entityToDto)
         .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
   }

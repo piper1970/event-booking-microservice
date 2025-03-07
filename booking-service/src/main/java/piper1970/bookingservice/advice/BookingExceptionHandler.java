@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import piper1970.bookingservice.exceptions.BookingCancellationException;
+import piper1970.bookingservice.exceptions.BookingCreationException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
+import piper1970.bookingservice.exceptions.BookingTimeoutException;
+import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 
 @ControllerAdvice
@@ -39,6 +42,16 @@ public class BookingExceptionHandler {
     });
   }
 
+  @ExceptionHandler(BookingCreationException.class)
+  public ProblemDetail handleException(BookingCreationException exc){
+    log.warn("Attempt to create booking failed [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, exc.getMessage(), pd -> {
+      pd.setTitle("Booking creation failed");
+      pd.setType(URI.create("http://booking-service/problem/booking-creation-failed"));
+    });
+  }
+
   @ExceptionHandler(EventNotFoundException.class)
   public ProblemDetail handleException(EventNotFoundException exc){
     log.warn("Event not found [{}]", exc.getMessage(), exc);
@@ -61,6 +74,26 @@ public class BookingExceptionHandler {
     return buildProblemDetail(HttpStatus.BAD_REQUEST, message, pd -> {
       pd.setTitle("Validation Errors");
       pd.setType(URI.create("http://booking-service/problem/booking-validation-errors"));
+    });
+  }
+
+  @ExceptionHandler(BookingTimeoutException.class)
+  public ProblemDetail handleException(BookingTimeoutException exc){
+    log.error("Booking repository action timed out [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+      pd.setTitle("Booking-Repository-Temporarily-Unavailable");
+      pd.setType(URI.create("http://booking-service/problem/booking-repository-temporarily-unavailable"));
+    });
+  }
+
+  @ExceptionHandler(EventRequestServiceTimeoutException.class)
+  public ProblemDetail handleException(EventRequestServiceTimeoutException exc){
+    log.error("event-request-service timed out [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+      pd.setTitle("Event-Request-Service-Temporarily-Unavailable");
+      pd.setType(URI.create("http://booking-service/problem/event-request-service-temporarily-unavailable"));
     });
   }
 
