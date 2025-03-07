@@ -1,5 +1,6 @@
 package piper1970.eventservice.common.events.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,8 @@ public class EventDto {
   private String title;
   private String description;
   private String location;
+
+  @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
   private LocalDateTime eventDateTime;
   private Integer durationInMinutes;
   private BigDecimal cost;

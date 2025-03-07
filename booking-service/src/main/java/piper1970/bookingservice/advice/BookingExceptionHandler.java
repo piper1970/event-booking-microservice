@@ -16,7 +16,11 @@ import piper1970.bookingservice.exceptions.BookingCreationException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
+import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
+import piper1970.eventservice.common.exceptions.ForbiddenException;
+import piper1970.eventservice.common.exceptions.UnauthorizedException;
+import piper1970.eventservice.common.exceptions.UnknownCauseException;
 
 @ControllerAdvice
 @Slf4j
@@ -92,14 +96,62 @@ public class BookingExceptionHandler {
     log.error("event-request-service timed out [{}]", exc.getMessage(), exc);
 
     return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
-      pd.setTitle("Event-Request-Service-Temporarily-Unavailable");
-      pd.setType(URI.create("http://booking-service/problem/event-request-service-temporarily-unavailable"));
+      pd.setTitle("Event-Request-Service-Call-Exceeded-Allotted-Time");
+      pd.setType(URI.create("http://booking-service/problem/event-request-service-call-exceeded-allotted-time"));
+    });
+  }
+
+  @ExceptionHandler(EventRequestServiceUnavailableException.class)
+  public ProblemDetail handleException(EventRequestServiceUnavailableException exc){
+    log.error("event-request-service temporarily unavailable [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+      pd.setTitle("Unable-To-Contact-Event-Service");
+      pd.setType(URI.create("http://booking-service/problem/unable-to-contact-event-service"));
+    });
+  }
+
+  @ExceptionHandler(ForbiddenException.class)
+  public ProblemDetail handleException(ForbiddenException exc){
+    // at this stage, token already authorized through booking controller (auth=MEMBER).
+    // event-service call requires MEMBER authorization as well.
+    // if event-service responds with Forbidden(403), something in the universe is amiss.
+    // if token expired, a Unauthorized(401) would be returned, not a 403.
+    // this edge case should not happen...
+    log.error("Attempt to access event-service with currently authorized token failed. Service returned Forbidden(403). [{}].", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.FORBIDDEN, exc.getMessage(), pd -> {
+      pd.setTitle("Forbidden-Access-To-Event-Service");
+      pd.setType(URI.create("http://booking-service/problem/forbidden-access-to-event-service"));
+    });
+  }
+
+  @ExceptionHandler(UnauthorizedException.class)
+  public ProblemDetail handleException(UnauthorizedException exc){
+
+    // at this stage, token passed to event-request-service should have already passed authentication through booking-controller.
+    // if failed, possible issues are token expiration or token corruption somewhere in transit
+    log.error("Attempt to access event-service using currently authorized token failed. Service returned Unauthorized 401). [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.UNAUTHORIZED, exc.getMessage(), pd -> {
+      pd.setTitle("Unauthorized-Access-To-Event-Service");
+      pd.setType(URI.create("http://booking-service/problem/unauthorized-access-to-event-service"));
+    });
+  }
+
+  @ExceptionHandler(UnknownCauseException.class)
+  public ProblemDetail handleException(UnknownCauseException exc){
+    log.error("An exception has occurred for unknown reasons [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+      pd.setTitle("Unknown-Cause-Exception");
+      pd.setType(URI.create("http://booking-service/problem/unknown-cause-exception"));
     });
   }
 
   @ExceptionHandler(WebClientResponseException.class)
   public ProblemDetail handleException(WebClientResponseException exc){
-    log.warn("Problems accessing event-service [{}]", exc.getMessage(), exc);
+    log.error("Problems accessing event-service [{}]", exc.getMessage(), exc);
 
     return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
       pd.setTitle("Events-Service-Not-Available");

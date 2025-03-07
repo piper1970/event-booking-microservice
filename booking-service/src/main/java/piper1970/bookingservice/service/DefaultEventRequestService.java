@@ -1,35 +1,36 @@
 package piper1970.bookingservice.service;
 
-import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
+import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableException;
 import piper1970.eventservice.common.events.dto.EventDto;
+import piper1970.eventservice.common.exceptions.ForbiddenException;
+import piper1970.eventservice.common.exceptions.UnauthorizedException;
+import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.core.publisher.Mono;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class DefaultEventRequestService implements EventRequestService {
 
   private final WebClient.Builder webClientBuilder;
+  private final Long eventTimeoutInMilliseconds;
+  private final Duration eventTimeoutDuration;
 
-  @Value("${event-request-service.timeout.milliseconds}")
-  private Long eventTimeoutInMilliseconds;
-
-  private Duration eventTimeoutDuration;
-
-  @PostConstruct
-  public void init() {
-    eventTimeoutDuration = Duration.ofMillis(eventTimeoutInMilliseconds);
+  public DefaultEventRequestService(WebClient.Builder webClientBuilder,
+      @Value("${event-request-service.timeout.milliseconds}") Long eventTimeoutInMilliseconds) {
+    this.webClientBuilder = webClientBuilder;
+    this.eventTimeoutInMilliseconds = eventTimeoutInMilliseconds;
+    this.eventTimeoutDuration = Duration.ofMillis(eventTimeoutInMilliseconds);
   }
 
   @Override
@@ -44,6 +45,9 @@ public class DefaultEventRequestService implements EventRequestService {
         .accept(MediaType.APPLICATION_JSON)
         .headers(httpHeaders -> httpHeaders.setBearerAuth(token))
         .retrieve()
+        .onStatus(HttpStatusCode::is5xxServerError, resp ->
+            Mono.error(new EventRequestServiceUnavailableException("Event Request Service Temporarily Unavailable. Please try back later")))
+        .onStatus(HttpStatusCode::is4xxClientError, this::handle400Response)
         .bodyToMono(EventDto.class)
         .doOnNext(eventDto -> {
           log.debug("Event [{}] has been retrieved", eventId);
@@ -55,8 +59,16 @@ public class DefaultEventRequestService implements EventRequestService {
             Mono.error(new EventRequestServiceTimeoutException(
                 "Event Request Service timed out [over %d milliseconds] fetching event".formatted(
                     eventTimeoutInMilliseconds),
-                ex)))
-        .onErrorResume(WebClientResponseException.class, ex ->
-            ex.getStatusCode().isSameCodeAs(HttpStatus.NOT_FOUND) ? Mono.empty() : Mono.error(ex));
+                ex)));
+  }
+
+  private Mono<? extends Throwable> handle400Response(ClientResponse clientResponse) {
+
+    return switch(clientResponse.statusCode()){
+      case HttpStatus.NOT_FOUND -> Mono.empty(); // error handling for this scenario propagates to WebService
+      case HttpStatus.UNAUTHORIZED -> Mono.error(new UnauthorizedException("User unauthorized to access event-service resource"));
+      case HttpStatus.FORBIDDEN -> Mono.error(new ForbiddenException("User does not have permission to retrieve all events from event-service"));
+      default -> Mono.error(new UnknownCauseException("This should not be happening... Unhandled status code: " + clientResponse.statusCode()));
+    };
   }
 }
