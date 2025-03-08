@@ -13,8 +13,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableException;
 import piper1970.eventservice.common.events.dto.EventDto;
-import piper1970.eventservice.common.exceptions.ForbiddenException;
-import piper1970.eventservice.common.exceptions.UnauthorizedException;
+import piper1970.eventservice.common.exceptions.EventForbiddenException;
+import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.core.publisher.Mono;
 
@@ -63,11 +63,10 @@ public class DefaultEventRequestService implements EventRequestService {
   }
 
   private Mono<? extends Throwable> handle400Response(ClientResponse clientResponse) {
-
     return switch(clientResponse.statusCode()){
       case HttpStatus.NOT_FOUND -> Mono.empty(); // error handling for this scenario propagates to WebService
-      case HttpStatus.UNAUTHORIZED -> Mono.error(new UnauthorizedException("User unauthorized to access event-service resource"));
-      case HttpStatus.FORBIDDEN -> Mono.error(new ForbiddenException("User does not have permission to retrieve all events from event-service"));
+      case HttpStatus.UNAUTHORIZED -> Mono.error(new EventUnauthorizedException("User unauthorized to access event-service resource"));
+      case HttpStatus.FORBIDDEN -> Mono.error(new EventForbiddenException("User does not have permission to retrieve all events from event-service"));
       default -> Mono.error(new UnknownCauseException("This should not be happening... Unhandled status code: " + clientResponse.statusCode()));
     };
   }

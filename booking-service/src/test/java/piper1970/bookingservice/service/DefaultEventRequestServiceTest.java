@@ -24,8 +24,8 @@ import org.springframework.web.reactive.function.client.WebClient.Builder;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableException;
 import piper1970.eventservice.common.events.dto.EventDto;
-import piper1970.eventservice.common.exceptions.ForbiddenException;
-import piper1970.eventservice.common.exceptions.UnauthorizedException;
+import piper1970.eventservice.common.exceptions.EventForbiddenException;
+import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.test.StepVerifier;
 
@@ -100,7 +100,7 @@ class DefaultEventRequestServiceTest {
     );
 
     StepVerifier.create(requestService.requestEvent(eventId, token))
-        .verifyError(ForbiddenException.class);
+        .verifyError(EventForbiddenException.class);
   }
 
   @Test
@@ -115,7 +115,7 @@ class DefaultEventRequestServiceTest {
     );
 
     StepVerifier.create(requestService.requestEvent(eventId, token))
-        .verifyError(UnauthorizedException.class);
+        .verifyError(EventUnauthorizedException.class);
   }
 
   @Test

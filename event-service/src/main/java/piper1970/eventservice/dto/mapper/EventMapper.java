@@ -9,9 +9,6 @@ import piper1970.eventservice.dto.EventCreateRequest;
 @Mapper(componentModel = "spring",
     unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface EventMapper {
-
   EventDto toDto(Event event);
-
   Event toEntity(EventCreateRequest eventCreateRequest);
-
 }

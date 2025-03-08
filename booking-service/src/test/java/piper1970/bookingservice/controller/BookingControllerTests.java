@@ -323,7 +323,7 @@ public class BookingControllerTests extends BookingControllerTestsBase {
         .body(Mono.just(createRequest), BookingCreateRequest.class)
         .exchange()
         .expectStatus()
-        .isEqualTo(HttpStatus.GONE);
+        .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
   @Test
@@ -389,7 +389,7 @@ public class BookingControllerTests extends BookingControllerTestsBase {
         .body(Mono.just(createRequest), BookingCreateRequest.class)
         .exchange()
         .expectStatus()
-        .isEqualTo(HttpStatus.GONE);
+        .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
   //endregion

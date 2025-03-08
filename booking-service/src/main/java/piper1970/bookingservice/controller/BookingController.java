@@ -39,6 +39,7 @@ public class BookingController {
   public Flux<BookingDto> getAllBookings(@AuthenticationPrincipal JwtAuthenticationToken token) {
 
     var username = TokenUtilities.getUserFromToken(token);
+
     log.debug("Getting all bookings called by [{}]", username);
 
     if (TokenUtilities.isAdmin(token)) {
@@ -56,17 +57,18 @@ public class BookingController {
       @PathVariable Integer id) {
 
     var username = TokenUtilities.getUserFromToken(token);
+
     log.debug("Getting booking[{}] called by [{}]", id, username);
 
     if (TokenUtilities.isAdmin(token)) {
       return bookingWebService.findBookingById(id)
           .map(bookingMapper::entityToDto)
-          .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
+          .switchIfEmpty(Mono.error(new BookingNotFoundException(createBookingNotFoundMessage(id))));
     }
 
     return bookingWebService.findBookingByIdAndUsername(id, username)
         .map(bookingMapper::entityToDto)
-        .switchIfEmpty(Mono.error(new BookingNotFoundException("Booking not found for id: " + id)));
+        .switchIfEmpty(Mono.error(new BookingNotFoundException(createBookingNotFoundMessage(id))));
   }
 
   @PostMapping
@@ -84,7 +86,7 @@ public class BookingController {
 
     return bookingWebService.createBooking(createRequest, token)
         .map(bookingMapper::entityToDto)
-        .switchIfEmpty(Mono.error(new EventNotFoundException("Event not available for id: " + createRequest.getEventId())));
+        .switchIfEmpty(Mono.error(new EventNotFoundException(createEventNotFountMessage(createRequest.getEventId()))));
   }
 
   @DeleteMapping("/{id}")
@@ -92,7 +94,9 @@ public class BookingController {
   @PreAuthorize("hasAuthority('ADMIN')")
   public Mono<Void> deleteBooking(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
       @PathVariable Integer id) {
+
     var user = TokenUtilities.getUserFromToken(jwtToken);
+
     log.debug("Deleting booking[{}] called by [{}]", id, user);
 
     var token = jwtToken.getToken().getTokenValue();
@@ -100,4 +104,11 @@ public class BookingController {
     return bookingWebService.deleteBooking(id, token);
   }
 
+  private String createBookingNotFoundMessage(Integer eventId) {
+    return String.format("Booking [%d] not found", eventId);
+  }
+
+  private String createEventNotFountMessage(Integer eventId) {
+    return String.format("Event [%d] not found", eventId);
+  }
 }

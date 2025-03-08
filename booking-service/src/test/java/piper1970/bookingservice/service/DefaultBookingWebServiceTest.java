@@ -506,7 +506,6 @@ class DefaultBookingWebServiceTest {
   }
 
   private record BookingParams(int id, int eventId, @Nullable String user) {}
-
   private Booking createBooking(BookingParams bookingParams) {
 
     var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();

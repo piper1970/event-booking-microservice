@@ -3,7 +3,6 @@ package piper1970.eventservice.common.events;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.function.Function;
-import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
@@ -21,7 +20,11 @@ public class EventDtoToStatusMapper implements Function<EventDto, EventStatus> {
   }
 
   @Override
-  public @Nullable EventStatus apply(@NonNull EventDto event) {
+  public @Nullable EventStatus apply(@Nullable EventDto event) {
+
+    if (event == null) {
+      return null;
+    }
 
     var eventDateTime = event.getEventDateTime();
 

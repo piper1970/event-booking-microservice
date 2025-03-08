@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.exceptions.EventCancellationException;
+import piper1970.eventservice.exceptions.EventTimeoutException;
 import piper1970.eventservice.exceptions.EventUpdateException;
 
 @ControllerAdvice
@@ -36,6 +37,16 @@ public class EventExceptionHandler {
     return buildProblemDetail(HttpStatus.BAD_REQUEST, exc.getMessage(), pd -> {
       pd.setTitle("Event cancellation failed");
       pd.setType(URI.create("http://event-service/problem/event-cancellation-failed"));
+    });
+  }
+
+  @ExceptionHandler(EventTimeoutException.class)
+  public ProblemDetail handleTimeout(EventTimeoutException exc) {
+    log.error("Timeout occurred accessing events repository. [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+      pd.setTitle("Event-Repository-Temporarily-Unavailable");
+      pd.setType(URI.create("http://event-service/problem/event-repository-temporarily-unavailable"));
     });
   }
 
@@ -70,6 +81,7 @@ public class EventExceptionHandler {
     log.warn("Duplicate key [{}]", exc.getMessage(), exc);
 
     var message = "Duplicate [title] field found in the system. Please choose another.";
+
     return buildProblemDetail(HttpStatus.CONFLICT, message, pd -> {
       pd.setTitle("Duplicate [title]");
       pd.setType(URI.create("http://event-service/problem/event-duplicate-title"));

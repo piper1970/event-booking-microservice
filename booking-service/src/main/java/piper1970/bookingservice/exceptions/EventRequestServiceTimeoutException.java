@@ -2,7 +2,6 @@ package piper1970.bookingservice.exceptions;
 
 public class EventRequestServiceTimeoutException extends RuntimeException {
 
-
   public EventRequestServiceTimeoutException(String message) {
     super(message);
   }

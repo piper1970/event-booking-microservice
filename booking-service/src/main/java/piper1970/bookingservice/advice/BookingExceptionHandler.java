@@ -18,8 +18,8 @@ import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
-import piper1970.eventservice.common.exceptions.ForbiddenException;
-import piper1970.eventservice.common.exceptions.UnauthorizedException;
+import piper1970.eventservice.common.exceptions.EventForbiddenException;
+import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
 
 @ControllerAdvice
@@ -31,7 +31,7 @@ public class BookingExceptionHandler {
     log.warn("Booking not found [{}]", exc.getMessage(), exc);
 
     return buildProblemDetail(HttpStatus.NOT_FOUND, exc.getMessage(), pd -> {
-      pd.setTitle("Booking not found");
+      pd.setTitle("Booking-Not-found");
       pd.setType(URI.create("http://booking-service/problem/booking-not-found"));
     });
   }
@@ -41,7 +41,7 @@ public class BookingExceptionHandler {
     log.warn("Attempt to cancel booking failed [{}]", exc.getMessage(), exc);
 
     return buildProblemDetail(HttpStatus.CONFLICT, exc.getMessage(), pd -> {
-      pd.setTitle("Booking cannot be cancelled");
+      pd.setTitle("Booking-Cannot-Be-Cancelled");
       pd.setType(URI.create("http://booking-service/problem/booking-cannot-be-cancelled"));
     });
   }
@@ -51,7 +51,7 @@ public class BookingExceptionHandler {
     log.warn("Attempt to create booking failed [{}]", exc.getMessage(), exc);
 
     return buildProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, exc.getMessage(), pd -> {
-      pd.setTitle("Booking creation failed");
+      pd.setTitle("Booking-Creation-Failed");
       pd.setType(URI.create("http://booking-service/problem/booking-creation-failed"));
     });
   }
@@ -61,7 +61,7 @@ public class BookingExceptionHandler {
     log.warn("Event not found [{}]", exc.getMessage(), exc);
 
     return buildProblemDetail(HttpStatus.GONE, exc.getMessage(), pd -> {
-      pd.setTitle("Event not available for booking");
+      pd.setTitle("Event-Not-Available-For-Booking");
       pd.setType(URI.create("http://booking-service/problem/event-not-available"));
     });
   }
@@ -76,7 +76,7 @@ public class BookingExceptionHandler {
     log.warn("Validation errors occurred [{}]", message, exc);
 
     return buildProblemDetail(HttpStatus.BAD_REQUEST, message, pd -> {
-      pd.setTitle("Validation Errors");
+      pd.setTitle("Booking-Validation-Errors");
       pd.setType(URI.create("http://booking-service/problem/booking-validation-errors"));
     });
   }
@@ -111,8 +111,8 @@ public class BookingExceptionHandler {
     });
   }
 
-  @ExceptionHandler(ForbiddenException.class)
-  public ProblemDetail handleException(ForbiddenException exc){
+  @ExceptionHandler(EventForbiddenException.class)
+  public ProblemDetail handleException(EventForbiddenException exc){
     // at this stage, token already authorized through booking controller (auth=MEMBER).
     // event-service call requires MEMBER authorization as well.
     // if event-service responds with Forbidden(403), something in the universe is amiss.
@@ -126,8 +126,8 @@ public class BookingExceptionHandler {
     });
   }
 
-  @ExceptionHandler(UnauthorizedException.class)
-  public ProblemDetail handleException(UnauthorizedException exc){
+  @ExceptionHandler(EventUnauthorizedException.class)
+  public ProblemDetail handleException(EventUnauthorizedException exc){
 
     // at this stage, token passed to event-request-service should have already passed authentication through booking-controller.
     // if failed, possible issues are token expiration or token corruption somewhere in transit

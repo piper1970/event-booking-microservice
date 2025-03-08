@@ -1,5 +1,7 @@
 package piper1970.bookingservice.config;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 import java.time.Clock;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -32,7 +33,6 @@ public class BookingServiceConfig {
 
   private final GrantedAuthoritiesExtractor grantedAuthoritiesExtractor;
 
-
   public BookingServiceConfig(
       @Value("${oauth2.client.id}") String clientId) {
     this.grantedAuthoritiesExtractor = new GrantedAuthoritiesExtractor(clientId);
@@ -40,19 +40,17 @@ public class BookingServiceConfig {
 
   @Bean
   public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
-    http.csrf(CsrfSpec::disable);
-    http.cors(withDefaults());
-    http.authorizeExchange(exchange -> {
-      exchange
-          .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
-          .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
-          .anyExchange()
-          .authenticated();
-    });
-
-    http.oauth2ResourceServer(oauth2 ->
-        oauth2.jwt(jwt ->
-            jwt.jwtAuthenticationConverter(grantedAuthenticationConverter())));
+    http.csrf(CsrfSpec::disable)
+        .cors(withDefaults())
+        .authorizeExchange(exchange -> {
+          exchange
+              .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
+              .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
+              .anyExchange()
+              .authenticated();
+        }).oauth2ResourceServer(oauth2 ->
+            oauth2.jwt(jwt ->
+                jwt.jwtAuthenticationConverter(grantedAuthenticationConverter())));
 
     return http.build();
   }
@@ -78,7 +76,7 @@ public class BookingServiceConfig {
   }
 
   @Bean
-  public Clock clock(){
+  public Clock clock() {
     return Clock.systemDefaultZone();
   }
 
