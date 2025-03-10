@@ -1,8 +1,8 @@
 package piper1970.eventservice.service;
 
 import piper1970.eventservice.domain.Event;
-import piper1970.eventservice.dto.EventCreateRequest;
-import piper1970.eventservice.dto.EventUpdateRequest;
+import piper1970.eventservice.dto.model.EventCreateRequest;
+import piper1970.eventservice.dto.model.EventUpdateRequest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

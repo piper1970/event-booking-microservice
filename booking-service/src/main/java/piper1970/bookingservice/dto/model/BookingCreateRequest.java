@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
-public class BookingCreateRequest {
+public class BookingCreateRequest{
 
   @Positive
   @NotNull

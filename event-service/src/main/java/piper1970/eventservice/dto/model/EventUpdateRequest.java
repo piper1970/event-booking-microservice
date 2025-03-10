@@ -1,4 +1,4 @@
-package piper1970.eventservice.dto;
+package piper1970.eventservice.dto.model;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;

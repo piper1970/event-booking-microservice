@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
-import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -69,15 +68,13 @@ public abstract class EventControllerTestsBase {
   @MockitoBean
   protected Clock clock;
 
-  @InjectMocks
   protected EventDtoToStatusMapper eventDtoToStatusMapper;
 
   @Autowired
   protected ObjectMapper objectMapper;
 
-  protected static final Instant CLOCK_INSTANT = Instant.parse("2025-03-05T14:35:00Z");
+  protected static final Instant CLOCK_INSTANT = Instant.now();
   protected static final ZoneId CLOCK_ZONE = ZoneId.systemDefault();
-
   protected static final String DB_INITIALIZATION_FAILURE = "Database failed to initialize for testing";
 
   @InjectWireMock("keystore-service")
@@ -100,6 +97,8 @@ public abstract class EventControllerTestsBase {
 
     given(clock.instant()).willReturn(CLOCK_INSTANT);
     given(clock.getZone()).willReturn(CLOCK_ZONE);
+
+    eventDtoToStatusMapper = new EventDtoToStatusMapper(clock);
 
     webClient = WebTestClient.bindToServer()
         .baseUrl("http://localhost:" + port)

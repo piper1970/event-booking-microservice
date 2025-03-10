@@ -24,6 +24,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
 import piper1970.eventservice.common.validation.validators.CustomFutureValidator;
+import piper1970.eventservice.common.validation.validators.context.ValidationContextProvider;
 import reactor.core.publisher.Mono;
 
 @Configuration
@@ -81,10 +82,15 @@ public class EventServiceConfig {
 
   @Bean
   public CustomFutureValidator customFutureValidator() {
-    return new CustomFutureValidator(clock());
+    return new CustomFutureValidator();
   }
 
-  Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {
+  @Bean
+  public ValidationContextProvider contextProvider() {
+    return new ValidationContextProvider();
+  }
+
+  private Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {
     JwtAuthenticationConverter authConverter = new JwtAuthenticationConverter();
     authConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesExtractor);
     return new ReactiveJwtAuthenticationConverterAdapter(authConverter);

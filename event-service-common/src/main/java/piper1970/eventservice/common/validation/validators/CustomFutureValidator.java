@@ -5,13 +5,15 @@ import jakarta.validation.ConstraintValidatorContext;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import piper1970.eventservice.common.validation.annotations.CustomFuture;
+import piper1970.eventservice.common.validation.validators.context.ValidationContextProvider;
 
 public class CustomFutureValidator implements ConstraintValidator<CustomFuture, LocalDateTime> {
 
-  private final Clock clock;
+  private Clock clock;
 
-  public CustomFutureValidator(Clock clock) {
-    this.clock = clock;
+  @Override
+  public void initialize(CustomFuture constraintAnnotation) {
+    clock = ValidationContextProvider.getBean(Clock.class);
   }
 
   @Override

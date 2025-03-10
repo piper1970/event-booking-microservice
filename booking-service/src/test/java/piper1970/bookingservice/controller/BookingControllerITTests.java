@@ -34,7 +34,7 @@ import piper1970.bookingservice.dto.model.BookingDto;
 import reactor.core.publisher.Mono;
 
 @EnabledIf(expression = "#{environment.acceptsProfiles('integration')}", loadContext = true)
-//@ActiveProfiles("integration")
+//@ActiveProfiles({"test", "integration"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @DisplayName("Booking Controller w/Postgres TestContainer")
@@ -164,7 +164,7 @@ class BookingControllerITTests extends BookingControllerTestsBase {
 
     // mock event server
     mockEventServer(eventId, 50,
-        LocalDateTime.now().plusHours(5), token);
+        LocalDateTime.now(clock).plusHours(5), token);
 
     var results = webClient.post()
         .uri("/api/bookings")
@@ -227,7 +227,7 @@ class BookingControllerITTests extends BookingControllerTestsBase {
     var token = getJwtToken("test_member", "MEMBER", "ADMIN");
 
     mockEventServer(booking.getEventId(), 50,
-        LocalDateTime.now().plusHours(5), token);
+        LocalDateTime.now(clock).plusHours(5), token);
 
     webClient.delete()
         .uri("/api/bookings/{id}", booking.getId())
@@ -268,7 +268,7 @@ class BookingControllerITTests extends BookingControllerTestsBase {
 
   @TestConfiguration
   @Profile("integration")
-//  @ActiveProfiles("integration")
+//@ActiveProfiles({"test", "integration"})
   @Slf4j
   public static class TestIntegrationConfiguration {
 

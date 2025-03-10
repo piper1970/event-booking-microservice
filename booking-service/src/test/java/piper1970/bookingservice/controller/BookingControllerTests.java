@@ -14,8 +14,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.reactive.function.client.WebClient;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
@@ -24,6 +26,7 @@ import piper1970.bookingservice.dto.model.BookingDto;
 import reactor.core.publisher.Mono;
 
 @DisplayName("Booking Controller")
+@ActiveProfiles("test")
 public class BookingControllerTests extends BookingControllerTestsBase {
 
   //region GET ALL BOOKINGS
@@ -279,7 +282,7 @@ public class BookingControllerTests extends BookingControllerTestsBase {
 
     // mock event server
     mockEventServer(eventId, 50,
-        LocalDateTime.now().plusHours(5), token);
+        LocalDateTime.now(clock).plusHours(5), token);
 
     var results = webClient.post()
         .uri("/api/bookings")
@@ -312,7 +315,7 @@ public class BookingControllerTests extends BookingControllerTestsBase {
 
     // mock event server
     mockEventServer(eventId, 50,
-        LocalDateTime.now().minusMinutes(5), token);
+        LocalDateTime.now(clock).minusMinutes(5), token);
 
     webClient.post()
         .uri("/api/bookings")
@@ -378,7 +381,7 @@ public class BookingControllerTests extends BookingControllerTestsBase {
 
     // mock event server
     mockEventServer(eventId, 0,
-        LocalDateTime.now().plusHours(5), token);
+        LocalDateTime.now(clock).plusHours(5), token);
 
     webClient.post()
         .uri("/api/bookings")
@@ -412,7 +415,7 @@ public class BookingControllerTests extends BookingControllerTestsBase {
     var token = getJwtToken("test_member", "MEMBER", "ADMIN");
 
     mockEventServer(booking.getEventId(), 50,
-        LocalDateTime.now().plusHours(5), token);
+        LocalDateTime.now(clock).plusHours(5), token);
 
     webClient.delete()
         .uri("/api/bookings/{id}", booking.getId())
@@ -440,7 +443,7 @@ public class BookingControllerTests extends BookingControllerTestsBase {
     var token = getJwtToken("test_member", "MEMBER", "ADMIN");
 
     mockEventServer(booking.getEventId(), 50,
-        LocalDateTime.now().minusMinutes(5), token);
+        LocalDateTime.now(clock).minusMinutes(5), token);
 
     webClient.delete()
         .uri("/api/bookings/{id}", booking.getId())
@@ -500,6 +503,8 @@ public class BookingControllerTests extends BookingControllerTestsBase {
   //region Test Configuration
 
   @TestConfiguration
+  @Profile("test")
+  @ActiveProfiles("test")
   public static class TestControllerConfiguration{
 
     private final String apiUri;

@@ -25,12 +25,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.domain.Event;
-import piper1970.eventservice.dto.EventCreateRequest;
-import piper1970.eventservice.dto.EventUpdateRequest;
+import piper1970.eventservice.dto.model.EventCreateRequest;
+import piper1970.eventservice.dto.model.EventUpdateRequest;
 import reactor.core.publisher.Mono;
 
 @EnabledIf(expression = "#{environment.acceptsProfiles('integration')}", loadContext = true)
-//@ActiveProfiles("integration")
+//@ActiveProfiles({"test","integration"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @DisplayName("EventController")
@@ -175,7 +175,7 @@ class EventControllerITTests extends EventControllerTestsBase {
 
   @TestConfiguration
   @Profile("integration")
-//  @ActiveProfiles("integration")
+//@ActiveProfiles({"test","integration"})
   public static class TestIntegrationConfiguration {
 
     ///  Initializes database structure from schema

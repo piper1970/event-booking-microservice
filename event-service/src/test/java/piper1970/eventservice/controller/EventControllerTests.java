@@ -13,14 +13,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.domain.Event;
-import piper1970.eventservice.dto.EventCreateRequest;
-import piper1970.eventservice.dto.EventUpdateRequest;
+import piper1970.eventservice.dto.model.EventCreateRequest;
+import piper1970.eventservice.dto.model.EventUpdateRequest;
 import reactor.core.publisher.Mono;
 
 @DisplayName("EventController")
+@ActiveProfiles("test")
 public class EventControllerTests extends EventControllerTestsBase {
 
   @Value("${event.change.cutoff.minutes}")

@@ -1,10 +1,10 @@
-package piper1970.eventservice.common.validation.validators;
+package piper1970.bookingservice.validation.validators;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import java.util.ArrayList;
 import java.util.List;
-import piper1970.eventservice.common.validation.annotations.EnumValues;
+import piper1970.bookingservice.validation.annotations.EnumValues;
 
 /**
  * Validator for ensuring the String value to test is one of the names() for the given Enum

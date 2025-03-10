@@ -1,6 +1,7 @@
 package piper1970.bookingservice.controller;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static org.mockito.BDDMockito.given;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,8 +20,10 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Date;
@@ -32,6 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
@@ -56,6 +60,8 @@ public abstract class BookingControllerTestsBase {
 
   protected static RSAKey rsaKey;
 
+  protected static final Instant CLOCK_INSTANT = Instant.now();
+  protected static final ZoneId CLOCK_ZONE = ZoneId.systemDefault();
   protected static final String DB_INITIALIZATION_FAILURE = "Database failed to initialize for testing";
 
   @Autowired
@@ -71,6 +77,9 @@ public abstract class BookingControllerTestsBase {
   @Autowired
   protected BookingRepository bookingRepository;
 
+  @MockitoBean
+  protected Clock clock;
+
   @LocalServerPort
   protected Integer port;
 
@@ -84,6 +93,9 @@ public abstract class BookingControllerTestsBase {
 
   @BeforeEach
   void setUp() throws JOSEException, JsonProcessingException {
+
+    given(clock.instant()).willReturn(CLOCK_INSTANT);
+    given(clock.getZone()).willReturn(CLOCK_ZONE);
 
     webClient = WebTestClient.bindToServer()
         .baseUrl("http://localhost:" + port)
@@ -100,19 +112,19 @@ public abstract class BookingControllerTestsBase {
         Booking.builder()
             .eventId(1)
             .username("test_member")
-            .eventDateTime(LocalDateTime.now().plusDays(5))
+            .eventDateTime(LocalDateTime.now(clock).plusDays(5))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build(),
         Booking.builder()
             .eventId(2)
             .username("test_member")
-            .eventDateTime(LocalDateTime.now().plusDays(6))
+            .eventDateTime(LocalDateTime.now(clock).plusDays(6))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build(),
         Booking.builder()
             .eventId(1)
             .username("test_member-2")
-            .eventDateTime(LocalDateTime.now().plusDays(5))
+            .eventDateTime(LocalDateTime.now(clock).plusDays(5))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build()
     )).collectList();
