@@ -1,0 +1,71 @@
+graph TB
+    Client[Client Applications]
+    Gateway[API Gateway]
+    Config[Config Server]
+    Eureka[Eureka Discovery Service]
+    Keycloak[Keycloak OAuth2/OpenID]
+    
+    subgraph Services
+        EventService[Event Service]
+        BookingService[Booking Service]
+        BookingPaymentService[Booking Payment Service]
+        NotificationService[Notification Service]
+    end
+    
+    subgraph Databases
+        EventDB[(Postgres - Event DB)]
+        BookingDB[(Postgres - Booking DB)]
+        PaymentDB[(Postgres - Payment DB)]
+    end
+    
+    subgraph Messaging
+        Kafka[Kafka Message Broker]
+        
+        subgraph Kafka Topics
+            topic1[create-booking]
+            topic2[create-booking-success]
+            topic3[create-booking-failed]
+            topic4[cancel-booking]
+            topic5[refund-problems]
+            topic6[event-changed]
+            topic7[booking-updates]
+            topic8[event-cancelled]
+            topic9[booking-cancelled]
+        end
+    end
+    
+    subgraph External
+        PaymentAPI[External Payment API]
+    end
+    
+    Client --> Gateway
+    Gateway --> EventService
+    Gateway --> BookingService
+    Gateway --> BookingPaymentService
+    
+    Gateway --> Keycloak
+    
+    EventService --> EventDB
+    BookingService --> BookingDB
+    BookingPaymentService --> PaymentDB
+    
+    EventService --> Eureka
+    BookingService --> Eureka
+    BookingPaymentService --> Eureka
+    NotificationService --> Eureka
+    Gateway --> Eureka
+    
+    BookingService --> EventService
+    
+    BookingService --> Kafka
+    BookingPaymentService --> Kafka
+    NotificationService --> Kafka
+    EventService --> Kafka
+    
+    BookingPaymentService --> PaymentAPI
+    
+    style Gateway fill:#f9f,stroke:#333
+    style Eureka fill:#ff9,stroke:#333
+    style Config fill:#ff9,stroke:#333
+    style Kafka fill:#dfd,stroke:#333
+    style Keycloak fill:#fdd,stroke:#333

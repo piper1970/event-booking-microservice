@@ -19,20 +19,22 @@ CREATE ROLE bookings_admin_user WITH
     NOREPLICATION
     NOBYPASSRLS
     CONNECTION LIMIT -1
-    ENCRYPTED PASSWORD '<see .env file>';
+    ENCRYPTED PASSWORD 'bookings_admin_password';
+-- make sure .env file matches
 
 -- Grant permissions for bookings_admin_user
 GRANT ALL ON DATABASE bookings TO bookings_admin_user;
 
--- make sure to be in bookings db
--- \c bookings
+-- move to bookings db
+\c bookings
 
+-- setup schema
 CREATE SCHEMA event_service;
 GRANT ALL ON SCHEMA event_service to bookings_admin_user;
 GRANT ALL ON ALL TABLES IN SCHEMA event_service to bookings_admin_user;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA event_service to bookings_admin_user;
 
--- Create regular user role bookings_user
+-- Create regular user bookings_user
 DROP ROLE IF EXISTS bookings_user;
 CREATE ROLE bookings_user WITH
     LOGIN
@@ -43,7 +45,8 @@ CREATE ROLE bookings_user WITH
     NOREPLICATION
     NOBYPASSRLS
     CONNECTION LIMIT -1
-    ENCRYPTED PASSWORD '<see .env file>';
+    ENCRYPTED PASSWORD 'bookings_password';
+-- make sure .env file matches
 
 -- Grant permissions for bookings_user
 GRANT CONNECT ON DATABASE bookings TO bookings_user;

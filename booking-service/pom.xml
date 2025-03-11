@@ -121,7 +121,7 @@
       <artifactId>spring-security-oauth2-jose</artifactId>
     </dependency>
 
-<!--  Testing -->
+    <!--  Testing -->
 
     <dependency>
       <groupId>com.h2database</groupId>

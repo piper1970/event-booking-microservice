@@ -38,7 +38,7 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: "${oauth2.provider.base-uri}/protocol/openid-connect/certs"
-#          issuer-uri: ${oauth2.provider.base-uri}
+          issuer-uri: ${oauth2.provider.base-uri}
 
   # Routing
   cloud:

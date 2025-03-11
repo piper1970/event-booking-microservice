@@ -19,13 +19,16 @@ CREATE ROLE events_admin_user WITH
     NOREPLICATION
     NOBYPASSRLS
     CONNECTION LIMIT -1
-    ENCRYPTED PASSWORD '<see .env file>';
+    ENCRYPTED PASSWORD 'events_admin_password';
+-- make sure .env file matches
 
 -- grant permissions for events_admin_user
 GRANT ALL ON DATABASE events TO events_admin_user;
 
--- \c events
+-- move to events database
+\c events
 
+-- setup schema for events db
 CREATE SCHEMA event_service;
 GRANT ALL ON SCHEMA event_service to events_admin_user;
 GRANT ALL ON ALL TABLES IN SCHEMA event_service to events_admin_user;
@@ -42,7 +45,8 @@ CREATE ROLE events_user WITH
     NOREPLICATION
     NOBYPASSRLS
     CONNECTION LIMIT -1
-    ENCRYPTED PASSWORD '<see .env file>';
+    ENCRYPTED PASSWORD 'events_password';
+-- make sure .env file matches
 
 -- grant permissions for events_user
 GRANT CONNECT ON DATABASE events TO events_user;

@@ -1,4 +1,4 @@
--- create database
+-- create database keycloak
 DROP DATABASE IF EXISTS keycloak;
 CREATE DATABASE keycloak
     WITH
@@ -19,19 +19,18 @@ CREATE ROLE keycloak_admin_user WITH
     NOREPLICATION
     NOBYPASSRLS
     CONNECTION LIMIT -1
-    ENCRYPTED PASSWORD '<see .env file>';
+    ENCRYPTED PASSWORD 'keycloak_admin_password';
+-- make sure .env file matches for KC_ADMIN_PASSWORD
 
 -- grant all privileges to keycloak_admin_user role
 GRANT ALL ON DATABASE keycloak TO keycloak_admin_user;
 
--- \c keycloak
+-- move to keycloak db
+\c keycloak
 
+-- setup grant permissions for keycloak_admin_user
 GRANT ALL ON SCHEMA public TO keycloak_admin_user;
-
 GRANT ALL ON ALL TABLES IN SCHEMA public to keycloak_admin_user;
-
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public to keycloak_admin_user;
-
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES to keycloak_admin_user;
-
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO keycloak_admin_user;
