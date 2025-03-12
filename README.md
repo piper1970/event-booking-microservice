@@ -1,8 +1,8 @@
-# Event Service (POC)
+# Event-Booking Service (POC)
 
 _A microservice-based event management and booking system, utilizing Spring Boot and Spring Cloud components._
 
-This project is set up as a POC, to demonstrate understanding of current Spring Boot and Spring Cloud development.
+This project is a POC, to demonstrate understanding of current Spring Boot and Spring Cloud development. 
 
 ---
 
@@ -53,7 +53,7 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 - **Prometheus/Grafana**: Monitoring and Visualization
 
 ## Setup
-See _./SETUP.md_ file for setup instructions
+See _./SETUP.md_ file for further setup instructions
 
 
 

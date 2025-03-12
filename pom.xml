@@ -1,118 +1,136 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.3</version>
-		<relativePath/> <!-- lookup parent from repository -->
-	</parent>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.4.3</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
 
-	<groupId>piper1970</groupId>
-	<artifactId>event-service-parent</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>event-service-parent</name>
-	<description>Parent for distributed event service POC</description>
-	<packaging>pom</packaging>
+  <groupId>piper1970</groupId>
+  <artifactId>event-booking-service</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>event-booking-service</name>
+  <description>Event-Booking Service Multi-Module Project</description>
+  <packaging>pom</packaging>
 
-	<properties>
-		<java.version>21</java.version>
-		<spring-cloud.version>2024.0.0</spring-cloud.version>
-		<org.mapstruct.version>1.6.3</org.mapstruct.version>
-		<lombok.mapstruct.binding.version>0.2.0</lombok.mapstruct.binding.version>
-		<rest-assured.version>5.5.1</rest-assured.version>
-		<wiremock.version>3.8.1</wiremock.version>
-	</properties>
+  <properties>
+    <java.version>21</java.version>
+    <spring-cloud.version>2024.0.0</spring-cloud.version>
+    <org.mapstruct.version>1.6.3</org.mapstruct.version>
+    <lombok.mapstruct.binding.version>0.2.0</lombok.mapstruct.binding.version>
+    <rest-assured.version>5.5.1</rest-assured.version>
+    <wiremock.version>3.8.1</wiremock.version>
+  </properties>
 
-	<dependencies>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter</artifactId>
-		</dependency>
-		    <dependency>
+  <dependencies>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-tracing-bridge-brave</artifactId>
     </dependency>
+
     <dependency>
       <groupId>io.zipkin.reporter2</groupId>
       <artifactId>zipkin-reporter-brave</artifactId>
     </dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-devtools</artifactId>
-			<scope>runtime</scope>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
 
-		<!--		Needed for use with ARM macOS Architecture. -->
-		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty-resolver-dns-native-macos</artifactId>
-			<version>4.1.113.Final</version>
-			<classifier>osx-aarch_64</classifier>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-config</artifactId>
-		</dependency>
-	</dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-dependencies</artifactId>
-				<version>${spring-cloud.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <scope>runtime</scope>
+      <optional>true</optional>
+    </dependency>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-					<layers>
-						<enabled>true</enabled>
-					</layers>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
 
-	<modules>
-		<module>event-service</module>
-		<module>booking-service</module>
-		<module>event-service-gateway</module>
-		<module>event-service-config</module>
-		<module>discovery-server</module>
-		<module>event-service-common</module>
-	</modules>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-config</artifactId>
+    </dependency>
 
+  </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+          <layers>
+            <enabled>true</enabled>
+          </layers>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <modules>
+    <module>event-service</module>
+    <module>booking-service</module>
+    <module>event-service-gateway</module>
+    <module>event-service-config</module>
+    <module>discovery-server</module>
+    <module>event-service-common</module>
+    <module>payment-service</module>
+    <module>notification-service</module>
+  </modules>
+
+  <profiles>
+    <profile>
+      <id>macos-arm</id>
+      <!--		Needed for use with MacOS arm Architecture. -->
+      <dependencies>
+        <dependency>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-resolver-dns-native-macos</artifactId>
+          <version>4.1.113.Final</version>
+          <classifier>osx-aarch_64</classifier>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

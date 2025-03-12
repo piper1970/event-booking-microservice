@@ -1,6 +1,3 @@
-server:
-  port: 8080
-
 api:
   uri:
     booking-service: http://localhost:8083

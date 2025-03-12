@@ -8,45 +8,56 @@
 
 ## Environment Files Used
 
+## Building Maven Artifacts
+
+All projects share the same parent modules.  As such, a single command from the project's
+root directory can be used build the necessary jar files for the docker-compose file to work.
+
+NOTE: _TestContainers_ are used in the Unit/Integration tests for a number of sub-modules.  Because of this,
+the command below should only be run when _Docker Desktop_ (or whatever flavor you have running) is up and running.
+
+To package all necessary modules into jar files, run the following command (Windows users, reverse the slash):
+
+`./mvnw clean package` 
+
+Note: if running on a MacOS system with a Apple Silicon M1+ processor, an extra dependency is needed to work properly.
+For this scenario, run the command with the _macos-arm_ profile,
+as such:
+
+`./mvnw clean package -P macos-arm`
+
 An __.env__ file is needed in the root directory for docker compose to run correctly.
 __.gitignore__ is set up to ignore saving this file.
 
 See _env-sample_ in the root directory for a list of all environment variable used.
 
-## Setting Up Databases For Each Service (??? - may not need this if postgres works properly)
+## Setting Up Databases For Each Service
 
-For simplicity's sake, only one running instance of postgres is set up in the _docker-compose.yml_
-file. 
+The postgres container in the docker-compose file runs the initialization scripts from the 
+_./data/scripts_ directory.  Once done, it closes the container. The container will need to
+be restarted again.
 
-Four services rely on this service, so prior to running all the services in the
-_docker-compose.yml_ file, you will need to prime the postgres container.
-
-To startup just the __psql__ client on the _postgres_ container, do the following:
-1. Make sure _.env_ file is setup in root directory
-2. Run `docker compose up postgres -d` to startup container
-3. Run `docker compose exec postgres psql -U postgres` to exec into container and run the native client
-4. Go (locally) to the _./data/scripts_ directory to find startup scripts for each service
-5. Open each file up, running each command individually in __psql__, making sure to replace instances of _<see .env file>_ with values from _.env_ file before running command
-6. Once done type `\q` to exit the app and the container.
-7. Run `docker compost down` to bring down the _postgres_ container.
-
-From this point on, the database-server is set up to handle all four databases.
+I suggest just doing the following command sequence initially to ensure the needed
+databases are set up prior to running the other containers:
+1. `docker compose up postgres -d` (_prime the database engine_)
+2. `docker compose down`
+3. `docker compose up -d`
 
 ## Setting Up Keycloak
 
-Initially, _keycloak_ is set up in the _docker-compose.yml_ run based on the file _./data/keycloak/piper1970-realm.json_. 
+Initially, _keycloak_ is set to import settings from the file _./data/keycloak/piper1970-realm.json_. 
 
-However, after the first run of the _keycloak_ container, it will rely on
-the _postgres_ instance to store settings.
+However, after the first run of the _keycloak_ container, it should rely on
+the _postgres_ database that holds the settings.
 
 After running docker compose for the first time, comment the line
 out that sets the container to run off the realm file:
 
-- `- --import-realm`  ->   `#      - --import-realm`
+- `- --import-realm`  --->   `#      - --import-realm`
 
 ### Current KeyCloak Setup
 
-The realm in use, piper1970, has 3 default users (user/pass are the same string):
+The realm in use, piper1970, has 3 default users (user/pass are the same):
 - test-member
 - test-performer
 - test-admin
@@ -57,12 +68,14 @@ These users apply to the current authorities/roles in play for this realm:
 - ADMIN
 
 
-- test-member only has MEMBER authority
+- test-member has MEMBER authority
 - test-performer has MEMBER and PERFORMER authorities 
 - test-admin has all three authorities
 
-
 Keycloak allows for new users to signup. On successful signup, they are given MEMBER authority
+
+It should be noted that I set up KeyCloak with limited functionality and security.
+I would not recommend using this in any setting other than development.
 
 
 ## Running Docker Compose 
@@ -72,6 +85,12 @@ docker images used in the system. These files require that
 maven be called on each project.
 
 The simplest choice here is to run the following command
-from the root directory
+from the root directory:
+
+`docker compose up -d`
+
+Once done running the application, it called be closed with the following:
+
+`docker compose down`
 
 

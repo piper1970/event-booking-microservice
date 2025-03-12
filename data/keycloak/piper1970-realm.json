@@ -54,9 +54,35 @@
       "description" : "${role_default-roles}",
       "composite" : true,
       "composites" : {
-        "realm" : [ "offline_access", "uma_authorization" ],
+        "realm" : [ "offline_access", "uma_authorization", "MEMBER" ],
         "client" : {
           "account" : [ "manage-account", "view-profile" ]
+        }
+      },
+      "clientRole" : false,
+      "containerId" : "173ce078-0d46-4701-9770-07deac400b3a",
+      "attributes" : { }
+    }, {
+      "id" : "a4589080-72a7-490f-8aaa-765e3ea783ff",
+      "name" : "MEMBER",
+      "description" : "",
+      "composite" : true,
+      "composites" : {
+        "client" : {
+          "event-service-client" : [ "MEMBER" ]
+        }
+      },
+      "clientRole" : false,
+      "containerId" : "173ce078-0d46-4701-9770-07deac400b3a",
+      "attributes" : { }
+    }, {
+      "id" : "1a12328b-92a3-4e6e-a3c5-a30d28e826ee",
+      "name" : "PERFORMER",
+      "description" : "",
+      "composite" : true,
+      "composites" : {
+        "client" : {
+          "event-service-client" : [ "MEMBER", "PERFORMER" ]
         }
       },
       "clientRole" : false,
@@ -67,6 +93,19 @@
       "name" : "offline_access",
       "description" : "${role_offline-access}",
       "composite" : false,
+      "clientRole" : false,
+      "containerId" : "173ce078-0d46-4701-9770-07deac400b3a",
+      "attributes" : { }
+    }, {
+      "id" : "c056f553-18a1-487a-9777-62d35e927a53",
+      "name" : "ADMIN",
+      "description" : "",
+      "composite" : true,
+      "composites" : {
+        "client" : {
+          "event-service-client" : [ "ADMIN", "MEMBER", "PERFORMER" ]
+        }
+      },
       "clientRole" : false,
       "containerId" : "173ce078-0d46-4701-9770-07deac400b3a",
       "attributes" : { }
@@ -169,7 +208,7 @@
         "composite" : true,
         "composites" : {
           "client" : {
-            "realm-management" : [ "query-users", "manage-users", "manage-realm", "view-users", "query-realms", "view-clients", "view-authorization", "impersonation", "manage-identity-providers", "query-clients", "create-client", "view-realm", "view-identity-providers", "manage-events", "manage-clients", "query-groups", "manage-authorization", "view-events" ]
+            "realm-management" : [ "query-users", "manage-users", "manage-realm", "query-realms", "view-users", "view-clients", "view-authorization", "impersonation", "manage-identity-providers", "query-clients", "create-client", "view-identity-providers", "view-realm", "manage-events", "manage-clients", "query-groups", "manage-authorization", "view-events" ]
           }
         },
         "clientRole" : true,
@@ -430,9 +469,9 @@
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-piper-realm" ],
+    "realmRoles" : [ "default-roles-piper-realm", "ADMIN" ],
     "clientRoles" : {
-      "realm-management" : [ "manage-users", "view-users" ],
+      "realm-management" : [ "view-users" ],
       "event-service-client" : [ "ADMIN", "MEMBER", "PERFORMER" ],
       "account" : [ "manage-account", "view-profile" ]
     },
@@ -458,15 +497,12 @@
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-piper-realm" ],
-    "clientRoles" : {
-      "event-service-client" : [ "MEMBER" ]
-    },
+    "realmRoles" : [ "default-roles-piper-realm", "MEMBER" ],
     "clientConsents" : [ {
       "clientId" : "event-service-client",
       "grantedClientScopes" : [ "profile", "roles", "email" ],
-      "createdDate" : 1738897892285,
-      "lastUpdatedDate" : 1738897892290
+      "createdDate" : 1741717282105,
+      "lastUpdatedDate" : 1741717282110
     } ],
     "notBefore" : 0,
     "groups" : [ ]
@@ -492,7 +528,7 @@
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-piper-realm" ],
     "clientRoles" : {
-      "event-service-client" : [ "MEMBER", "PERFORMER" ]
+      "event-service-client" : [ "PERFORMER" ]
     },
     "notBefore" : 0,
     "groups" : [ ]
@@ -660,7 +696,7 @@
     "directAccessGrantsEnabled" : false,
     "serviceAccountsEnabled" : false,
     "publicClient" : false,
-    "frontchannelLogout" : false,
+    "frontchannelLogout" : true,
     "protocol" : "openid-connect",
     "attributes" : {
       "realm_client" : "false",
@@ -1465,7 +1501,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-address-mapper", "saml-role-list-mapper", "oidc-full-name-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-user-attribute-mapper", "saml-role-list-mapper", "saml-user-property-mapper", "oidc-usermodel-property-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "oidc-full-name-mapper", "oidc-sha256-pairwise-sub-mapper" ]
       }
     }, {
       "id" : "1ded4993-d84b-4283-b55d-b2620a750fae",
@@ -1493,7 +1529,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "oidc-address-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "saml-role-list-mapper", "oidc-full-name-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-role-list-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "oidc-address-mapper", "saml-user-attribute-mapper" ]
       }
     }, {
       "id" : "d2c5b4ad-fcfb-418d-9145-343bf65a3c3d",

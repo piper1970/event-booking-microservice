@@ -1,32 +1,146 @@
 package piper1970.eventservice.controller;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.nimbusds.jose.Algorithm;
 import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import io.r2dbc.spi.ConnectionFactory;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.r2dbc.connection.init.CompositeDatabasePopulator;
+import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
+import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.wiremock.spring.ConfigureWireMock;
+import org.wiremock.spring.EnableWireMock;
+import org.wiremock.spring.InjectWireMock;
+import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.domain.Event;
+import piper1970.eventservice.dto.mapper.EventMapper;
 import piper1970.eventservice.dto.model.EventCreateRequest;
 import piper1970.eventservice.dto.model.EventUpdateRequest;
+import piper1970.eventservice.repository.EventRepository;
 import reactor.core.publisher.Mono;
 
 @DisplayName("EventController")
 @ActiveProfiles("test")
-public class EventControllerTests extends EventControllerTestsBase {
+@Testcontainers
+@AutoConfigureTestDatabase(replace = Replace.NONE)
+@Slf4j
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@EnableWireMock({
+    @ConfigureWireMock(
+        name = "keystore-service",
+        baseUrlProperties = "keystore-service.url")
+})
+public class EventControllerTests{
+
+  //region Properties Setup
 
   @Value("${event.change.cutoff.minutes}")
-  private Integer cutoffPoint;
+  Integer cutoffPoint;
+
+  RSAKey rsaKey;
+
+  @LocalServerPort
+  Integer port;
+
+  @Autowired
+  EventMapper eventMapper;
+
+  @MockitoBean
+  Clock clock;
+
+  EventDtoToStatusMapper eventDtoToStatusMapper;
+
+  @Autowired
+  ObjectMapper objectMapper;
+
+  final Instant clockInstant = Instant.now();
+  final ZoneId clockZone = ZoneId.systemDefault();
+  final String dbInitializationFailure = "Database failed to initialize for testing";
+
+  @InjectWireMock("keystore-service")
+  WireMockServer keycloakServer;
+  boolean keycloakServerInitialized;
+
+  @Autowired
+  EventRepository eventRepository;
+
+  @Value("${oauth2.realm}")
+  String realm;
+
+  @Value("${oauth2.client.id}")
+  String oauthClientId;
+
+  WebTestClient webClient;
+
+  //endregion Properties Setup
+
+  @BeforeEach
+  void setUp() throws JOSEException, JsonProcessingException {
+
+    given(clock.instant()).willReturn(clockInstant);
+    given(clock.getZone()).willReturn(clockZone);
+
+    eventDtoToStatusMapper = new EventDtoToStatusMapper(clock);
+
+    webClient = WebTestClient.bindToServer()
+        .baseUrl("http://localhost:" + port)
+        .build();
+    eventRepository.deleteAll()
+        .then()
+        .block();
+    setupKeyCloakServer();
+  }
+
 
   //region GET ALL EVENTS
 
@@ -47,7 +161,7 @@ public class EventControllerTests extends EventControllerTestsBase {
         .exchange()
         .expectStatus().isOk()
         .expectBodyList(EventDto.class)
-        .hasSize(Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE).size());
+        .hasSize(Objects.requireNonNull(db, dbInitializationFailure).size());
   }
 
   @Test
@@ -91,7 +205,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE).getFirst().getId();
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure).getFirst().getId();
 
     var token = getJwtToken("test_member", "MEMBER");
 
@@ -112,7 +226,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE).getFirst().getId();
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure).getFirst().getId();
 
     webClient.get()
         .uri("/api/events/{eventId}", eventId)
@@ -128,7 +242,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE).getFirst().getId();
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure).getFirst().getId();
 
     var token = getJwtToken("test_member", "NON_MEMBER");
 
@@ -244,7 +358,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_non_authorized() throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
@@ -275,7 +389,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_non_authenticated() {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
@@ -304,7 +418,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_authorized_admin_good_values() throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
@@ -336,7 +450,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_authorized_admin_update_event_date_time() throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
@@ -369,7 +483,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_authorized_admin_update_event_date_time_in_progress() throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.IN_PROGRESS))
         .findAny()
@@ -381,7 +495,7 @@ public class EventControllerTests extends EventControllerTestsBase {
 
     // manually adjust time
     long cutoffPointToSeconds = cutoffPoint.longValue() * 60;
-    Instant newInstant = CLOCK_INSTANT.minusSeconds(cutoffPointToSeconds);
+    Instant newInstant = clockInstant.minusSeconds(cutoffPointToSeconds);
     when(clock.instant()).thenReturn(newInstant);
 
     webClient.put()
@@ -400,7 +514,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_authorized_admin_update_values_while_complete() throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.COMPLETED))
         .findAny()
@@ -426,7 +540,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_authorized_admin_awaiting_to_in_progress_update_cost() throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
@@ -454,7 +568,7 @@ public class EventControllerTests extends EventControllerTestsBase {
       throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
@@ -481,7 +595,7 @@ public class EventControllerTests extends EventControllerTestsBase {
   void updateEvent_authorized_admin_awaiting_to_in_progress_update_location() throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
@@ -509,7 +623,7 @@ public class EventControllerTests extends EventControllerTestsBase {
       throws JOSEException {
     var db = initializeDatabase()
         .block();
-    var event = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
@@ -540,7 +654,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .map(Event::getId)
@@ -566,7 +680,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(event -> EventStatus.COMPLETED == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
         .map(Event::getId)
@@ -593,7 +707,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
         .map(Event::getId)
@@ -618,7 +732,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
         .map(Event::getId)
@@ -642,7 +756,7 @@ public class EventControllerTests extends EventControllerTestsBase {
     var db = initializeDatabase()
         .block();
 
-    var eventId = Objects.requireNonNull(db, DB_INITIALIZATION_FAILURE)
+    var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
         .map(Event::getId)
@@ -654,6 +768,143 @@ public class EventControllerTests extends EventControllerTestsBase {
         .exchange()
         .expectStatus()
         .isUnauthorized();
+  }
+
+  //endregion
+
+  //region Helper Methods
+
+  Mono<List<Event>> initializeDatabase() {
+
+    return eventRepository.saveAll(List.of(
+        Event.builder() // AWAITING
+            .title("Test Event 1")
+            .description("Test Event 1")
+            .facilitator("test_performer")
+            .location("Test Location 1")
+            .eventDateTime(LocalDateTime.now(clock).plusDays(2).plusHours(2))
+            .durationInMinutes(30)
+            .cost(BigDecimal.valueOf(100))
+            .availableBookings(100)
+            .build(),
+        Event.builder() // IN_PROGRESS
+            .title("Test Event 2")
+            .description("Test Event 2")
+            .facilitator("test_performer")
+            .location("Test Location 2")
+            .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
+            .durationInMinutes(30)
+            .cost(BigDecimal.valueOf(100))
+            .availableBookings(100)
+            .build(),
+        Event.builder()  // COMPLETED
+            .title("Test Event 3")
+            .description("Test Event 3")
+            .facilitator("test_performer")
+            .location("Test Location 3")
+            .eventDateTime(LocalDateTime.now(clock).minusDays(2))
+            .durationInMinutes(30)
+            .cost(BigDecimal.valueOf(100))
+            .availableBookings(100)
+            .build()
+    )).collectList();
+  }
+
+  ///  Generate Token based of RSA Key returned by Wire-mocked OAuth2 server
+  String getJwtToken(String username, String... authorities) throws JOSEException {
+
+    var iat = Instant.now(clock);
+    var auth_time = iat.plusSeconds(2);
+    var exp = iat.plus(3, ChronoUnit.DAYS);
+    var issuer = String.format("%s/realms/%s", keycloakServer.baseUrl(), realm);
+    var email = String.format("%s@example.com", username);
+    var resourceAccess = Map.of(
+        oauthClientId, Map.of("roles", Arrays.asList(authorities)),
+        "account",
+        Map.of("roles", Arrays.asList("manage-account", "manage-account-links", "view-profile"))
+    );
+
+    var header = new JWSHeader.Builder(JWSAlgorithm.RS256)
+        .type(JOSEObjectType.JWT)
+        .keyID(rsaKey.getKeyID())
+        .build();
+
+    var payload = new JWTClaimsSet.Builder()
+        .issuer(issuer)
+        .audience(List.of("account"))
+        .subject(username)
+        .issueTime(Date.from(iat))
+        .expirationTime(Date.from(exp))
+        .claim("preferred_username", username)
+        .claim("email", email)
+        .claim("email_verified", false)
+        .claim("name", "Test User")
+        .claim("given_name", "Test")
+        .claim("family_name", "User")
+        .claim("auth_time", Date.from(auth_time))
+        .claim("type", "Bearer")
+        .claim("realm_access", Map.of("roles", Arrays.asList(authorities)))
+        .claim("scope", "openid profile email")
+        .claim("resource_access", resourceAccess)
+        .claim("azp", oauthClientId)
+        .build();
+
+    var signedJwt = new SignedJWT(header, payload);
+    signedJwt.sign(new RSASSASigner(rsaKey));
+    return signedJwt.serialize();
+  }
+
+  void setupKeyCloakServer()
+      throws JOSEException, JsonProcessingException {
+
+    if (!keycloakServerInitialized) {
+
+      rsaKey = new RSAKeyGenerator(2048)
+          .keyUse(KeyUse.SIGNATURE)
+          .algorithm(new Algorithm("RS256"))
+          .keyID(UUID.randomUUID().toString())
+          .generate();
+
+      String jwkPath = java.lang.String.format("/realms/%s/protocol/openid-connect/certs", realm);
+
+      JWKSet jwkSet = new JWKSet(rsaKey);
+
+      keycloakServer.stubFor(WireMock.get(WireMock.urlPathEqualTo(jwkPath))
+          .willReturn(aResponse()
+              .withStatus(200)
+              .withHeader("Content-Type", "application/json")
+              .withBody(objectMapper.writeValueAsString(jwkSet.toJSONObject())
+              )
+          ));
+    }
+    keycloakServerInitialized = true;
+  }
+
+  boolean eventStatusMatches(Event event, EventStatus expectedStatus) {
+    return expectedStatus == eventDtoToStatusMapper.apply(eventMapper.toDto(event));
+  }
+
+  //endregion Helper Methods
+
+  //region TestConfig
+
+  @TestConfiguration
+  @ActiveProfiles({"test"})
+  @Slf4j
+  public static class TestIntegrationConfiguration {
+
+    ///  Initializes database structure from schema
+    @Bean
+    public ConnectionFactoryInitializer connectionFactoryInitializer(
+        ConnectionFactory connectionFactory) {
+      ConnectionFactoryInitializer initializer = new ConnectionFactoryInitializer();
+      initializer.setConnectionFactory(connectionFactory);
+      CompositeDatabasePopulator populator = new CompositeDatabasePopulator();
+      populator.addPopulators(new ResourceDatabasePopulator(new ClassPathResource(
+          "schema.sql")));
+      initializer.setDatabasePopulator(populator);
+      return initializer;
+    }
   }
 
   //endregion

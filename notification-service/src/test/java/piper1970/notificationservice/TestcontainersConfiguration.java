@@ -13,11 +13,12 @@ class TestcontainersConfiguration {
   @Bean
   @ServiceConnection
   KafkaContainer kafkaContainer() {
-    return new KafkaContainer(DockerImageName.parse("apache/kafka-native:latest"));
+    return new KafkaContainer(DockerImageName.parse("apache/kafka-native:4.0.0-rc3"));
   }
 
   @Bean
   @ServiceConnection(name = "openzipkin/zipkin")
+  @SuppressWarnings("all")
   GenericContainer<?> zipkinContainer() {
     return new GenericContainer<>(
         DockerImageName.parse("openzipkin/zipkin:latest")).withExposedPorts(9411);

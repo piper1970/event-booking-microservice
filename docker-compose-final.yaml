@@ -10,6 +10,8 @@ volumes:
 
 services:
 
+  ### Project-Based Services ###
+
   discovery-server:
     build: ./discovery-server
     ports:
@@ -25,8 +27,8 @@ services:
     ports:
       - "8888:8888"
     environment:
-      SPRING_PROFILES_ACTIVE: "native,local"
-      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH-LOCATIONS: "file:/var/config,file:/var/config/{application},file:/var/config/{application}/{profile}"
+      SPRING_PROFILES_ACTIVE: native,local_discovery
+      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH-LOCATIONS: file:/var/config,file:/var/config/{application},file:/var/config/{application}/{profile}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -38,7 +40,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: local
+      SPRING_PROFILES_ACTIVE: local_discovery
       OAUTH2_PROVIDER_BASE-URI: http://keycloak:9090/realms/piper1970
     depends_on:
       discovery-server:
@@ -58,9 +60,8 @@ services:
     ports:
       - "8083:8083"
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/bookings
-      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/bookings
+      SPRING_PROFILES_ACTIVE: local_discovery
+      BOOKINGS_DB_HOST: postgres
       OAUTH2_ISSUER_URI: http://keycloak:9090/realms/piper1970
       SPRING_CLOUD_CONFIG_URI: http://event-service-config:8888
       SPRING_CONFIG_IMPORT: optional:configserver:http://event-service-config:8888
@@ -73,6 +74,8 @@ services:
       event-service-config:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
@@ -85,9 +88,8 @@ services:
     ports:
       - "8081:8081"
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/events
-      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/events
+      SPRING_PROFILES_ACTIVE: local_discovery
+      EVENTS_DB_HOST: postgres
       OAUTH2_ISSUER_URI: http://keycloak:9090/realms/piper1970
       SPRING_CLOUD_CONFIG_URI: http://event-service-config:8888
       SPRING_CONFIG_IMPORT: optional:configserver:http://event-service-config:8888
@@ -101,12 +103,55 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
 
+  # TODO: needs environment variables setup, if any
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "8082:8082"
+    environment:
+      PAYMENTS_DB.HOST: postgres:5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+      event-service-config:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # TODO: setup environment variables, if needed
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      event-service-config:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  ### External Services ###
+
+  # Database Engine
   postgres:
     image: postgres:15
     restart: always
@@ -124,6 +169,7 @@ services:
       timeout: 10s
       retries: 5
 
+#  # GUI-Based Access To Postgres Database Engine
 #  pgadmin4:
 #    image: elestio/pgadmin:latest
 #    restart: always
@@ -139,6 +185,7 @@ services:
 #    depends_on:
 #      - postgres
 
+  # Tracing for Logs across microservices
   zipkin:
     image: openzipkin/zipkin:3
     restart: always
@@ -151,6 +198,7 @@ services:
       timeout: 5s
       retries: 20
 
+  # OAuth2/OpenId Authentication/Authorization Services
   keycloak:
     image: keycloak/keycloak:26.1
     container_name: piper-keycloak.openid-provider
@@ -183,6 +231,7 @@ services:
       postgres:
         condition: service_healthy
 
+  # Cluster Management For Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.9.0
     ports:
@@ -195,6 +244,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # Event-Based Messaging Bridge
   kafka:
     image: confluentinc/cp-kafka:7.9.0
     ports:
@@ -216,6 +266,7 @@ services:
       timeout: 10s
       retries: 5
 
+  # Initialization Script to set up topics for kafka
   kafka-init:
     image: confluentinc/cp-kafka:7.0.0
     depends_on:
@@ -236,27 +287,37 @@ services:
         echo 'Topics created.'
       "
 
-  # Mocked External Service - interacts with payment-service
+  # Mocked External Payments API - interacts with payment-service
+  # TODO: setup health check
+  # TODO: need to setup templates within ./data/mock-payment-api folder. Are config files needed??
   mock-payment-api:
     image: wiremock/wiremock:2.35.0
     ports:
       - "9000:9000"
     volumes:
-      - ./mock-payment-api:/home/wiremock
+      - ./data/mock-payment-api:/home/wiremock
     command: ["--global-response-templating"]
 
   # Monitoring
+  # TODO: need to fill out ./data/config/prometheus/prometheus.yml
   prometheus:
     image: prom/prometheus:v2.42.0
     ports:
       - "9090:9090"
     volumes:
-      - ./data/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./data/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+    healthcheck:
+      test: ["CMD", "wget", "http://localhost:9090"]
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 40s
 
-  # Grafana
+  # Visual Display for Monitoring
+  # TODO: are config files needed in the ./data/grafana/provisioning folder??
   grafana:
     image: grafana/grafana:9.4.3
     ports:
@@ -266,6 +327,6 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_PASSWORD}
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./data/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
