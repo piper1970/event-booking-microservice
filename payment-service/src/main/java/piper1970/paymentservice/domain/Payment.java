@@ -25,9 +25,10 @@ import org.springframework.data.relational.core.mapping.Table;
 public class Payment {
 
   @Id
-  private Integer id;
+  private Long id;
   private Integer bookingId;
   private PaymentStatus paymentStatus;
+  private String paymentApiId;
   private UUID paymentToken;
 
   @CreatedDate
