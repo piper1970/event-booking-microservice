@@ -47,6 +47,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.r2dbc.connection.init.CompositeDatabasePopulator;
@@ -59,6 +60,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
+import piper1970.eventservice.EventServiceTestConfiguration;
 import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
@@ -71,6 +73,7 @@ import reactor.core.publisher.Mono;
 
 @DisplayName("EventController")
 @ActiveProfiles("test")
+@Import(EventServiceTestConfiguration.class)
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Slf4j
@@ -87,7 +90,7 @@ public class EventControllerTests{
   @Value("${event.change.cutoff.minutes}")
   Integer cutoffPoint;
 
-  RSAKey rsaKey;
+  static RSAKey rsaKey;
 
   @LocalServerPort
   Integer port;

@@ -198,7 +198,6 @@ services:
       timeout: 5s
       retries: 20
 
-  # OAuth2/OpenId Authentication/Authorization Services
   keycloak:
     image: keycloak/keycloak:26.1
     container_name: piper-keycloak.openid-provider
@@ -244,7 +243,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Event-Based Messaging Bridge
   kafka:
     image: confluentinc/cp-kafka:7.9.0
     ports:
@@ -266,7 +264,6 @@ services:
       timeout: 10s
       retries: 5
 
-  # Initialization Script to set up topics for kafka
   kafka-init:
     image: confluentinc/cp-kafka:7.0.0
     depends_on:
@@ -275,15 +272,16 @@ services:
     command: >
       bash -c "
         echo 'Creating Kafka topics...'
-        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic create-booking --partitions 3 --replication-factor 1
-        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic create-booking-success --partitions 3 --replication-factor 1
-        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic create-booking-failed --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic create-booking-request --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic create-booking-response --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-unavailable --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic cancel-booking --partitions 3 --replication-factor 1
-        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic refund-problems --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic cancel-booking-too-late --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-changed --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-updates --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-cancelled --partitions 3 --replication-factor 1
-        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-cancelled --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-cancellations --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-refund-problems --partitions 3 --replication-factor 1
         echo 'Topics created.'
       "
 
@@ -316,7 +314,7 @@ services:
       retries: 10
       start_period: 40s
 
-  # Visual Display for Monitoring
+  # Monitoring GUI with visualizations
   # TODO: are config files needed in the ./data/grafana/provisioning folder??
   grafana:
     image: grafana/grafana:9.4.3

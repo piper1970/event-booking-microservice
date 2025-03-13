@@ -1,0 +1,42 @@
+{
+  "type": "record",
+  "name": "CreateBookingResponse",
+  "namespace": "piper1970.eventservice.common.booking.messages",
+  "fields": [
+    {
+      "name": "bookingId",
+      "type": "int"
+    },
+    {
+      "name": "eventId",
+      "type": "int"
+    },
+    {
+      "name": "memberUsername",
+      "type": "string"
+    },
+    {
+      "name": "memberEmail",
+      "type": "string"
+    },
+    {
+      "name": "bookingStatus",
+      "type": {
+        "type": "enum",
+        "name": "BookingStatus",
+        "symbols": [
+          "CONFIRMED",
+          "CANCELLED"
+        ]
+      }
+    },
+    {
+      "name": "paymentToken",
+      "type": ["null", {
+        "name": "paymentToken",
+        "type": "string",
+        "logicalType": "uuid"
+      }]
+    }
+  ]
+}

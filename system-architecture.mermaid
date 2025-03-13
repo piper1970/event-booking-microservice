@@ -8,7 +8,7 @@ graph TB
     subgraph Services
         EventService[Event Service]
         BookingService[Booking Service]
-        BookingPaymentService[Booking Payment Service]
+        PaymentService[Payment Service]
         NotificationService[Notification Service]
     end
     
@@ -22,15 +22,16 @@ graph TB
         Kafka[Kafka Message Broker]
         
         subgraph Kafka Topics
-            topic1[create-booking]
-            topic2[create-booking-success]
-            topic3[create-booking-failed]
-            topic4[cancel-booking]
-            topic5[refund-problems]
+            topic1[create-booking-request]
+            topic2[create-booking-response]
+            topic3[cancel-booking]
+            topic4[cancel-booking-too-late]
+            topic5[booking-refund-problems]
             topic6[event-changed]
             topic7[booking-updates]
             topic8[event-cancelled]
-            topic9[booking-cancelled]
+            topic9[booking-cancellations]
+            topic10(event-unavailable)
         end
     end
     
@@ -41,28 +42,25 @@ graph TB
     Client --> Gateway
     Gateway --> EventService
     Gateway --> BookingService
-    Gateway --> BookingPaymentService
     
     Gateway --> Keycloak
     
     EventService --> EventDB
     BookingService --> BookingDB
-    BookingPaymentService --> PaymentDB
+    PaymentService --> PaymentDB
     
     EventService --> Eureka
     BookingService --> Eureka
-    BookingPaymentService --> Eureka
-    NotificationService --> Eureka
     Gateway --> Eureka
     
     BookingService --> EventService
     
     BookingService --> Kafka
-    BookingPaymentService --> Kafka
+    PaymentService --> Kafka
     NotificationService --> Kafka
     EventService --> Kafka
     
-    BookingPaymentService --> PaymentAPI
+    PaymentService --> PaymentAPI
     
     style Gateway fill:#f9f,stroke:#333
     style Eureka fill:#ff9,stroke:#333

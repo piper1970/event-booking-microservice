@@ -2,68 +2,101 @@ sequenceDiagram
     participant Client
     participant BS as Booking Service
     participant ES as Event Service
-    participant BPS as Booking Payment Service
+    participant PS as Payment Service
     participant NS as Notification Service
     participant Kafka
     participant PaymentAPI as External Payment API
-    
+
+    note over BS: Create Booking Scenario
     Client->>BS: Create Booking Request
     BS->>ES: Validate Event Status
     ES-->>BS: Event Valid Response
     
     BS->>BS: Set Booking Status: IN_PROGRESS
-    BS->>Kafka: Publish to 'create-booking'
+    BS->>Kafka: Publish to 'create-booking-request'
     
-    Kafka-->>BPS: Consume from 'create-booking'
-    BPS->>PaymentAPI: Process Payment
-    PaymentAPI-->>BPS: Payment Confirmation
+    Kafka-->>PS: Consume from 'create-booking-request'
+    PS->>PaymentAPI: Process Payment
+    PaymentAPI-->>PS: Payment Confirmation
     
     alt Payment Success
-        BPS->>BPS: Save Payment Record (PAID)
-        BPS->>Kafka: Publish to 'create-booking-success'
+        PS->>PS: Save Payment Record (PAID)
+        PS->>Kafka: Publish to 'create-booking-response',
         
-        Kafka-->>BS: Consume from 'create-booking-success'
+        Kafka-->>BS: Consume from 'create-booking-response'
         BS->>BS: Update Booking Status: CONFIRMED
         
-        Kafka-->>NS: Consume from 'create-booking-success'
-        NS->>NS: Send Confirmation Email
+        Kafka-->>NS: Consume from 'create-booking-response'
+        NS->>NS: Send 'Confirmation' Email
         
-        Kafka-->>ES: Consume from 'create-booking-success'
+        Kafka-->>ES: Consume from 'create-booking-response'
         
         alt Available Bookings > 0
             ES->>ES: Decrement Available Bookings
         else No Available Bookings
-            ES->>Kafka: Publish to 'cancel-booking'
+            ES->>Kafka: Publish to 'event-unavailable'
             
-            Kafka-->>BS: Consume from 'cancel-booking'
+            Kafka-->>BS: Consume from 'event-unavailable'
             BS->>BS: Update Booking Status: CANCELLED
             
-            Kafka-->>NS: Consume from 'cancel-booking'
-            NS->>NS: Send Cancellation Email
+            Kafka-->>NS: Consume from 'event-unavailable'
+            NS->>NS: Send 'Event No Longer Available' Email
             
-            Kafka-->>BPS: Consume from 'cancel-booking'
-            BPS->>PaymentAPI: Request Refund
+            Kafka-->>PS: Consume from 'event-unavailable'
+            PS->>PaymentAPI: Request Refund
             
             alt Refund Success
-                PaymentAPI-->>BPS: Refund Confirmation
-                BPS->>BPS: Update Payment Record (REFUNDED)
+                PaymentAPI-->>PS: Refund Confirmation
+                PS->>PS: Update Payment Record (REFUNDED)
             else Refund Failed
-                PaymentAPI-->>BPS: Refund Failed
-                BPS->>BPS: Mark Payment as MANUAL_HELP_REQUIRED
-                BPS->>Kafka: Publish to 'refund-problems'
+                PaymentAPI-->>PS: Refund Failed
+                PS->>PS: Mark Payment as MANUAL_HELP_REQUIRED
+                PS->>Kafka: Publish to 'booking-refund-problems'
                 
-                Kafka-->>NS: Consume from 'refund-problems'
-                NS->>NS: Send Manual Help Email
+                Kafka-->>NS: Consume from 'booking-refund-problems'
+                NS->>NS: Send 'Manual Help Required' Email
             end
         end
     else Payment Failed
-        BPS->>Kafka: Publish to 'create-booking-failed'
+        PS->>Kafka: Publish to 'create-booking-response'
         
-        Kafka-->>BS: Consume from 'create-booking-failed'
+        Kafka-->>BS: Consume from 'create-booking-response'
         BS->>BS: Update Booking Status: CANCELLED
         
-        Kafka-->>NS: Consume from 'create-booking-failed'
-        NS->>NS: Send Rejection Email
+        Kafka-->>NS: Consume from 'create-booking-response'
+        NS->>NS: Send 'Payment Failed' Email
+    end
+
+    note over BS: Cancel Booking Scenario
+    Client->>BS: Create Booking Cancellation Request
+    BS->>ES: Validate whether there is time to cancel the booking
+
+    alt Within Cancellation Window
+        BS->>BS: Update Booking Status: CANCELLED
+        BS->>Kafka: Publish to 'cancel-booking'
+
+        Kafka->>NS: Consume from 'cancel-booking'
+        NS->>NS: Send 'Cancellation' Email
+
+        Kafka->>PS: Consume from 'cancel-booking'
+        PS->>PaymentAPI: Request Refund
+
+        alt Refund Successful
+            PaymentAPI-->>PS: Refund Confirmation
+            PS->>PS: Update Payment Record (REFUNDED)
+        else Refund Failed
+            PaymentAPI-->>PS: Refund Failed
+            PS->>PS: Mark Payment as MANUAL_HELP_REQUIRED
+            PS->>Kafka: Publish to 'booking-refund-problems'
+
+            Kafka-->>NS: Consume from 'booking-refund-problems'
+            NS->>NS: Send 'Manual Help Required' Email
+        end
+    else Outside Cancellation Window
+        BS->>Kafka: Publish to 'cancel-booking-too-late'
+
+        Kafka->>NS: Consume from 'cancel-booking-too-late
+        NS->>NS: Send 'Unable To Cancel' Email
     end
     
     note over ES: Event Update Scenario
@@ -77,8 +110,8 @@ sequenceDiagram
     ES->>Kafka: Publish to 'event-cancelled'
     Kafka-->>BS: Consume from 'event-cancelled'
     BS->>BS: Set All Bookings to CANCELLED
-    BS->>Kafka: Publish to 'bookings-cancelled'
-    Kafka-->>NS: Consume from 'bookings-cancelled'
+    BS->>Kafka: Publish to 'booking-cancellations'
+    Kafka-->>NS: Consume from 'booking-cancellations'
     NS->>NS: Send Cancellation Email to All Customers
-    Kafka-->>BPS: Consume from 'bookings-cancelled'
-    BPS->>PaymentAPI: Process Refunds
+    Kafka-->>PS: Consume from 'booking-cancellations'
+    PS->>PaymentAPI: Process Refunds

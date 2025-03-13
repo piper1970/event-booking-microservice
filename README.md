@@ -12,17 +12,17 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 
 - **API Gateway**: Single entry point for all requests
 - **Service Discovery**: Automatic registration and discovery of services
-- **Config Server**: Centralized configuration management
-- **Event-Driven Architecture**: Asynchronous, message-based communication via Kafka
+- **Config Server**: Centralized configuration management (Currently running on local FS for visibility)
+- **Event-Driven Architecture**: Asynchronous, message-based communication via Kafka, Schema Registry, and Avro
 - **Oauth2/OpenId Security**: Authentication and authorization via KeyCloak
-- **Database per Service**: Each service backed by it's own database
+- **Database per Service**: Each service backed by its own database
 - **Resilience Patterns**: Circuit breaker, retries, and timeouts
 
 ## Services Overview
 
 1. **event-service**: Manages event information and creation
 2. **booking-service**: Handles booking requests associated with event-service events
-3. **booking-payment-service**: Processes payments and refunds
+3. **payment-service**: Processes payments and refunds for bookings
 4. **notification-service**: Sends mock email notifications
 5. **event-service-gateway**: Routes client requests to appropriate services
 6. **discovery-server**: Provides service discovery for microservices

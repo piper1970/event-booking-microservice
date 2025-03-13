@@ -46,6 +46,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
@@ -62,6 +63,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
+import piper1970.bookingservice.BookingServiceTestConfiguration;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
@@ -73,6 +75,7 @@ import reactor.core.publisher.Mono;
 @DisplayName("Booking Controller")
 @ActiveProfiles("test")
 @Testcontainers
+@Import(BookingServiceTestConfiguration.class)
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnableWireMock({
@@ -773,7 +776,6 @@ public class BookingControllerTests{
 
     ///  Need to override webClientBuilder to disable @LoadBalanced behavior
     /// spring.main.allow-bean-definition-overriding=true added to
-    /// application-integration.properties to ensure this works
     @Bean
     @Primary
     public WebClient.Builder webClientBuilder() {
