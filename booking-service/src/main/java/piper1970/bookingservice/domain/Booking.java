@@ -27,6 +27,7 @@ public class Booking {
   private Integer id;
   private Integer eventId;
   private String username;
+  private String email;
   private LocalDateTime eventDateTime;
   private BookingStatus bookingStatus;
 

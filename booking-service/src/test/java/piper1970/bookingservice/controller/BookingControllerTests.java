@@ -3,6 +3,7 @@ package piper1970.bookingservice.controller;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.BDDMockito.given;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -505,6 +506,22 @@ public class BookingControllerTests{
 
   //endregion
 
+  //region CANCEL BOOKING
+
+  @Test
+  @DisplayName("authorized admin user should be able to cancel a booking if booking event has not yet started")
+  void cancelBooking_Authenticated_Admin_Event_Still_Waiting(){
+    fail("Not yet implemented");
+  }
+
+  @Test
+  @DisplayName("authorized member and owner of booking should be able to cancel a booking if booking event has not yet started")
+  void cancelBooking_Authenticated_Member_Owner_Of_Booking_Event_Still_Waiting(){
+    fail("Not yet implemented");
+  }
+
+  //endregion CANCEL BOOKING
+
   //region DELETE BOOKING
 
   @Test
@@ -616,18 +633,21 @@ public class BookingControllerTests{
         Booking.builder()
             .eventId(1)
             .username("test_member")
+            .email("test_member@example.com")
             .eventDateTime(LocalDateTime.now(clock).plusDays(5))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build(),
         Booking.builder()
             .eventId(2)
             .username("test_member")
+            .email("test_member@example.com")
             .eventDateTime(LocalDateTime.now(clock).plusDays(6))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build(),
         Booking.builder()
             .eventId(1)
             .username("test_member-2")
+            .email("test_member-2@example.com")
             .eventDateTime(LocalDateTime.now(clock).plusDays(5))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build()

@@ -100,6 +100,7 @@ public class BookingValidationTests {
   private BookingCreateRequest.BookingCreateRequestBuilder goodBookingCreateRequestBuilder() {
     return BookingCreateRequest.builder()
         .eventId(27)
+        .email(null)
         .username(null); // must be null to pass validation
   }
 
@@ -176,6 +177,8 @@ public class BookingValidationTests {
         bldr -> bldr.username(null), true));
     methods.add(MethodArgs.of("Validation will fail if username is non-null",
         bldr -> bldr.username(""), false));
+    methods.add(MethodArgs.of("Validation will fail if email is non-null",
+        bldr -> bldr.email("email@whatever.com"), false));
 
     return methods.stream()
         .map(args -> arguments(args.message(), args.builder(), args.isValid()));

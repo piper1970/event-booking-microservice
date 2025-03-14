@@ -26,8 +26,8 @@ import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.mapper.BookingMapper;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
-import piper1970.bookingservice.exceptions.BookingCancellationException;
 import piper1970.bookingservice.exceptions.BookingCreationException;
+import piper1970.bookingservice.exceptions.BookingDeletionException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
@@ -488,7 +488,7 @@ class DefaultBookingWebServiceTest {
   }
 
   @Test
-  @DisplayName("deleteBooking should throw BookingCancellationException if the booking event is in progress")
+  @DisplayName("deleteBooking should throw BookingDeletionException if the booking event is in progress")
   void deleteBooking_validation_fails_event_still_in_progress() {
 
     mockClock();
@@ -506,7 +506,7 @@ class DefaultBookingWebServiceTest {
     when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.IN_PROGRESS);
 
     StepVerifier.create(webService.deleteBooking(bookingId, token))
-        .verifyError(BookingCancellationException.class);
+        .verifyError(BookingDeletionException.class);
   }
 
   @Test

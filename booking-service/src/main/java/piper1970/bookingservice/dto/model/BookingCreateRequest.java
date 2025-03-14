@@ -20,4 +20,7 @@ public class BookingCreateRequest{
 
   @Null(message = "[username] field cannot be set manually. It is set via authentication token")
   private String username;
+
+  @Null(message = "[email] field cannot be set manually. It is set via authentication token")
+  private String email;
 }

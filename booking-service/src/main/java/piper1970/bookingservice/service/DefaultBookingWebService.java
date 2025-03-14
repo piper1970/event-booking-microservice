@@ -15,6 +15,7 @@ import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.exceptions.BookingCancellationException;
 import piper1970.bookingservice.exceptions.BookingCreationException;
+import piper1970.bookingservice.exceptions.BookingDeletionException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
@@ -111,6 +112,7 @@ public class DefaultBookingWebService implements BookingWebService {
               var booking = Booking.builder()
                   .eventId(createRequest.getEventId())
                   .username(createRequest.getUsername())
+                  .email(createRequest.getEmail())
                   .eventDateTime(dto.getEventDateTime())
                   .bookingStatus(BookingStatus.IN_PROGRESS)
                   .build();
@@ -148,8 +150,8 @@ public class DefaultBookingWebService implements BookingWebService {
         .flatMap(booking -> eventRequestService.requestEvent(booking.getEventId(), token))
         // ensure event not in progress. if so, throw BookingCancellationException
         .filter(validEvent)
-        .switchIfEmpty(Mono.defer(() -> Mono.error(new BookingCancellationException(
-            String.format("Booking [%s] can no longer be deleted for the event", id)))))
+        .switchIfEmpty(Mono.defer(() -> Mono.error(new BookingDeletionException(
+            String.format("Booking [%s] cannot be deleted for an event in progress", id)))))
         // finally, delete the booking
         .flatMap(ignored -> bookingRepository.deleteById(id))
         .timeout(bookingTimeoutDuration)

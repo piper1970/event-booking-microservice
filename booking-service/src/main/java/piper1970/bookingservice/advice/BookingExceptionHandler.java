@@ -13,6 +13,7 @@ import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import piper1970.bookingservice.exceptions.BookingCancellationException;
 import piper1970.bookingservice.exceptions.BookingCreationException;
+import piper1970.bookingservice.exceptions.BookingDeletionException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
@@ -43,6 +44,15 @@ public class BookingExceptionHandler {
     return buildProblemDetail(HttpStatus.CONFLICT, exc.getMessage(), pd -> {
       pd.setTitle("Booking-Cannot-Be-Cancelled");
       pd.setType(URI.create("http://booking-service/problem/booking-cannot-be-cancelled"));
+    });
+  }
+
+  @ExceptionHandler(BookingDeletionException.class)
+  public ProblemDetail handleException(BookingDeletionException exc){
+    log.warn("Attempt to delete booking failed [{}]", exc.getMessage(), exc);
+    return buildProblemDetail(HttpStatus.CONFLICT, exc.getMessage(), pd -> {
+      pd.setTitle("Booking-Deletion-Failed");
+      pd.setType(URI.create("http://booking-service/problem/booking-deletion-failed"));
     });
   }
 

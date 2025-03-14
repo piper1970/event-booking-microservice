@@ -73,9 +73,13 @@ public class BookingController {
       @Valid @RequestBody BookingCreateRequest createRequest) {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
+
+    var email = TokenUtilities.getEmailFromToken(jwtToken);
+
     log.debug("Creating booking called by [{}]", user);
 
     createRequest.setUsername(user);
+    createRequest.setEmail(email);
 
     var token = jwtToken.getToken().getTokenValue(); // needed for event-service call
 
