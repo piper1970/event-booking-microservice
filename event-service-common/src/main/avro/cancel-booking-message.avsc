@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "CancelBooking",
-  "namespace": "piper1970.eventservice.common.booking.messages",
+  "namespace": "piper1970.eventservice.common.bookings.messages",
   "fields": [
     {
       "name": "bookingId",
@@ -18,14 +18,6 @@
     {
       "name": "memberUsername",
       "type": "string"
-    },
-    {
-      "name": "paymentToken",
-      "type": {
-        "name": "paymentToken",
-        "type": "string",
-        "logicalType": "uuid"
-      }
     }
   ]
 }

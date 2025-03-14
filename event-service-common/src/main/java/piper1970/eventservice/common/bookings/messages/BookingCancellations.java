@@ -3,7 +3,7 @@
  *
  * DO NOT EDIT DIRECTLY
  */
-package piper1970.eventservice.common.booking.messages;
+package piper1970.eventservice.common.bookings.messages;
 
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.Utf8;
@@ -12,26 +12,26 @@ import org.apache.avro.message.BinaryMessageDecoder;
 import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
-public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 7572015271460805316L;
+public class BookingCancellations extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
+  private static final long serialVersionUID = -1672971198609668097L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"CancelBookingTooLate\",\"namespace\":\"piper1970.eventservice.common.booking.messages\",\"fields\":[{\"name\":\"bookingId\",\"type\":\"int\"},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"memberEmail\",\"type\":\"string\"},{\"name\":\"memberUsername\",\"type\":\"string\"},{\"name\":\"message\",\"type\":[\"null\",\"string\"]}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingCancellations\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"bookingId\",\"type\":\"int\"},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"memberEmail\",\"type\":\"string\"},{\"name\":\"memberUsername\",\"type\":\"string\"}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();
 
-  private static final BinaryMessageEncoder<CancelBookingTooLate> ENCODER =
+  private static final BinaryMessageEncoder<BookingCancellations> ENCODER =
       new BinaryMessageEncoder<>(MODEL$, SCHEMA$);
 
-  private static final BinaryMessageDecoder<CancelBookingTooLate> DECODER =
+  private static final BinaryMessageDecoder<BookingCancellations> DECODER =
       new BinaryMessageDecoder<>(MODEL$, SCHEMA$);
 
   /**
    * Return the BinaryMessageEncoder instance used by this class.
    * @return the message encoder used by this class
    */
-  public static BinaryMessageEncoder<CancelBookingTooLate> getEncoder() {
+  public static BinaryMessageEncoder<BookingCancellations> getEncoder() {
     return ENCODER;
   }
 
@@ -39,7 +39,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
    * Return the BinaryMessageDecoder instance used by this class.
    * @return the message decoder used by this class
    */
-  public static BinaryMessageDecoder<CancelBookingTooLate> getDecoder() {
+  public static BinaryMessageDecoder<BookingCancellations> getDecoder() {
     return DECODER;
   }
 
@@ -48,12 +48,12 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
    * @param resolver a {@link SchemaStore} used to find schemas by fingerprint
    * @return a BinaryMessageDecoder instance for this class backed by the given SchemaStore
    */
-  public static BinaryMessageDecoder<CancelBookingTooLate> createDecoder(SchemaStore resolver) {
+  public static BinaryMessageDecoder<BookingCancellations> createDecoder(SchemaStore resolver) {
     return new BinaryMessageDecoder<>(MODEL$, SCHEMA$, resolver);
   }
 
   /**
-   * Serializes this CancelBookingTooLate to a ByteBuffer.
+   * Serializes this BookingCancellations to a ByteBuffer.
    * @return a buffer holding the serialized data for this instance
    * @throws java.io.IOException if this instance could not be serialized
    */
@@ -62,12 +62,12 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
   }
 
   /**
-   * Deserializes a CancelBookingTooLate from a ByteBuffer.
+   * Deserializes a BookingCancellations from a ByteBuffer.
    * @param b a byte buffer holding serialized data for an instance of this class
-   * @return a CancelBookingTooLate instance decoded from the given buffer
+   * @return a BookingCancellations instance decoded from the given buffer
    * @throws java.io.IOException if the given bytes could not be deserialized into an instance of this class
    */
-  public static CancelBookingTooLate fromByteBuffer(
+  public static BookingCancellations fromByteBuffer(
       java.nio.ByteBuffer b) throws java.io.IOException {
     return DECODER.decode(b);
   }
@@ -76,14 +76,13 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
   private int eventId;
   private java.lang.CharSequence memberEmail;
   private java.lang.CharSequence memberUsername;
-  private java.lang.CharSequence message;
 
   /**
    * Default constructor.  Note that this does not initialize fields
    * to their default values from the schema.  If that is desired then
    * one should use <code>newBuilder()</code>.
    */
-  public CancelBookingTooLate() {}
+  public BookingCancellations() {}
 
   /**
    * All-args constructor.
@@ -91,14 +90,12 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
    * @param eventId The new value for eventId
    * @param memberEmail The new value for memberEmail
    * @param memberUsername The new value for memberUsername
-   * @param message The new value for message
    */
-  public CancelBookingTooLate(java.lang.Integer bookingId, java.lang.Integer eventId, java.lang.CharSequence memberEmail, java.lang.CharSequence memberUsername, java.lang.CharSequence message) {
+  public BookingCancellations(java.lang.Integer bookingId, java.lang.Integer eventId, java.lang.CharSequence memberEmail, java.lang.CharSequence memberUsername) {
     this.bookingId = bookingId;
     this.eventId = eventId;
     this.memberEmail = memberEmail;
     this.memberUsername = memberUsername;
-    this.message = message;
   }
 
   @Override
@@ -115,7 +112,6 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
     case 1: return eventId;
     case 2: return memberEmail;
     case 3: return memberUsername;
-    case 4: return message;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -129,7 +125,6 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
     case 1: eventId = (java.lang.Integer)value$; break;
     case 2: memberEmail = (java.lang.CharSequence)value$; break;
     case 3: memberUsername = (java.lang.CharSequence)value$; break;
-    case 4: message = (java.lang.CharSequence)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -203,68 +198,50 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
   }
 
   /**
-   * Gets the value of the 'message' field.
-   * @return The value of the 'message' field.
+   * Creates a new BookingCancellations RecordBuilder.
+   * @return A new BookingCancellations RecordBuilder
    */
-  public java.lang.CharSequence getMessage() {
-    return message;
-  }
-
-
-  /**
-   * Sets the value of the 'message' field.
-   * @param value the value to set.
-   */
-  public void setMessage(java.lang.CharSequence value) {
-    this.message = value;
+  public static piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder newBuilder() {
+    return new piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder();
   }
 
   /**
-   * Creates a new CancelBookingTooLate RecordBuilder.
-   * @return A new CancelBookingTooLate RecordBuilder
-   */
-  public static piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder newBuilder() {
-    return new piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder();
-  }
-
-  /**
-   * Creates a new CancelBookingTooLate RecordBuilder by copying an existing Builder.
+   * Creates a new BookingCancellations RecordBuilder by copying an existing Builder.
    * @param other The existing builder to copy.
-   * @return A new CancelBookingTooLate RecordBuilder
+   * @return A new BookingCancellations RecordBuilder
    */
-  public static piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder newBuilder(piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder other) {
+  public static piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder newBuilder(piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder other) {
     if (other == null) {
-      return new piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder();
+      return new piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder();
     } else {
-      return new piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder(other);
+      return new piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder(other);
     }
   }
 
   /**
-   * Creates a new CancelBookingTooLate RecordBuilder by copying an existing CancelBookingTooLate instance.
+   * Creates a new BookingCancellations RecordBuilder by copying an existing BookingCancellations instance.
    * @param other The existing instance to copy.
-   * @return A new CancelBookingTooLate RecordBuilder
+   * @return A new BookingCancellations RecordBuilder
    */
-  public static piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder newBuilder(piper1970.eventservice.common.booking.messages.CancelBookingTooLate other) {
+  public static piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder newBuilder(piper1970.eventservice.common.bookings.messages.BookingCancellations other) {
     if (other == null) {
-      return new piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder();
+      return new piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder();
     } else {
-      return new piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder(other);
+      return new piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder(other);
     }
   }
 
   /**
-   * RecordBuilder for CancelBookingTooLate instances.
+   * RecordBuilder for BookingCancellations instances.
    */
   @org.apache.avro.specific.AvroGenerated
-  public static class Builder extends org.apache.avro.specific.SpecificRecordBuilderBase<CancelBookingTooLate>
-    implements org.apache.avro.data.RecordBuilder<CancelBookingTooLate> {
+  public static class Builder extends org.apache.avro.specific.SpecificRecordBuilderBase<BookingCancellations>
+    implements org.apache.avro.data.RecordBuilder<BookingCancellations> {
 
     private int bookingId;
     private int eventId;
     private java.lang.CharSequence memberEmail;
     private java.lang.CharSequence memberUsername;
-    private java.lang.CharSequence message;
 
     /** Creates a new Builder */
     private Builder() {
@@ -275,7 +252,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder other) {
+    private Builder(piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.bookingId)) {
         this.bookingId = data().deepCopy(fields()[0].schema(), other.bookingId);
@@ -293,17 +270,13 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
         this.memberUsername = data().deepCopy(fields()[3].schema(), other.memberUsername);
         fieldSetFlags()[3] = other.fieldSetFlags()[3];
       }
-      if (isValidValue(fields()[4], other.message)) {
-        this.message = data().deepCopy(fields()[4].schema(), other.message);
-        fieldSetFlags()[4] = other.fieldSetFlags()[4];
-      }
     }
 
     /**
-     * Creates a Builder by copying an existing CancelBookingTooLate instance
+     * Creates a Builder by copying an existing BookingCancellations instance
      * @param other The existing instance to copy.
      */
-    private Builder(piper1970.eventservice.common.booking.messages.CancelBookingTooLate other) {
+    private Builder(piper1970.eventservice.common.bookings.messages.BookingCancellations other) {
       super(SCHEMA$, MODEL$);
       if (isValidValue(fields()[0], other.bookingId)) {
         this.bookingId = data().deepCopy(fields()[0].schema(), other.bookingId);
@@ -321,10 +294,6 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
         this.memberUsername = data().deepCopy(fields()[3].schema(), other.memberUsername);
         fieldSetFlags()[3] = true;
       }
-      if (isValidValue(fields()[4], other.message)) {
-        this.message = data().deepCopy(fields()[4].schema(), other.message);
-        fieldSetFlags()[4] = true;
-      }
     }
 
     /**
@@ -341,7 +310,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'bookingId'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder setBookingId(int value) {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder setBookingId(int value) {
       validate(fields()[0], value);
       this.bookingId = value;
       fieldSetFlags()[0] = true;
@@ -361,7 +330,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * Clears the value of the 'bookingId' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder clearBookingId() {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder clearBookingId() {
       fieldSetFlags()[0] = false;
       return this;
     }
@@ -380,7 +349,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'eventId'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder setEventId(int value) {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder setEventId(int value) {
       validate(fields()[1], value);
       this.eventId = value;
       fieldSetFlags()[1] = true;
@@ -400,7 +369,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * Clears the value of the 'eventId' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder clearEventId() {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder clearEventId() {
       fieldSetFlags()[1] = false;
       return this;
     }
@@ -419,7 +388,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'memberEmail'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder setMemberEmail(java.lang.CharSequence value) {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder setMemberEmail(java.lang.CharSequence value) {
       validate(fields()[2], value);
       this.memberEmail = value;
       fieldSetFlags()[2] = true;
@@ -439,7 +408,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * Clears the value of the 'memberEmail' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder clearMemberEmail() {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder clearMemberEmail() {
       memberEmail = null;
       fieldSetFlags()[2] = false;
       return this;
@@ -459,7 +428,7 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'memberUsername'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder setMemberUsername(java.lang.CharSequence value) {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder setMemberUsername(java.lang.CharSequence value) {
       validate(fields()[3], value);
       this.memberUsername = value;
       fieldSetFlags()[3] = true;
@@ -479,62 +448,21 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
       * Clears the value of the 'memberUsername' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder clearMemberUsername() {
+    public piper1970.eventservice.common.bookings.messages.BookingCancellations.Builder clearMemberUsername() {
       memberUsername = null;
       fieldSetFlags()[3] = false;
       return this;
     }
 
-    /**
-      * Gets the value of the 'message' field.
-      * @return The value.
-      */
-    public java.lang.CharSequence getMessage() {
-      return message;
-    }
-
-
-    /**
-      * Sets the value of the 'message' field.
-      * @param value The value of 'message'.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder setMessage(java.lang.CharSequence value) {
-      validate(fields()[4], value);
-      this.message = value;
-      fieldSetFlags()[4] = true;
-      return this;
-    }
-
-    /**
-      * Checks whether the 'message' field has been set.
-      * @return True if the 'message' field has been set, false otherwise.
-      */
-    public boolean hasMessage() {
-      return fieldSetFlags()[4];
-    }
-
-
-    /**
-      * Clears the value of the 'message' field.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.booking.messages.CancelBookingTooLate.Builder clearMessage() {
-      message = null;
-      fieldSetFlags()[4] = false;
-      return this;
-    }
-
     @Override
     @SuppressWarnings("unchecked")
-    public CancelBookingTooLate build() {
+    public BookingCancellations build() {
       try {
-        CancelBookingTooLate record = new CancelBookingTooLate();
+        BookingCancellations record = new BookingCancellations();
         record.bookingId = fieldSetFlags()[0] ? this.bookingId : (java.lang.Integer) defaultValue(fields()[0]);
         record.eventId = fieldSetFlags()[1] ? this.eventId : (java.lang.Integer) defaultValue(fields()[1]);
         record.memberEmail = fieldSetFlags()[2] ? this.memberEmail : (java.lang.CharSequence) defaultValue(fields()[2]);
         record.memberUsername = fieldSetFlags()[3] ? this.memberUsername : (java.lang.CharSequence) defaultValue(fields()[3]);
-        record.message = fieldSetFlags()[4] ? this.message : (java.lang.CharSequence) defaultValue(fields()[4]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
         throw e;
@@ -545,8 +473,8 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
   }
 
   @SuppressWarnings("unchecked")
-  private static final org.apache.avro.io.DatumWriter<CancelBookingTooLate>
-    WRITER$ = (org.apache.avro.io.DatumWriter<CancelBookingTooLate>)MODEL$.createDatumWriter(SCHEMA$);
+  private static final org.apache.avro.io.DatumWriter<BookingCancellations>
+    WRITER$ = (org.apache.avro.io.DatumWriter<BookingCancellations>)MODEL$.createDatumWriter(SCHEMA$);
 
   @Override public void writeExternal(java.io.ObjectOutput out)
     throws java.io.IOException {
@@ -554,8 +482,8 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
   }
 
   @SuppressWarnings("unchecked")
-  private static final org.apache.avro.io.DatumReader<CancelBookingTooLate>
-    READER$ = (org.apache.avro.io.DatumReader<CancelBookingTooLate>)MODEL$.createDatumReader(SCHEMA$);
+  private static final org.apache.avro.io.DatumReader<BookingCancellations>
+    READER$ = (org.apache.avro.io.DatumReader<BookingCancellations>)MODEL$.createDatumReader(SCHEMA$);
 
   @Override public void readExternal(java.io.ObjectInput in)
     throws java.io.IOException {
@@ -575,14 +503,6 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
 
     out.writeString(this.memberUsername);
 
-    if (this.message == null) {
-      out.writeIndex(0);
-      out.writeNull();
-    } else {
-      out.writeIndex(1);
-      out.writeString(this.message);
-    }
-
   }
 
   @Override public void customDecode(org.apache.avro.io.ResolvingDecoder in)
@@ -598,15 +518,8 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
 
       this.memberUsername = in.readString(this.memberUsername instanceof Utf8 ? (Utf8)this.memberUsername : null);
 
-      if (in.readIndex() != 1) {
-        in.readNull();
-        this.message = null;
-      } else {
-        this.message = in.readString(this.message instanceof Utf8 ? (Utf8)this.message : null);
-      }
-
     } else {
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 4; i++) {
         switch (fieldOrder[i].pos()) {
         case 0:
           this.bookingId = in.readInt();
@@ -622,15 +535,6 @@ public class CancelBookingTooLate extends org.apache.avro.specific.SpecificRecor
 
         case 3:
           this.memberUsername = in.readString(this.memberUsername instanceof Utf8 ? (Utf8)this.memberUsername : null);
-          break;
-
-        case 4:
-          if (in.readIndex() != 1) {
-            in.readNull();
-            this.message = null;
-          } else {
-            this.message = in.readString(this.message instanceof Utf8 ? (Utf8)this.message : null);
-          }
           break;
 
         default:

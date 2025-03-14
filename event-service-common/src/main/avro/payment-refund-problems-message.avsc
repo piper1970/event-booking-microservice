@@ -1,7 +1,7 @@
 {
   "type": "record",
-  "name": "CancelBookingTooLate",
-  "namespace": "piper1970.eventservice.common.bookings.messages",
+  "name": "PaymentRefundProblems",
+  "namespace": "piper1970.eventservice.common.payments.messages",
   "fields": [
     {
       "name": "bookingId",
@@ -12,16 +12,16 @@
       "type": "int"
     },
     {
-      "name": "memberEmail",
-      "type": "string"
-    },
-    {
       "name": "memberUsername",
       "type": "string"
     },
     {
+      "name": "memberEmail",
+      "type": "string"
+    },
+    {
       "name": "message",
-      "type": ["null", "string"]
+      "type": "string"
     }
   ]
 }

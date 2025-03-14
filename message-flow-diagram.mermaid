@@ -32,17 +32,17 @@ sequenceDiagram
         Kafka-->>ES: Consume from 'create-booking-response'
         
         alt Available Bookings > 0
-            ES->>ES: Decrement Available Bookings
+            ES->>ES: Decrement Available Bookings For Given Event
         else No Available Bookings
-            ES->>Kafka: Publish to 'event-unavailable'
+            ES->>Kafka: Publish to 'booking-event-unavailable'
             
-            Kafka-->>BS: Consume from 'event-unavailable'
+            Kafka-->>BS: Consume from 'booking-event-unavailable'
             BS->>BS: Update Booking Status: CANCELLED
             
-            Kafka-->>NS: Consume from 'event-unavailable'
+            Kafka-->>NS: Consume from 'booking-event-unavailable'
             NS->>NS: Send 'Event No Longer Available' Email
             
-            Kafka-->>PS: Consume from 'event-unavailable'
+            Kafka-->>PS: Consume from 'booking-event-unavailable'
             PS->>PaymentAPI: Request Refund
             
             alt Refund Success
@@ -51,9 +51,9 @@ sequenceDiagram
             else Refund Failed
                 PaymentAPI-->>PS: Refund Failed
                 PS->>PS: Mark Payment as MANUAL_HELP_REQUIRED
-                PS->>Kafka: Publish to 'booking-refund-problems'
+                PS->>Kafka: Publish to 'payment-refund-problems'
                 
-                Kafka-->>NS: Consume from 'booking-refund-problems'
+                Kafka-->>NS: Consume from 'payment-refund-problems'
                 NS->>NS: Send 'Manual Help Required' Email
             end
         end
@@ -68,12 +68,15 @@ sequenceDiagram
     end
 
     note over BS: Cancel Booking Scenario
-    Client->>BS: Create Booking Cancellation Request
+    Client->>BS: Creates Booking Cancellation Request for Member
     BS->>ES: Validate whether there is time to cancel the booking
 
     alt Within Cancellation Window
         BS->>BS: Update Booking Status: CANCELLED
         BS->>Kafka: Publish to 'cancel-booking'
+
+        Kafka->>ES: Consume from 'cancel-booking'
+        ES->>ES: Increment Available Bookings For Given Event
 
         Kafka->>NS: Consume from 'cancel-booking'
         NS->>NS: Send 'Cancellation' Email
@@ -87,19 +90,20 @@ sequenceDiagram
         else Refund Failed
             PaymentAPI-->>PS: Refund Failed
             PS->>PS: Mark Payment as MANUAL_HELP_REQUIRED
-            PS->>Kafka: Publish to 'booking-refund-problems'
+            PS->>Kafka: Publish to 'payment-refund-problems'
 
-            Kafka-->>NS: Consume from 'booking-refund-problems'
+            Kafka-->>NS: Consume from 'payment-refund-problems'
             NS->>NS: Send 'Manual Help Required' Email
         end
     else Outside Cancellation Window
         BS->>Kafka: Publish to 'cancel-booking-too-late'
 
-        Kafka->>NS: Consume from 'cancel-booking-too-late
+        Kafka->>NS: Consume from 'cancel-booking-too-late'
         NS->>NS: Send 'Unable To Cancel' Email
     end
     
     note over ES: Event Update Scenario
+    Client->>ES: (Performer) Update Specific Event
     ES->>Kafka: Publish to 'event-changed'
     Kafka-->>BS: Consume from 'event-changed'
     BS->>Kafka: Publish to 'booking-updates'

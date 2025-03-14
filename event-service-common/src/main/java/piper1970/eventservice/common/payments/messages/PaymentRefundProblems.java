@@ -3,7 +3,7 @@
  *
  * DO NOT EDIT DIRECTLY
  */
-package piper1970.eventservice.common.booking.messages;
+package piper1970.eventservice.common.payments.messages;
 
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.Utf8;
@@ -12,29 +12,26 @@ import org.apache.avro.message.BinaryMessageDecoder;
 import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
-public class CreateBookingResponse extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 2544219732337949662L;
+public class PaymentRefundProblems extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
+  private static final long serialVersionUID = 910414886572294917L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"CreateBookingResponse\",\"namespace\":\"piper1970.eventservice.common.booking.messages\",\"fields\":[{\"name\":\"bookingId\",\"type\":\"int\"},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"memberUsername\",\"type\":\"string\"},{\"name\":\"memberEmail\",\"type\":\"string\"},{\"name\":\"bookingStatus\",\"type\":{\"type\":\"enum\",\"name\":\"BookingStatus\",\"symbols\":[\"CONFIRMED\",\"CANCELLED\"]}},{\"name\":\"paymentToken\",\"type\":[\"null\",{\"type\":\"string\",\"logicalType\":\"uuid\"}]}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"PaymentRefundProblems\",\"namespace\":\"piper1970.eventservice.common.payments.messages\",\"fields\":[{\"name\":\"bookingId\",\"type\":\"int\"},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"memberUsername\",\"type\":\"string\"},{\"name\":\"memberEmail\",\"type\":\"string\"},{\"name\":\"message\",\"type\":\"string\"}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();
-  static {
-    MODEL$.addLogicalTypeConversion(new org.apache.avro.Conversions.UUIDConversion());
-  }
 
-  private static final BinaryMessageEncoder<CreateBookingResponse> ENCODER =
+  private static final BinaryMessageEncoder<PaymentRefundProblems> ENCODER =
       new BinaryMessageEncoder<>(MODEL$, SCHEMA$);
 
-  private static final BinaryMessageDecoder<CreateBookingResponse> DECODER =
+  private static final BinaryMessageDecoder<PaymentRefundProblems> DECODER =
       new BinaryMessageDecoder<>(MODEL$, SCHEMA$);
 
   /**
    * Return the BinaryMessageEncoder instance used by this class.
    * @return the message encoder used by this class
    */
-  public static BinaryMessageEncoder<CreateBookingResponse> getEncoder() {
+  public static BinaryMessageEncoder<PaymentRefundProblems> getEncoder() {
     return ENCODER;
   }
 
@@ -42,7 +39,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
    * Return the BinaryMessageDecoder instance used by this class.
    * @return the message decoder used by this class
    */
-  public static BinaryMessageDecoder<CreateBookingResponse> getDecoder() {
+  public static BinaryMessageDecoder<PaymentRefundProblems> getDecoder() {
     return DECODER;
   }
 
@@ -51,12 +48,12 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
    * @param resolver a {@link SchemaStore} used to find schemas by fingerprint
    * @return a BinaryMessageDecoder instance for this class backed by the given SchemaStore
    */
-  public static BinaryMessageDecoder<CreateBookingResponse> createDecoder(SchemaStore resolver) {
+  public static BinaryMessageDecoder<PaymentRefundProblems> createDecoder(SchemaStore resolver) {
     return new BinaryMessageDecoder<>(MODEL$, SCHEMA$, resolver);
   }
 
   /**
-   * Serializes this CreateBookingResponse to a ByteBuffer.
+   * Serializes this PaymentRefundProblems to a ByteBuffer.
    * @return a buffer holding the serialized data for this instance
    * @throws java.io.IOException if this instance could not be serialized
    */
@@ -65,12 +62,12 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
   }
 
   /**
-   * Deserializes a CreateBookingResponse from a ByteBuffer.
+   * Deserializes a PaymentRefundProblems from a ByteBuffer.
    * @param b a byte buffer holding serialized data for an instance of this class
-   * @return a CreateBookingResponse instance decoded from the given buffer
+   * @return a PaymentRefundProblems instance decoded from the given buffer
    * @throws java.io.IOException if the given bytes could not be deserialized into an instance of this class
    */
-  public static CreateBookingResponse fromByteBuffer(
+  public static PaymentRefundProblems fromByteBuffer(
       java.nio.ByteBuffer b) throws java.io.IOException {
     return DECODER.decode(b);
   }
@@ -79,15 +76,14 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
   private int eventId;
   private java.lang.CharSequence memberUsername;
   private java.lang.CharSequence memberEmail;
-  private piper1970.eventservice.common.booking.messages.BookingStatus bookingStatus;
-  private java.util.UUID paymentToken;
+  private java.lang.CharSequence message;
 
   /**
    * Default constructor.  Note that this does not initialize fields
    * to their default values from the schema.  If that is desired then
    * one should use <code>newBuilder()</code>.
    */
-  public CreateBookingResponse() {}
+  public PaymentRefundProblems() {}
 
   /**
    * All-args constructor.
@@ -95,16 +91,14 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
    * @param eventId The new value for eventId
    * @param memberUsername The new value for memberUsername
    * @param memberEmail The new value for memberEmail
-   * @param bookingStatus The new value for bookingStatus
-   * @param paymentToken The new value for paymentToken
+   * @param message The new value for message
    */
-  public CreateBookingResponse(java.lang.Integer bookingId, java.lang.Integer eventId, java.lang.CharSequence memberUsername, java.lang.CharSequence memberEmail, piper1970.eventservice.common.booking.messages.BookingStatus bookingStatus, java.util.UUID paymentToken) {
+  public PaymentRefundProblems(java.lang.Integer bookingId, java.lang.Integer eventId, java.lang.CharSequence memberUsername, java.lang.CharSequence memberEmail, java.lang.CharSequence message) {
     this.bookingId = bookingId;
     this.eventId = eventId;
     this.memberUsername = memberUsername;
     this.memberEmail = memberEmail;
-    this.bookingStatus = bookingStatus;
-    this.paymentToken = paymentToken;
+    this.message = message;
   }
 
   @Override
@@ -121,8 +115,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
     case 1: return eventId;
     case 2: return memberUsername;
     case 3: return memberEmail;
-    case 4: return bookingStatus;
-    case 5: return paymentToken;
+    case 4: return message;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -136,8 +129,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
     case 1: eventId = (java.lang.Integer)value$; break;
     case 2: memberUsername = (java.lang.CharSequence)value$; break;
     case 3: memberEmail = (java.lang.CharSequence)value$; break;
-    case 4: bookingStatus = (piper1970.eventservice.common.booking.messages.BookingStatus)value$; break;
-    case 5: paymentToken = (java.util.UUID)value$; break;
+    case 4: message = (java.lang.CharSequence)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -211,86 +203,68 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
   }
 
   /**
-   * Gets the value of the 'bookingStatus' field.
-   * @return The value of the 'bookingStatus' field.
+   * Gets the value of the 'message' field.
+   * @return The value of the 'message' field.
    */
-  public piper1970.eventservice.common.booking.messages.BookingStatus getBookingStatus() {
-    return bookingStatus;
+  public java.lang.CharSequence getMessage() {
+    return message;
   }
 
 
   /**
-   * Sets the value of the 'bookingStatus' field.
+   * Sets the value of the 'message' field.
    * @param value the value to set.
    */
-  public void setBookingStatus(piper1970.eventservice.common.booking.messages.BookingStatus value) {
-    this.bookingStatus = value;
+  public void setMessage(java.lang.CharSequence value) {
+    this.message = value;
   }
 
   /**
-   * Gets the value of the 'paymentToken' field.
-   * @return The value of the 'paymentToken' field.
+   * Creates a new PaymentRefundProblems RecordBuilder.
+   * @return A new PaymentRefundProblems RecordBuilder
    */
-  public java.util.UUID getPaymentToken() {
-    return paymentToken;
-  }
-
-
-  /**
-   * Sets the value of the 'paymentToken' field.
-   * @param value the value to set.
-   */
-  public void setPaymentToken(java.util.UUID value) {
-    this.paymentToken = value;
+  public static piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder newBuilder() {
+    return new piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder();
   }
 
   /**
-   * Creates a new CreateBookingResponse RecordBuilder.
-   * @return A new CreateBookingResponse RecordBuilder
-   */
-  public static piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder newBuilder() {
-    return new piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder();
-  }
-
-  /**
-   * Creates a new CreateBookingResponse RecordBuilder by copying an existing Builder.
+   * Creates a new PaymentRefundProblems RecordBuilder by copying an existing Builder.
    * @param other The existing builder to copy.
-   * @return A new CreateBookingResponse RecordBuilder
+   * @return A new PaymentRefundProblems RecordBuilder
    */
-  public static piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder newBuilder(piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder other) {
+  public static piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder newBuilder(piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder other) {
     if (other == null) {
-      return new piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder();
+      return new piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder();
     } else {
-      return new piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder(other);
+      return new piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder(other);
     }
   }
 
   /**
-   * Creates a new CreateBookingResponse RecordBuilder by copying an existing CreateBookingResponse instance.
+   * Creates a new PaymentRefundProblems RecordBuilder by copying an existing PaymentRefundProblems instance.
    * @param other The existing instance to copy.
-   * @return A new CreateBookingResponse RecordBuilder
+   * @return A new PaymentRefundProblems RecordBuilder
    */
-  public static piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder newBuilder(piper1970.eventservice.common.booking.messages.CreateBookingResponse other) {
+  public static piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder newBuilder(piper1970.eventservice.common.payments.messages.PaymentRefundProblems other) {
     if (other == null) {
-      return new piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder();
+      return new piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder();
     } else {
-      return new piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder(other);
+      return new piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder(other);
     }
   }
 
   /**
-   * RecordBuilder for CreateBookingResponse instances.
+   * RecordBuilder for PaymentRefundProblems instances.
    */
   @org.apache.avro.specific.AvroGenerated
-  public static class Builder extends org.apache.avro.specific.SpecificRecordBuilderBase<CreateBookingResponse>
-    implements org.apache.avro.data.RecordBuilder<CreateBookingResponse> {
+  public static class Builder extends org.apache.avro.specific.SpecificRecordBuilderBase<PaymentRefundProblems>
+    implements org.apache.avro.data.RecordBuilder<PaymentRefundProblems> {
 
     private int bookingId;
     private int eventId;
     private java.lang.CharSequence memberUsername;
     private java.lang.CharSequence memberEmail;
-    private piper1970.eventservice.common.booking.messages.BookingStatus bookingStatus;
-    private java.util.UUID paymentToken;
+    private java.lang.CharSequence message;
 
     /** Creates a new Builder */
     private Builder() {
@@ -301,7 +275,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder other) {
+    private Builder(piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.bookingId)) {
         this.bookingId = data().deepCopy(fields()[0].schema(), other.bookingId);
@@ -319,21 +293,17 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
         this.memberEmail = data().deepCopy(fields()[3].schema(), other.memberEmail);
         fieldSetFlags()[3] = other.fieldSetFlags()[3];
       }
-      if (isValidValue(fields()[4], other.bookingStatus)) {
-        this.bookingStatus = data().deepCopy(fields()[4].schema(), other.bookingStatus);
+      if (isValidValue(fields()[4], other.message)) {
+        this.message = data().deepCopy(fields()[4].schema(), other.message);
         fieldSetFlags()[4] = other.fieldSetFlags()[4];
-      }
-      if (isValidValue(fields()[5], other.paymentToken)) {
-        this.paymentToken = data().deepCopy(fields()[5].schema(), other.paymentToken);
-        fieldSetFlags()[5] = other.fieldSetFlags()[5];
       }
     }
 
     /**
-     * Creates a Builder by copying an existing CreateBookingResponse instance
+     * Creates a Builder by copying an existing PaymentRefundProblems instance
      * @param other The existing instance to copy.
      */
-    private Builder(piper1970.eventservice.common.booking.messages.CreateBookingResponse other) {
+    private Builder(piper1970.eventservice.common.payments.messages.PaymentRefundProblems other) {
       super(SCHEMA$, MODEL$);
       if (isValidValue(fields()[0], other.bookingId)) {
         this.bookingId = data().deepCopy(fields()[0].schema(), other.bookingId);
@@ -351,13 +321,9 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
         this.memberEmail = data().deepCopy(fields()[3].schema(), other.memberEmail);
         fieldSetFlags()[3] = true;
       }
-      if (isValidValue(fields()[4], other.bookingStatus)) {
-        this.bookingStatus = data().deepCopy(fields()[4].schema(), other.bookingStatus);
+      if (isValidValue(fields()[4], other.message)) {
+        this.message = data().deepCopy(fields()[4].schema(), other.message);
         fieldSetFlags()[4] = true;
-      }
-      if (isValidValue(fields()[5], other.paymentToken)) {
-        this.paymentToken = data().deepCopy(fields()[5].schema(), other.paymentToken);
-        fieldSetFlags()[5] = true;
       }
     }
 
@@ -375,7 +341,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * @param value The value of 'bookingId'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder setBookingId(int value) {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder setBookingId(int value) {
       validate(fields()[0], value);
       this.bookingId = value;
       fieldSetFlags()[0] = true;
@@ -395,7 +361,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * Clears the value of the 'bookingId' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder clearBookingId() {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder clearBookingId() {
       fieldSetFlags()[0] = false;
       return this;
     }
@@ -414,7 +380,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * @param value The value of 'eventId'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder setEventId(int value) {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder setEventId(int value) {
       validate(fields()[1], value);
       this.eventId = value;
       fieldSetFlags()[1] = true;
@@ -434,7 +400,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * Clears the value of the 'eventId' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder clearEventId() {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder clearEventId() {
       fieldSetFlags()[1] = false;
       return this;
     }
@@ -453,7 +419,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * @param value The value of 'memberUsername'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder setMemberUsername(java.lang.CharSequence value) {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder setMemberUsername(java.lang.CharSequence value) {
       validate(fields()[2], value);
       this.memberUsername = value;
       fieldSetFlags()[2] = true;
@@ -473,7 +439,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * Clears the value of the 'memberUsername' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder clearMemberUsername() {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder clearMemberUsername() {
       memberUsername = null;
       fieldSetFlags()[2] = false;
       return this;
@@ -493,7 +459,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * @param value The value of 'memberEmail'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder setMemberEmail(java.lang.CharSequence value) {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder setMemberEmail(java.lang.CharSequence value) {
       validate(fields()[3], value);
       this.memberEmail = value;
       fieldSetFlags()[3] = true;
@@ -513,103 +479,62 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       * Clears the value of the 'memberEmail' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder clearMemberEmail() {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder clearMemberEmail() {
       memberEmail = null;
       fieldSetFlags()[3] = false;
       return this;
     }
 
     /**
-      * Gets the value of the 'bookingStatus' field.
+      * Gets the value of the 'message' field.
       * @return The value.
       */
-    public piper1970.eventservice.common.booking.messages.BookingStatus getBookingStatus() {
-      return bookingStatus;
+    public java.lang.CharSequence getMessage() {
+      return message;
     }
 
 
     /**
-      * Sets the value of the 'bookingStatus' field.
-      * @param value The value of 'bookingStatus'.
+      * Sets the value of the 'message' field.
+      * @param value The value of 'message'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder setBookingStatus(piper1970.eventservice.common.booking.messages.BookingStatus value) {
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder setMessage(java.lang.CharSequence value) {
       validate(fields()[4], value);
-      this.bookingStatus = value;
+      this.message = value;
       fieldSetFlags()[4] = true;
       return this;
     }
 
     /**
-      * Checks whether the 'bookingStatus' field has been set.
-      * @return True if the 'bookingStatus' field has been set, false otherwise.
+      * Checks whether the 'message' field has been set.
+      * @return True if the 'message' field has been set, false otherwise.
       */
-    public boolean hasBookingStatus() {
+    public boolean hasMessage() {
       return fieldSetFlags()[4];
     }
 
 
     /**
-      * Clears the value of the 'bookingStatus' field.
+      * Clears the value of the 'message' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder clearBookingStatus() {
-      bookingStatus = null;
+    public piper1970.eventservice.common.payments.messages.PaymentRefundProblems.Builder clearMessage() {
+      message = null;
       fieldSetFlags()[4] = false;
-      return this;
-    }
-
-    /**
-      * Gets the value of the 'paymentToken' field.
-      * @return The value.
-      */
-    public java.util.UUID getPaymentToken() {
-      return paymentToken;
-    }
-
-
-    /**
-      * Sets the value of the 'paymentToken' field.
-      * @param value The value of 'paymentToken'.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder setPaymentToken(java.util.UUID value) {
-      validate(fields()[5], value);
-      this.paymentToken = value;
-      fieldSetFlags()[5] = true;
-      return this;
-    }
-
-    /**
-      * Checks whether the 'paymentToken' field has been set.
-      * @return True if the 'paymentToken' field has been set, false otherwise.
-      */
-    public boolean hasPaymentToken() {
-      return fieldSetFlags()[5];
-    }
-
-
-    /**
-      * Clears the value of the 'paymentToken' field.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.booking.messages.CreateBookingResponse.Builder clearPaymentToken() {
-      paymentToken = null;
-      fieldSetFlags()[5] = false;
       return this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public CreateBookingResponse build() {
+    public PaymentRefundProblems build() {
       try {
-        CreateBookingResponse record = new CreateBookingResponse();
+        PaymentRefundProblems record = new PaymentRefundProblems();
         record.bookingId = fieldSetFlags()[0] ? this.bookingId : (java.lang.Integer) defaultValue(fields()[0]);
         record.eventId = fieldSetFlags()[1] ? this.eventId : (java.lang.Integer) defaultValue(fields()[1]);
         record.memberUsername = fieldSetFlags()[2] ? this.memberUsername : (java.lang.CharSequence) defaultValue(fields()[2]);
         record.memberEmail = fieldSetFlags()[3] ? this.memberEmail : (java.lang.CharSequence) defaultValue(fields()[3]);
-        record.bookingStatus = fieldSetFlags()[4] ? this.bookingStatus : (piper1970.eventservice.common.booking.messages.BookingStatus) defaultValue(fields()[4]);
-        record.paymentToken = fieldSetFlags()[5] ? this.paymentToken : (java.util.UUID) defaultValue(fields()[5]);
+        record.message = fieldSetFlags()[4] ? this.message : (java.lang.CharSequence) defaultValue(fields()[4]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
         throw e;
@@ -620,8 +545,8 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
   }
 
   @SuppressWarnings("unchecked")
-  private static final org.apache.avro.io.DatumWriter<CreateBookingResponse>
-    WRITER$ = (org.apache.avro.io.DatumWriter<CreateBookingResponse>)MODEL$.createDatumWriter(SCHEMA$);
+  private static final org.apache.avro.io.DatumWriter<PaymentRefundProblems>
+    WRITER$ = (org.apache.avro.io.DatumWriter<PaymentRefundProblems>)MODEL$.createDatumWriter(SCHEMA$);
 
   @Override public void writeExternal(java.io.ObjectOutput out)
     throws java.io.IOException {
@@ -629,14 +554,75 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
   }
 
   @SuppressWarnings("unchecked")
-  private static final org.apache.avro.io.DatumReader<CreateBookingResponse>
-    READER$ = (org.apache.avro.io.DatumReader<CreateBookingResponse>)MODEL$.createDatumReader(SCHEMA$);
+  private static final org.apache.avro.io.DatumReader<PaymentRefundProblems>
+    READER$ = (org.apache.avro.io.DatumReader<PaymentRefundProblems>)MODEL$.createDatumReader(SCHEMA$);
 
   @Override public void readExternal(java.io.ObjectInput in)
     throws java.io.IOException {
     READER$.read(this, SpecificData.getDecoder(in));
   }
 
+  @Override protected boolean hasCustomCoders() { return true; }
+
+  @Override public void customEncode(org.apache.avro.io.Encoder out)
+    throws java.io.IOException
+  {
+    out.writeInt(this.bookingId);
+
+    out.writeInt(this.eventId);
+
+    out.writeString(this.memberUsername);
+
+    out.writeString(this.memberEmail);
+
+    out.writeString(this.message);
+
+  }
+
+  @Override public void customDecode(org.apache.avro.io.ResolvingDecoder in)
+    throws java.io.IOException
+  {
+    org.apache.avro.Schema.Field[] fieldOrder = in.readFieldOrderIfDiff();
+    if (fieldOrder == null) {
+      this.bookingId = in.readInt();
+
+      this.eventId = in.readInt();
+
+      this.memberUsername = in.readString(this.memberUsername instanceof Utf8 ? (Utf8)this.memberUsername : null);
+
+      this.memberEmail = in.readString(this.memberEmail instanceof Utf8 ? (Utf8)this.memberEmail : null);
+
+      this.message = in.readString(this.message instanceof Utf8 ? (Utf8)this.message : null);
+
+    } else {
+      for (int i = 0; i < 5; i++) {
+        switch (fieldOrder[i].pos()) {
+        case 0:
+          this.bookingId = in.readInt();
+          break;
+
+        case 1:
+          this.eventId = in.readInt();
+          break;
+
+        case 2:
+          this.memberUsername = in.readString(this.memberUsername instanceof Utf8 ? (Utf8)this.memberUsername : null);
+          break;
+
+        case 3:
+          this.memberEmail = in.readString(this.memberEmail instanceof Utf8 ? (Utf8)this.memberEmail : null);
+          break;
+
+        case 4:
+          this.message = in.readString(this.message instanceof Utf8 ? (Utf8)this.message : null);
+          break;
+
+        default:
+          throw new java.io.IOException("Corrupt ResolvingDecoder.");
+        }
+      }
+    }
+  }
 }
 
 

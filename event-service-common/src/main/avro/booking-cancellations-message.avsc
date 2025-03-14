@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "CancelBookingTooLate",
+  "name": "BookingCancellations",
   "namespace": "piper1970.eventservice.common.bookings.messages",
   "fields": [
     {
@@ -18,10 +18,6 @@
     {
       "name": "memberUsername",
       "type": "string"
-    },
-    {
-      "name": "message",
-      "type": ["null", "string"]
     }
   ]
 }

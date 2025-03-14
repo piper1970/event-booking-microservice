@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "CreateBookingRequest",
-  "namespace": "piper1970.eventservice.common.booking.messages",
+  "namespace": "piper1970.eventservice.common.bookings.messages",
   "fields": [
     {
       "name": "bookingId",
@@ -34,10 +34,6 @@
           "scale": 2
         }
       ]
-    },
-    {
-      "name": "message",
-      "type": ["null", "string"]
     }
   ]
 }

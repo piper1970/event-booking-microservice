@@ -1,12 +1,17 @@
 package piper1970.bookingservice.service;
 
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +23,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.lang.Nullable;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
+import piper1970.bookingservice.dto.mapper.BookingMapper;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
+import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.exceptions.BookingCancellationException;
 import piper1970.bookingservice.exceptions.BookingCreationException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
@@ -45,6 +52,13 @@ class DefaultBookingWebServiceTest {
   EventRequestService eventRequestService;
   @Mock
   EventDtoToStatusMapper eventDtoToStatusMapper;
+  @Mock
+  BookingMapper bookingMapper;
+  @Mock
+  Clock clock;
+
+  final Instant clockInstant = Instant.now();
+  final ZoneId clockZone = ZoneId.systemDefault();
 
   // common variables used for tests
   private static final String token = "Eat at Al's";
@@ -59,11 +73,13 @@ class DefaultBookingWebServiceTest {
   @BeforeEach
   void setUp() {
     webService = new DefaultBookingWebService(
+        bookingMapper,
         bookingRepository,
         eventRequestService,
         eventDtoToStatusMapper,
         timeoutValue
     );
+
   }
 
   //region Find Method Scenarios
@@ -78,6 +94,10 @@ class DefaultBookingWebServiceTest {
   @Test
   @DisplayName("findAllBookings should be able to retrieve all bookings")
   void findAllBookings() {
+
+    mockClock();
+
+    mockBookingMapper();
 
     when(bookingRepository.findAll()).thenReturn(createBookingFlux(null));
 
@@ -100,6 +120,8 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findAllBookings should throw proper exception if it takes too long")
   void findAllBookings_TimeoutExceeded() {
 
+    mockClock();
+
     when(bookingRepository.findAll()).thenReturn(createBookingFlux(null)
         .delaySequence(timeoutDuration)
     );
@@ -114,9 +136,13 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findBookingsByUsername should return bookings by user if in the system")
   void findBookingsByUsername_UserFound() {
 
+    mockClock();
+
     when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(username)
         .filter(booking -> booking.getUsername().equals(username))
     );
+
+    mockBookingMapper();
 
     var expectedCount = createBookingStream(username)
         .filter(booking -> booking.getUsername().equals(username))
@@ -131,6 +157,8 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findBookingsByUsername should not error out if bookings for username are not in the system")
   void findBookingsByUsername_UserNotFound() {
 
+    mockClock();
+
     when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(null)
         .filter(booking -> booking.getUsername().equals(username))
     );
@@ -142,6 +170,8 @@ class DefaultBookingWebServiceTest {
   @Test
   @DisplayName("findBookingsByUsername should throw error if booking-repo takes too long")
   void findBookingsByUsername_TimedOut() {
+
+    mockClock();
 
     when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(username)
         .delaySequence(timeoutDuration)
@@ -158,12 +188,18 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findBookingById should properly return booking found with id")
   void findBookingById() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, null));
+    mockClock();
+
+    var bookingParams = BookingParams.of(bookingId, eventId);
+    var booking = createBooking(bookingParams);
+    var bookingDto = createBookingDto(bookingParams);
 
     when(bookingRepository.findById(bookingId)).thenReturn(Mono.just(booking));
 
+    mockBookingMapper();
+
     StepVerifier.create(webService.findBookingById(bookingId))
-        .expectNext(booking)
+        .expectNext(bookingDto)
         .verifyComplete();
   }
 
@@ -182,7 +218,9 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findBookingById should throw error if booking-repo takes too long")
   void findBookingById_TimedOut() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, null));
+    mockClock();
+
+    var booking = createBooking(BookingParams.of(bookingId, eventId));
 
     when(bookingRepository.findById(bookingId)).thenReturn(Mono.just(booking)
         .delayElement(timeoutDuration)
@@ -199,13 +237,19 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findBookingByIdAndUsername should properly return booking with given user and id")
   void findBookingByIdAndUsername_BookingFound() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, username));
+    mockClock();
+
+    var params = BookingParams.of(bookingId, eventId, username);
+    var booking = createBooking(params);
+    var bookingDto = createBookingDto(params);
 
     when(bookingRepository.findBookingByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
+    mockBookingMapper();
+
     StepVerifier.create(webService.findBookingByIdAndUsername(bookingId, username))
-        .expectNext(booking)
+        .expectNext(bookingDto)
         .verifyComplete();
   }
 
@@ -225,7 +269,10 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findBookingByIdAndUsername should throw error if it takes too long")
   void findBookingByIdAndUsername_TimedOut() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, username));
+    mockClock();
+
+    var params = BookingParams.of(bookingId, eventId, username);
+    var booking = createBooking(params);
 
     when(bookingRepository.findBookingByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking)
@@ -240,7 +287,7 @@ class DefaultBookingWebServiceTest {
 
   //endregion Find Method Scenarios
 
-  //region CREATE Method Scenarios
+  //region Create Method Scenarios
 
   ///  ## CREATE SCENARIOS
   /// - call to event-request-service returns error -> error passes through directly to caller
@@ -299,11 +346,13 @@ class DefaultBookingWebServiceTest {
   @DisplayName("createBooking should throw exception if attempt to save booking to database times out")
   void createBooking_throws_exception_if_call_to_save_to_database_times_out() {
 
+    mockClock();
+
     var cbr = createBookingRequest();
 
     var eventDto = buildEventDto(LocalDateTime.now().plusDays(10), 12);
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, username));
+    var booking = createBooking(BookingParams.of(bookingId, eventId, username));
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
@@ -324,11 +373,15 @@ class DefaultBookingWebServiceTest {
   @DisplayName("createBooking should should return a Mono<Void> response upon success")
   void createBooking_success() {
 
+    mockClock();
+
     var cbr = createBookingRequest();
 
     var eventDto = buildEventDto(LocalDateTime.now().plusDays(10), 120);
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, username));
+    var params = BookingParams.of(bookingId, eventId, username);
+    var booking = createBooking(params);
+    var bookingDto = createBookingDto(params);
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
@@ -337,16 +390,67 @@ class DefaultBookingWebServiceTest {
 
     when(bookingRepository.save(any(Booking.class))).thenReturn(Mono.just(booking));
 
+    mockBookingMapper();
+
     StepVerifier.create(webService.createBooking(cbr, token))
-        .expectNext(booking)
+        .expectNext(bookingDto)
         .verifyComplete();
   }
 
-  //endregion CREATE Method Scenarios
+  //endregion Create Method Scenarios
+
+  //region Cancel Method Scenarios
+
+  ///  ## CANCEL SCENARIOS
+  /// - Admin/Member both have same scenarios
+  ///   - can't find booking -> throws BookingNotFoundException
+  ///   - timeout when trying to find booking -> throws BookingTimeoutException
+  ///   - validation failure - event not in awaiting -> throws BookingCancellationException
+  ///   - call to event-request-service returns error -> error passes through to caller
+  ///   - timeout when trying to update booking -> throws BookingTimeoutException
+  ///   - successfully found and updated booking without failing validations -> returns updated book
+
+  @Test
+  @DisplayName("cancelBooking should throw BookingNotFoundException if find function fails")
+  void cancelBooking__cant_find_booking(){
+    fail("Not yet implemented");
+  }
+
+  @Test
+  @DisplayName("cancelBooking should throw BookingTimeoutException if find function tiems out")
+  void cancelBooking__timeout_on_find(){
+    fail("Not yet implemented");
+  }
+
+  @Test
+  @DisplayName("cancelBooking should throw BookingCancellationException if validation fails")
+  void cancelBooking__failed_validation(){
+    fail("Not yet implemented");
+  }
+
+  @Test
+  @DisplayName("cancelBooking should pass throw BookingTimeoutException if update call times out")
+  void cancelBooking__timeout_on_update(){
+    fail("Not yet implemented");
+  }
+
+  @Test
+  @DisplayName("cancelBooking should pass error through if event-request-service throws error")
+  void cancelBooking__error_from_event_request_service(){
+    fail("Not yet implemented");
+  }
+
+  @Test
+  @DisplayName("cancelBooking should return updated booking (status:CANCELLED if everything goes well")
+  void cancelBooking__success(){
+    fail("Not yet implemented");
+  }
+
+  //endregion Cancel Method Scenarios
 
   //region Delete Method Scenarios
 
-  /// ## DELETE SCENARIOS
+  /// ## Delete SCENARIOS
   /// - can't find booking -> throws BookingNotFoundException
   /// - timeout when trying to find booking -> throws BookingTimeoutException
   /// - validation failure - event still in progress -> throws BookingCancellationException
@@ -369,7 +473,9 @@ class DefaultBookingWebServiceTest {
   @DisplayName("deleteBooking should throw BookingTimeoutException if the repository times out when looking up the booking")
   void deleteBooking_timeout_while_trying_to_find_booking() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, token));
+    mockClock();
+
+    var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
     when(bookingRepository.findById(bookingId))
         .thenReturn(Mono.just(booking)
@@ -385,7 +491,9 @@ class DefaultBookingWebServiceTest {
   @DisplayName("deleteBooking should throw BookingCancellationException if the booking event is in progress")
   void deleteBooking_validation_fails_event_still_in_progress() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, token));
+    mockClock();
+
+    var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
     var event = buildEventDto(LocalDateTime.now().minusDays(10), 80);
 
@@ -405,7 +513,9 @@ class DefaultBookingWebServiceTest {
   @DisplayName("deleteBooking should pass error through if the event-request-services throws an error")
   void deleteBooking_call_to_event_request_service_times_out() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, token));
+    mockClock();
+
+    var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
     when(bookingRepository.findById(bookingId))
         .thenReturn(Mono.just(booking));
@@ -421,7 +531,9 @@ class DefaultBookingWebServiceTest {
   @DisplayName("deleteBooking should throw BookingTimeoutException if the repo call to delete takes too long...")
   void deleteBooking_timeout_while_trying_to_delete_booking() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, token));
+    mockClock();
+
+    var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
     when(bookingRepository.findById(bookingId))
         .thenReturn(Mono.just(booking));
@@ -447,7 +559,9 @@ class DefaultBookingWebServiceTest {
   @DisplayName("deleteBooking should return void if everything goes as planned")
   void deleteBooking_Success_Returns_Void() {
 
-    var booking = createBooking(new BookingParams(bookingId, eventId, token));
+    mockClock();
+
+    var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
     when(bookingRepository.findById(bookingId))
         .thenReturn(Mono.just(booking));
@@ -499,13 +613,36 @@ class DefaultBookingWebServiceTest {
     return IntStream.range(0, allBookingsCount)
         .mapToObj(id -> {
           if (id % 2 == 0){
-            return new BookingParams(bookingId + id, eventId + id, testUser);
+            return BookingParams.of(bookingId + id, eventId + id, testUser);
+          }else{
+            return BookingParams.of(bookingId + id, eventId + id);
           }
-          return new BookingParams(bookingId + id, eventId + id, null);})
+        })
         .map(this::createBooking);
   }
 
-  private record BookingParams(int id, int eventId, @Nullable String user) {}
+  @SuppressWarnings("all")
+  private record BookingParams(int id, int eventId, @Nullable String user) {
+    static BookingParams of(int id, int eventId) {
+      return new BookingParams(id, eventId, null);
+    }
+    static BookingParams of(int id, int eventId, @Nullable String user) {
+      return new BookingParams(id, eventId, user);
+    }
+  }
+  private BookingDto createBookingDto(BookingParams bookingParams) {
+
+    var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();
+
+    return BookingDto.builder()
+        .id(bookingParams.id())
+        .eventId(bookingParams.eventId())
+        .username(user)
+        .eventDateTime(LocalDateTime.now(clock).plusDays(bookingParams.id()))
+        .bookingStatus(BookingStatus.IN_PROGRESS.name())
+        .build();
+  }
+
   private Booking createBooking(BookingParams bookingParams) {
 
     var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();
@@ -514,9 +651,29 @@ class DefaultBookingWebServiceTest {
         .id(bookingParams.id())
         .eventId(bookingParams.eventId())
         .username(user)
-        .eventDateTime(LocalDateTime.now().plusDays(bookingParams.id()))
+        .eventDateTime(LocalDateTime.now(clock).plusDays(bookingParams.id()))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
+  }
+
+  private void mockBookingMapper(){
+    when(bookingMapper.entityToDto(any())).thenAnswer(
+        args -> {
+          Booking booking = args.getArgument(0);
+          return BookingDto.builder()
+              .id(booking.getId())
+              .username(booking.getUsername())
+              .eventId(booking.getEventId())
+              .eventDateTime(booking.getEventDateTime())
+              .bookingStatus(booking.getBookingStatus().name())
+              .build();
+        }
+    );
+  }
+
+  private void mockClock(){
+    given(clock.instant()).willReturn(clockInstant);
+    given(clock.getZone()).willReturn(clockZone);
   }
 
   //endregion Helper Methods

@@ -274,14 +274,14 @@ services:
         echo 'Creating Kafka topics...'
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic create-booking-request --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic create-booking-response --partitions 3 --replication-factor 1
-        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-unavailable --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-event-unavailable --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic cancel-booking --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic cancel-booking-too-late --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-changed --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-updates --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-cancelled --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-cancellations --partitions 3 --replication-factor 1
-        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic booking-refund-problems --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic payment-refund-problems --partitions 3 --replication-factor 1
         echo 'Topics created.'
       "
 

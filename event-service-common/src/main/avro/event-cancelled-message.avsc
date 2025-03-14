@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "EventCancelled",
+  "namespace": "piper1970.eventservice.common.events.messages",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "int"
+    }
+  ]
+}

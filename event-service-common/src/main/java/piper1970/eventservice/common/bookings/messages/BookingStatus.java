@@ -3,11 +3,11 @@
  *
  * DO NOT EDIT DIRECTLY
  */
-package piper1970.eventservice.common.booking.messages;
+package piper1970.eventservice.common.bookings.messages;
 @org.apache.avro.specific.AvroGenerated
 public enum BookingStatus implements org.apache.avro.generic.GenericEnumSymbol<BookingStatus> {
   CONFIRMED, CANCELLED  ;
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"enum\",\"name\":\"BookingStatus\",\"namespace\":\"piper1970.eventservice.common.booking.messages\",\"symbols\":[\"CONFIRMED\",\"CANCELLED\"]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"enum\",\"name\":\"BookingStatus\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"symbols\":[\"CONFIRMED\",\"CANCELLED\"]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   @Override
