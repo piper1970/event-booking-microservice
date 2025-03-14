@@ -41,6 +41,10 @@
           "CANCELLED"
         ]
       }
+    },
+    {
+      "name": "message",
+      "type": ["null", "string"]
     }
   ]
 }
