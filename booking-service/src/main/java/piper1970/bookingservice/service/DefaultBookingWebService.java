@@ -5,9 +5,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.mapper.BookingMapper;
@@ -15,7 +13,6 @@ import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.exceptions.BookingCancellationException;
 import piper1970.bookingservice.exceptions.BookingCreationException;
-import piper1970.bookingservice.exceptions.BookingDeletionException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
@@ -85,7 +82,7 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> findBookingByIdAndUsername(Integer id, String username) {
-    return bookingRepository.findBookingByIdAndUsername(id, username)
+    return bookingRepository.findByIdAndUsername(id, username)
         .map(bookingMapper::entityToDto)
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -101,7 +98,6 @@ public class DefaultBookingWebService implements BookingWebService {
         dto.getAvailableBookings() >= 1
             && EventStatus.AWAITING == eventDtoToStatusMapper.apply(dto);
 
-    // TODO: contact EventService to see if event is available and get the time
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
         .filter(validEvent)
         // throw error if event in question has already started
@@ -127,65 +123,22 @@ public class DefaultBookingWebService implements BookingWebService {
         ).doOnNext(booking -> {
           log.debug("Booking [{}] has been created for [{}]", booking.getId(),
               booking.getUsername());
-          // TODO: need to send CREATED_BOOKING event
+          // TODO: [KAFKA] Publish to 'create-booking-request' topic
         });
-  }
-
-  @Transactional
-  @Override
-  public Mono<Void> deleteBooking(Integer id, String token) {
-
-    Predicate<EventDto> validEvent = dto -> EventStatus.IN_PROGRESS != eventDtoToStatusMapper.apply(
-        dto);
-
-    return bookingRepository.findById(id)
-        .timeout(bookingTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new BookingTimeoutException(
-                provideTimeoutErrorMessage("finding booking by id"), ex)))
-        // throw BookingNotFoundException if booking not in repo
-        .switchIfEmpty(Mono.defer(
-            () -> Mono.error(new BookingNotFoundException("Booking not found for id: " + id))))
-        // make call to event-service - timeout behavior handled in eventRequestService
-        .flatMap(booking -> eventRequestService.requestEvent(booking.getEventId(), token))
-        // ensure event not in progress. if so, throw BookingCancellationException
-        .filter(validEvent)
-        .switchIfEmpty(Mono.defer(() -> Mono.error(new BookingDeletionException(
-            String.format("Booking [%s] cannot be deleted for an event in progress", id)))))
-        // finally, delete the booking
-        .flatMap(ignored -> bookingRepository.deleteById(id))
-        .timeout(bookingTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new BookingTimeoutException(
-                provideTimeoutErrorMessage("deleting booking by id"), ex)))
-        .doOnSuccess(_void -> {
-          log.debug("Booking [{}] has been deleted", id);
-
-          // TODO: Emit CancelBooking event to kafka (event, booker)
-        });
-  }
-
-  @Transactional
-  @Override
-  public Mono<BookingDto> cancelBooking(Integer id, String token) {
-    return cancelFoundBook(bookingRepository.findById(id), id, token);
   }
 
   @Override
   public Mono<BookingDto> cancelBooking(Integer id, String username, String token) {
-    return cancelFoundBook(bookingRepository.findBookingByIdAndUsername(id, username), id, token);
-  }
-
-  /// Helper method to avoid duplication in logic when username may or may not be present in caller
-  private Mono<BookingDto> cancelFoundBook(@NonNull Mono<Booking> foundMono, Integer id, String token){
-    return foundMono
+    return bookingRepository.findByIdAndUsername(id, username)
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new BookingTimeoutException(
                 provideTimeoutErrorMessage("finding booking by id"), ex)))
-        // throw BookingNotFoundException if booking not in repo
         .switchIfEmpty(Mono.defer(
-            () -> Mono.error(new BookingNotFoundException("Booking not found for id: " + id))))
+            () -> {
+              log.debug("Booking [{}] has been cancelled", id);
+              return Mono.error(new BookingNotFoundException("Booking not found for id: " + id));
+            } ))
         .flatMap(booking -> handleCancellationLogic(booking, token));
   }
 
@@ -199,18 +152,23 @@ public class DefaultBookingWebService implements BookingWebService {
         .filter(validEvent)
         .flatMap(event -> {
           log.info("Booking [{}] for event [{}] has been cancelled", booking.getId(), event.getId());
-
-
           return bookingRepository.save(booking.withBookingStatus(BookingStatus.CANCELLED));
         })
+        .timeout(bookingTimeoutDuration)
+        .onErrorResume(TimeoutException.class, ex ->
+            Mono.error(new BookingTimeoutException(
+                provideTimeoutErrorMessage("saving cancelled booking"), ex)))
         .map(bookingMapper::entityToDto)
         .switchIfEmpty(Mono.defer(() -> {
           log.warn("Cancel of booking [{}] came too late for event [{}]", booking.getId(),
               booking.getEventId());
-          // TODO: send 'cancel-booking-too-late' message to kafka
           return Mono.error(new BookingCancellationException(
               String.format("Booking [%s] can no longer be cancelled for the event", booking.getId())));
-        }));
+        }))
+        .doOnSuccess(bookingDto -> {
+          log.debug("Booking [{}] has been cancelled", booking.getId());
+          // TODO: [KAFKA] Publish to 'cancel-booking' topic
+        });
   }
 
   private void logBookingRetrieval(BookingDto booking) {

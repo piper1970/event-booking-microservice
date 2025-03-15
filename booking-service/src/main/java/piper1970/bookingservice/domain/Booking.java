@@ -18,12 +18,13 @@ import org.springframework.data.relational.core.mapping.Table;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = "id")
+@EqualsAndHashCode
 @With
 @Table(name = "bookings", schema = "event_service")
 public class Booking {
 
   @Id
+  @EqualsAndHashCode.Exclude
   private Integer id;
   private Integer eventId;
   private String username;

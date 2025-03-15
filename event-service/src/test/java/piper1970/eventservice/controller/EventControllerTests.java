@@ -3,6 +3,7 @@ package piper1970.eventservice.controller;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
@@ -83,7 +84,7 @@ import reactor.core.publisher.Mono;
         name = "keystore-service",
         baseUrlProperties = "keystore-service.url")
 })
-public class EventControllerTests{
+public class EventControllerTests {
 
   //region Properties Setup
 
@@ -144,7 +145,6 @@ public class EventControllerTests{
     setupKeyCloakServer();
   }
 
-
   //region GET ALL EVENTS
 
   @Test
@@ -186,7 +186,7 @@ public class EventControllerTests{
 
   @Test
   @DisplayName("unauthenticated users should not be able to fetch all events")
-  void getAllEvents_Unauthenticated(){
+  void getAllEvents_Unauthenticated() {
 
     webClient.get()
         .uri("/api/bookings")
@@ -267,14 +267,15 @@ public class EventControllerTests{
   void createEvent_user_authorized_as_performer() throws JOSEException {
 
     // performer role implies member as well
-    var token = getJwtToken("test_performer", "MEMBER", "PERFORMER");
+    var token = getJwtToken("test_performer", "PERFORMER");
 
     var createEvent = EventCreateRequest.
         builder()
         .title("Test Title")
         .description("Test Description")
         .location("Test Location")
-        .eventDateTime(LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
+        .eventDateTime(
+            LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
         .durationInMinutes(30)
         .availableBookings(20)
         .cost(BigDecimal.valueOf(20))
@@ -311,7 +312,8 @@ public class EventControllerTests{
         .title("Test Title")
         .description("Test Description")
         .location("Test Location")
-        .eventDateTime(LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
+        .eventDateTime(
+            LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
         .durationInMinutes(60)
         .availableBookings(20)
         .cost(BigDecimal.valueOf(20))
@@ -337,7 +339,8 @@ public class EventControllerTests{
         .title("Test Title")
         .description("Test Description")
         .location("Test Location")
-        .eventDateTime(LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
+        .eventDateTime(
+            LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
         .availableBookings(20)
         .cost(BigDecimal.valueOf(20))
         .build();
@@ -357,7 +360,7 @@ public class EventControllerTests{
   //region UPDATE EVENT
 
   @Test
-  @DisplayName("non-admins cannot update event")
+  @DisplayName("non-performers/owners cannot update event")
   void updateEvent_non_authorized() throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -366,7 +369,7 @@ public class EventControllerTests{
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-    var token = getJwtToken("non_admin", "PERFORMER", "MEMBER");
+    var token = getJwtToken("non_performer", "MEMBER");
     var updateRequest = EventUpdateRequest.builder()
         .title("Test Title - Updated")
         .description("Test Description - Updated")
@@ -417,8 +420,8 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin can update event with info before cutoff window")
-  void updateEvent_authorized_admin_good_values() throws JOSEException {
+  @DisplayName("authorized performers can update their event with info before cutoff window")
+  void updateEvent_authorized_performer_good_values() throws JOSEException {
     var db = initializeDatabase()
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
@@ -426,7 +429,7 @@ public class EventControllerTests{
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .title("Test Title - Updated")
         .description("Test Description - Updated")
@@ -449,8 +452,8 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin can update event-date-time before the cutoff window prior to the event starting")
-  void updateEvent_authorized_admin_update_event_date_time() throws JOSEException {
+  @DisplayName("authorized performers can update their event's event-date-time before the cutoff window prior to the event starting")
+  void updateEvent_authorized_performer_update_event_date_time() throws JOSEException {
     var db = initializeDatabase()
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
@@ -458,7 +461,7 @@ public class EventControllerTests{
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(event.getEventDateTime().plusMinutes(10)) // running a bit late...
         .build();
@@ -482,8 +485,8 @@ public class EventControllerTests{
 
 
   @Test
-  @DisplayName("authorized admin cannot update event-date-time if event after cutoff point")
-  void updateEvent_authorized_admin_update_event_date_time_in_progress() throws JOSEException {
+  @DisplayName("authorized performers cannot update their event's event-date-time if event after cutoff point")
+  void updateEvent_authorized_performer_update_event_date_time_in_progress() throws JOSEException {
     var db = initializeDatabase()
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
@@ -491,7 +494,7 @@ public class EventControllerTests{
         .filter(evt -> eventStatusMatches(evt, EventStatus.IN_PROGRESS))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status IN_PROGRESS"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(event.getEventDateTime().plusMinutes(5))
         .build();
@@ -513,8 +516,8 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin cannot update event-date-time if event is completed")
-  void updateEvent_authorized_admin_update_values_while_complete() throws JOSEException {
+  @DisplayName("authorized performer cannot update their event's event-date-time if event is completed")
+  void updateEvent_authorized_performer_update_values_while_complete() throws JOSEException {
     var db = initializeDatabase()
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
@@ -522,7 +525,7 @@ public class EventControllerTests{
         .filter(evt -> eventStatusMatches(evt, EventStatus.COMPLETED))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status COMPLETED"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(event.getEventDateTime().minusHours(5))
         .build();
@@ -539,8 +542,8 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin cannot update event by setting the date in the past")
-  void updateEvent_authorized_admin_awaiting_to_in_progress_update_cost() throws JOSEException {
+  @DisplayName("authorized PERFORMER cannot update event by setting the date in the past")
+  void updateEvent_authorized_PERFORMER_awaiting_to_in_progress_update_cost() throws JOSEException {
     var db = initializeDatabase()
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
@@ -548,7 +551,7 @@ public class EventControllerTests{
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(10))
         .cost(BigDecimal.TEN)
@@ -566,8 +569,8 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin cannot update event available bookings if also updating awaiting to in progress")
-  void updateEvent_authorized_admin_awaiting_to_in_progress_update_available_bookings()
+  @DisplayName("authorized PERFORMER cannot update event available bookings if also updating awaiting to in progress")
+  void updateEvent_authorized_PERFORMER_awaiting_to_in_progress_update_available_bookings()
       throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -576,7 +579,7 @@ public class EventControllerTests{
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
         .availableBookings(99)
@@ -594,8 +597,9 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin cannot update event location if also updating awaiting to in progress")
-  void updateEvent_authorized_admin_awaiting_to_in_progress_update_location() throws JOSEException {
+  @DisplayName("authorized PERFORMER cannot update event location if also updating awaiting to in progress")
+  void updateEvent_authorized_PERFORMER_awaiting_to_in_progress_update_location()
+      throws JOSEException {
     var db = initializeDatabase()
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
@@ -603,7 +607,7 @@ public class EventControllerTests{
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
         .location("Somewhere in the boonies")
@@ -621,8 +625,8 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin cannot update event date-time if also updating awaiting to in progress")
-  void updateEvent_authorized_admin_awaiting_to_in_progress_update_event_date_time()
+  @DisplayName("authorized PERFORMER cannot update event date-time if also updating awaiting to in progress")
+  void updateEvent_authorized_performer_awaiting_to_in_progress_update_event_date_time()
       throws JOSEException {
     var db = initializeDatabase()
         .block();
@@ -631,7 +635,7 @@ public class EventControllerTests{
         .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-    var token = getJwtToken("test_admin", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
         .location("Somewhere in the boonies")
@@ -649,11 +653,11 @@ public class EventControllerTests{
   }
   //endregion
 
-  //region DELETE EVENT
+  //region CANCEL EVENT
 
   @Test
-  @DisplayName("authorized admin can delete event if it hasn't started yet")
-  void deleteEvent_Authorized_Admin_Event_Not_Started() throws JOSEException {
+  @DisplayName("authorized performer can cancel event if it hasn't passed it's cutoff window")
+  void cancelEvent_Authorized_Performer_Event_Not_Started() throws JOSEException {
     var db = initializeDatabase()
         .block();
 
@@ -664,64 +668,40 @@ public class EventControllerTests{
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
 
-    // admin role has MEMBER, PERFORMER, and ADMIN authorities
-    var token = getJwtToken("test_admin", "MEMBER", "PERFORMER", "ADMIN");
+    var token = getJwtToken("test_performer", "PERFORMER");
 
-    webClient.delete()
-        .uri("/api/events/{eventId}", eventId)
+    var result = webClient.patch()
+        .uri("/api/events/{eventId}/cancel", eventId)
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
         .expectStatus()
-        .isNoContent();
+        .isOk()
+        .expectBody(EventDto.class)
+        .returnResult()
+        .getResponseBody();
 
-    assertEquals(Boolean.FALSE, eventRepository.existsById(eventId).block());
+    assertTrue(Objects.requireNonNull(result).isCancelled());
   }
 
   @Test
-  @DisplayName("authorized admin can delete event if it has been completed")
-  void deleteEvent_Authorized_Admin_Event_Completed() throws JOSEException {
+  @DisplayName("authorized performer cannot cancel event if it is in progress or ended")
+  void cancelEvent_Authorized_Performer_Event_Already_Started() throws JOSEException {
     var db = initializeDatabase()
         .block();
 
     var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(event -> EventStatus.COMPLETED == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
+        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(
+            eventMapper.toDto(event)))
         .map(Event::getId)
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
 
-    // admin role has MEMBER, PERFORMER, and ADMIN authorities
-    var token = getJwtToken("test_admin", "MEMBER", "PERFORMER", "ADMIN");
+    // PERFORMER role has MEMBER, PERFORMER, and PERFORMER authorities
+    var token = getJwtToken("test_performer", "PERFORMER");
 
-    webClient.delete()
-        .uri("/api/events/{eventId}", eventId)
-        .headers(headers -> headers.setBearerAuth(token))
-        .exchange()
-        .expectStatus()
-        .isNoContent();
-
-    assertEquals(Boolean.FALSE, eventRepository.existsById(eventId).block());
-  }
-
-
-  @Test
-  @DisplayName("authorized admin cannot delete event if it is in progress")
-  void deleteEvent_Authorized_Admin_Event_Already_Started() throws JOSEException {
-    var db = initializeDatabase()
-        .block();
-
-    var eventId = Objects.requireNonNull(db, dbInitializationFailure)
-        .stream()
-        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
-        .map(Event::getId)
-        .findAny()
-        .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
-
-    // admin role has MEMBER, PERFORMER, and ADMIN authorities
-    var token = getJwtToken("test_admin", "MEMBER", "PERFORMER", "ADMIN");
-
-    webClient.delete()
-        .uri("/api/events/{eventId}", eventId)
+    webClient.patch()
+        .uri("/api/events/{eventId}/cancel", eventId)
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
         .expectStatus()
@@ -730,23 +710,24 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("authorized non-admin cannot delete event")
-  void deleteEvent_NonAuthorized() throws JOSEException {
+  @DisplayName("authorized non-performer cannot cancel event")
+  void cancelEvent_NonAuthorized() throws JOSEException {
     var db = initializeDatabase()
         .block();
 
     var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
+        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(
+            eventMapper.toDto(event)))
         .map(Event::getId)
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
 
-    // admin role has MEMBER, PERFORMER, and ADMIN authorities
-    var token = getJwtToken("test_performer", "MEMBER", "PERFORMER");
+    // PERFORMER role has MEMBER, PERFORMER, and PERFORMER authorities
+    var token = getJwtToken("test_member", "MEMBER");
 
-    webClient.delete()
-        .uri("/api/events/{eventId}", eventId)
+    webClient.patch()
+        .uri("/api/events/{eventId}/cancel", eventId)
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
         .expectStatus()
@@ -754,14 +735,15 @@ public class EventControllerTests{
   }
 
   @Test
-  @DisplayName("non-authenticated user cannot delete event")
-  void deleteEvent_NonAuthenticated() {
+  @DisplayName("non-authenticated user cannot cancel event")
+  void cancelEvent_NonAuthenticated() {
     var db = initializeDatabase()
         .block();
 
     var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(eventMapper.toDto(event)))
+        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(
+            eventMapper.toDto(event)))
         .map(Event::getId)
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
@@ -773,7 +755,7 @@ public class EventControllerTests{
         .isUnauthorized();
   }
 
-  //endregion
+  //endregion CANCEL EVENT
 
   //region Helper Methods
 

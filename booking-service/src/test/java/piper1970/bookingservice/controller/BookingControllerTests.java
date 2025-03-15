@@ -3,7 +3,6 @@ package piper1970.bookingservice.controller;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.BDDMockito.given;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -276,33 +275,6 @@ public class BookingControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin user should be able to retrieve any booking from any users")
-  void getBookingById_Authenticated_Authorized_Admin() throws JOSEException {
-
-    var bookings = initializeDatabase()
-        .block();
-
-    var id = Objects.requireNonNull(bookings, dbInitializationFailure).stream()
-        .filter(Predicate.not(booking -> booking.getUsername().equals("test_member")))
-        .map(Booking::getId)
-        .findAny()
-        .orElseThrow(() -> new IllegalStateException("Booking not found"));
-
-    var token = getJwtToken("test_member", "MEMBER", "ADMIN");
-
-    webClient.get()
-        .uri("/api/bookings/{id}", id)
-        .accept(MediaType.APPLICATION_JSON)
-        .headers(headers -> {
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          headers.setBearerAuth(token);
-        })
-        .exchange()
-        .expectStatus().isOk()
-        .expectBody(BookingDto.class);
-  }
-
-  @Test
   @DisplayName("non-authenticated user should not be able to access a booking")
   void getBookingById_Not_Authenticated(){
 
@@ -509,54 +481,39 @@ public class BookingControllerTests{
   //region CANCEL BOOKING
 
   @Test
-  @DisplayName("authorized admin user should be able to cancel a booking if booking event has not yet started")
-  void cancelBooking_Authenticated_Admin_Event_Still_Waiting(){
-    fail("Not yet implemented");
-  }
-
-  @Test
   @DisplayName("authorized member and owner of booking should be able to cancel a booking if booking event has not yet started")
-  void cancelBooking_Authenticated_Member_Owner_Of_Booking_Event_Still_Waiting(){
-    fail("Not yet implemented");
-  }
-
-  //endregion CANCEL BOOKING
-
-  //region DELETE BOOKING
-
-  @Test
-  @DisplayName("authorized admin user should be able to delete a booking if booking event has not yet started")
-  void deleteBooking_Authenticated_Admin_Event_Still_Waiting()
+  void cancelBooking_Authenticated_Member_Owner_Of_Booking_Event_Still_Waiting()
       throws JOSEException, JsonProcessingException {
-
     var bookings = initializeDatabase()
         .block();
 
     var booking = Objects.requireNonNull(bookings).stream()
         .filter(bkg -> bkg.getUsername().equals("test_member"))
-        .findAny()
+        .findFirst()
         .orElseThrow(() -> new IllegalStateException("Booking not found"));
 
-    var token = getJwtToken("test_member", "MEMBER", "ADMIN");
+    var token = getJwtToken("test_member", "MEMBER");
 
     mockEventServer(booking.getEventId(), 50,
         LocalDateTime.now(clock).plusHours(5), token);
 
-    webClient.delete()
-        .uri("/api/bookings/{id}", booking.getId())
+    var results = webClient.patch()
+        .uri("/api/bookings/{id}/cancel", booking.getId())
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
         .expectStatus()
-        .isNoContent();
+        .isOk()
+        .expectBody(BookingDto.class)
+        .returnResult()
+        .getResponseBody();
 
-    assertEquals(Boolean.FALSE, bookingRepository.existsById(booking.getId()).block());
+    assertEquals(BookingStatus.CANCELLED.name(), Objects.requireNonNull(results).getBookingStatus());
   }
 
   @Test
-  @DisplayName("authorized admin user should not be able to delete a booking if booking event has already started")
-  void deleteBooking_Authenticated_Admin_Event_Started()
+  @DisplayName("authorized member and owner of booking should not be able to cancel a booking if booking event has started")
+  void cancelBooking_Authenticated_Member_Owner_Of_Booking_Event_In_Progress()
       throws JOSEException, JsonProcessingException {
-
     var bookings = initializeDatabase()
         .block();
 
@@ -565,65 +522,20 @@ public class BookingControllerTests{
         .findAny()
         .orElseThrow(() -> new IllegalStateException("Booking not found"));
 
-    var token = getJwtToken("test_member", "MEMBER", "ADMIN");
+    var token = getJwtToken("test_member", "MEMBER");
 
     mockEventServer(booking.getEventId(), 50,
-        LocalDateTime.now(clock).minusMinutes(5), token);
+        LocalDateTime.now(clock).minusMinutes(1), token);
 
-    webClient.delete()
-        .uri("/api/bookings/{id}", booking.getId())
+    webClient.patch()
+        .uri("/api/bookings/{id}/cancel", booking.getId())
         .headers(headers -> headers.setBearerAuth(token))
         .exchange()
         .expectStatus()
         .isEqualTo(HttpStatus.CONFLICT);
-
-    assertEquals(Boolean.TRUE, bookingRepository.existsById(booking.getId()).block());
   }
 
-  @Test
-  @DisplayName("non-admin authorized user should not be able to delete a booking")
-  void deleteBooking_Authenticated_Non_Admin() throws JOSEException {
-
-    var bookings = initializeDatabase()
-        .block();
-
-    var id = Objects.requireNonNull(bookings).stream()
-        .filter(booking -> booking.getUsername().equals("test_member"))
-        .map(Booking::getId)
-        .findAny()
-        .orElseThrow(() -> new IllegalStateException("Booking not found"));
-
-    var token = getJwtToken("test_member", "MEMBER", "PERFORMER");
-
-    webClient.delete()
-        .uri("/api/bookings/{id}", id)
-        .headers(headers -> headers.setBearerAuth(token))
-        .exchange()
-        .expectStatus()
-        .isForbidden();
-  }
-
-  @Test
-  @DisplayName("non-authenticated user should not be able to delete a booking")
-  void deleteBooking_Non_Authenticated() {
-
-    var bookings = initializeDatabase()
-        .block();
-
-    var id = Objects.requireNonNull(bookings).stream()
-        .filter(booking -> booking.getUsername().equals("test_member"))
-        .map(Booking::getId)
-        .findAny()
-        .orElseThrow(() -> new IllegalStateException("Booking not found"));
-
-    webClient.delete()
-        .uri("/api/bookings/{id}", id)
-        .exchange()
-        .expectStatus()
-        .isUnauthorized();
-  }
-
-  //endregion
+  //endregion CANCEL BOOKING
 
   //region Helper Methods
 

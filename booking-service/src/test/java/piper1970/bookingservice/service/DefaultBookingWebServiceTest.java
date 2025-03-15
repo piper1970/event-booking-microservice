@@ -1,9 +1,7 @@
 package piper1970.bookingservice.service;
 
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -26,8 +24,8 @@ import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.mapper.BookingMapper;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
+import piper1970.bookingservice.exceptions.BookingCancellationException;
 import piper1970.bookingservice.exceptions.BookingCreationException;
-import piper1970.bookingservice.exceptions.BookingDeletionException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
@@ -79,7 +77,6 @@ class DefaultBookingWebServiceTest {
         eventDtoToStatusMapper,
         timeoutValue
     );
-
   }
 
   //region Find Method Scenarios
@@ -243,7 +240,7 @@ class DefaultBookingWebServiceTest {
     var booking = createBooking(params);
     var bookingDto = createBookingDto(params);
 
-    when(bookingRepository.findBookingByIdAndUsername(bookingId, username))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
     mockBookingMapper();
@@ -257,7 +254,7 @@ class DefaultBookingWebServiceTest {
   @DisplayName("findBookingByIdAndUsername should not throw error if booking with given user and id cannot be found")
   void findBookingByIdAndUsername_BookingNotFound() {
 
-    when(bookingRepository.findBookingByIdAndUsername(bookingId, username))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.empty());
 
     StepVerifier.create(webService.findBookingByIdAndUsername(bookingId, username))
@@ -274,7 +271,7 @@ class DefaultBookingWebServiceTest {
     var params = BookingParams.of(bookingId, eventId, username);
     var booking = createBooking(params);
 
-    when(bookingRepository.findBookingByIdAndUsername(bookingId, username))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking)
             .delayElement(timeoutDuration)
         );
@@ -291,7 +288,8 @@ class DefaultBookingWebServiceTest {
 
   ///  ## CREATE SCENARIOS
   /// - call to event-request-service returns error -> error passes through directly to caller
-  /// - validation fails (event for booking must be in AWAITING STATE) -> throws BookingCreationException
+  /// - validation fails (event for booking must be in AWAITING STATE) -> throws
+  /// BookingCreationException
   /// - repo call to save times out -> throws BookingTimeoutException
   /// - call to save works as expected -> returns Mono[Void] response
 
@@ -314,7 +312,9 @@ class DefaultBookingWebServiceTest {
 
     var cbr = createBookingRequest();
 
-    var eventDto = buildEventDto(LocalDateTime.now().minusMinutes(10), 120);
+    mockClock();
+
+    var eventDto = buildEventDto(LocalDateTime.now(clock).minusMinutes(10), 120);
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
@@ -331,7 +331,9 @@ class DefaultBookingWebServiceTest {
 
     var cbr = createBookingRequest();
 
-    var eventDto = buildEventDto(LocalDateTime.now().minusDays(10), 10);
+    mockClock();
+
+    var eventDto = buildEventDto(LocalDateTime.now(clock).minusDays(10), 10);
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
@@ -350,7 +352,7 @@ class DefaultBookingWebServiceTest {
 
     var cbr = createBookingRequest();
 
-    var eventDto = buildEventDto(LocalDateTime.now().plusDays(10), 12);
+    var eventDto = buildEventDto(LocalDateTime.now(clock).plusDays(10), 12);
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, username));
 
@@ -377,7 +379,7 @@ class DefaultBookingWebServiceTest {
 
     var cbr = createBookingRequest();
 
-    var eventDto = buildEventDto(LocalDateTime.now().plusDays(10), 120);
+    var eventDto = buildEventDto(LocalDateTime.now(clock).plusDays(10), 120);
 
     var params = BookingParams.of(bookingId, eventId, username);
     var booking = createBooking(params);
@@ -401,56 +403,7 @@ class DefaultBookingWebServiceTest {
 
   //region Cancel Method Scenarios
 
-  ///  ## CANCEL SCENARIOS
-  /// - Admin/Member both have same scenarios
-  ///   - can't find booking -> throws BookingNotFoundException
-  ///   - timeout when trying to find booking -> throws BookingTimeoutException
-  ///   - validation failure - event not in awaiting -> throws BookingCancellationException
-  ///   - call to event-request-service returns error -> error passes through to caller
-  ///   - timeout when trying to update booking -> throws BookingTimeoutException
-  ///   - successfully found and updated booking without failing validations -> returns updated book
-
-  @Test
-  @DisplayName("cancelBooking should throw BookingNotFoundException if find function fails")
-  void cancelBooking__cant_find_booking(){
-    fail("Not yet implemented");
-  }
-
-  @Test
-  @DisplayName("cancelBooking should throw BookingTimeoutException if find function tiems out")
-  void cancelBooking__timeout_on_find(){
-    fail("Not yet implemented");
-  }
-
-  @Test
-  @DisplayName("cancelBooking should throw BookingCancellationException if validation fails")
-  void cancelBooking__failed_validation(){
-    fail("Not yet implemented");
-  }
-
-  @Test
-  @DisplayName("cancelBooking should pass throw BookingTimeoutException if update call times out")
-  void cancelBooking__timeout_on_update(){
-    fail("Not yet implemented");
-  }
-
-  @Test
-  @DisplayName("cancelBooking should pass error through if event-request-service throws error")
-  void cancelBooking__error_from_event_request_service(){
-    fail("Not yet implemented");
-  }
-
-  @Test
-  @DisplayName("cancelBooking should return updated booking (status:CANCELLED if everything goes well")
-  void cancelBooking__success(){
-    fail("Not yet implemented");
-  }
-
-  //endregion Cancel Method Scenarios
-
-  //region Delete Method Scenarios
-
-  /// ## Delete SCENARIOS
+  /// ## CANCEL SCENARIOS
   /// - can't find booking -> throws BookingNotFoundException
   /// - timeout when trying to find booking -> throws BookingTimeoutException
   /// - validation failure - event still in progress -> throws BookingCancellationException
@@ -459,45 +412,45 @@ class DefaultBookingWebServiceTest {
   /// - successfully found and delete booking without failing validations -> returns void
 
   @Test
-  @DisplayName("deleteBooking should throw BookingNotFoundException if it can't be found")
-  void deleteBooking_CantFindBooking() {
+  @DisplayName("cancelBooking should throw BookingNotFoundException if it can't be found")
+  void cancelBooking_CantFindBooking() {
 
-    when(bookingRepository.findById(bookingId))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.empty());
 
-    StepVerifier.create(webService.deleteBooking(bookingId, token))
+    StepVerifier.create(webService.cancelBooking(bookingId, username, token))
         .verifyError(BookingNotFoundException.class);
   }
 
   @Test
-  @DisplayName("deleteBooking should throw BookingTimeoutException if the repository times out when looking up the booking")
-  void deleteBooking_timeout_while_trying_to_find_booking() {
+  @DisplayName("cancelBooking should throw BookingTimeoutException if the repository times out when looking up the booking")
+  void cancelBooking_timeout_while_trying_to_find_booking() {
 
     mockClock();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
-    when(bookingRepository.findById(bookingId))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking)
             .delayElement(timeoutDuration));
 
-    StepVerifier.withVirtualTime(() -> webService.deleteBooking(bookingId, token))
+    StepVerifier.withVirtualTime(() -> webService.cancelBooking(bookingId, username, token))
         .expectSubscription()
         .thenAwait(timeoutDuration)
         .verifyError(BookingTimeoutException.class);
   }
 
   @Test
-  @DisplayName("deleteBooking should throw BookingDeletionException if the booking event is in progress")
-  void deleteBooking_validation_fails_event_still_in_progress() {
+  @DisplayName("cancelBooking should throw BookingDeletionException if the booking event is in progress")
+  void cancelBooking_validation_fails_event_still_in_progress() {
 
     mockClock();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
-    var event = buildEventDto(LocalDateTime.now().minusDays(10), 80);
+    var event = buildEventDto(LocalDateTime.now(clock).minusDays(10), 80);
 
-    when(bookingRepository.findById(bookingId))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
     when(eventRequestService.requestEvent(eventId, token))
@@ -505,82 +458,87 @@ class DefaultBookingWebServiceTest {
 
     when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.IN_PROGRESS);
 
-    StepVerifier.create(webService.deleteBooking(bookingId, token))
-        .verifyError(BookingDeletionException.class);
+    StepVerifier.create(webService.cancelBooking(bookingId, username, token))
+        .verifyError(BookingCancellationException.class);
   }
 
   @Test
-  @DisplayName("deleteBooking should pass error through if the event-request-services throws an error")
-  void deleteBooking_call_to_event_request_service_times_out() {
+  @DisplayName("cancelBooking should pass error through if the event-request-services throws an error")
+  void cancelBooking_call_to_event_request_service_times_out() {
 
     mockClock();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
-    when(bookingRepository.findById(bookingId))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.error(new RuntimeException(errorMessage)));
 
-    StepVerifier.create(webService.deleteBooking(bookingId, token))
+    StepVerifier.create(webService.cancelBooking(bookingId, username, token))
         .verifyError(RuntimeException.class);
   }
 
   @Test
-  @DisplayName("deleteBooking should throw BookingTimeoutException if the repo call to delete takes too long...")
-  void deleteBooking_timeout_while_trying_to_delete_booking() {
+  @DisplayName("cancelBooking should throw BookingTimeoutException if the repo call to delete takes too long...")
+  void cancelBooking_timeout_while_trying_to_cancel_booking() {
 
     mockClock();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
-    when(bookingRepository.findById(bookingId))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
-    var event = buildEventDto(LocalDateTime.now().plusHours(10), 80);
+    var event = buildEventDto(LocalDateTime.now(clock).plusHours(10), 80);
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
 
     when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.AWAITING);
 
-    when(bookingRepository.deleteById(bookingId))
-        .thenReturn(Mono.just(mock(Void.class)) // mock Void needed, since mono.empty can't be delayed...
-            .delayElement(timeoutDuration));
+    var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
+    when(bookingRepository.save(cancelledBooking))
+    .thenReturn(Mono.just(cancelledBooking)
+    .delayElement(timeoutDuration));
 
-    StepVerifier.withVirtualTime(() -> webService.deleteBooking(bookingId, token))
+    StepVerifier.withVirtualTime(() -> webService.cancelBooking(bookingId, username, token))
         .expectSubscription()
         .thenAwait(timeoutDuration)
         .verifyError(BookingTimeoutException.class);
   }
 
   @Test
-  @DisplayName("deleteBooking should return void if everything goes as planned")
-  void deleteBooking_Success_Returns_Void() {
+  @DisplayName("cancelBooking should return updated booking if everything goes as planned")
+  void cancelBooking_Success_Returns_Cancelled_Booking() {
 
     mockClock();
 
+    mockBookingMapper();
+
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
-    when(bookingRepository.findById(bookingId))
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
-    var event = buildEventDto(LocalDateTime.now().minusDays(10), 80);
+    var event = buildEventDto(LocalDateTime.now(clock).minusDays(10), 80);
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
 
     when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.AWAITING);
 
-    when(bookingRepository.deleteById(bookingId))
-        .thenReturn(Mono.empty()); // can't mimic Mono<Void>, so just returning empty
+    var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
+    when(bookingRepository.save(cancelledBooking))
+    .thenReturn(Mono.just(cancelledBooking));
 
-    StepVerifier.create(webService.deleteBooking(bookingId, token))
+    StepVerifier.create(webService.cancelBooking(bookingId, username, token))
+        .expectNextCount(1)
         .verifyComplete();
   }
 
-  //endregion Delete Method Scenarios
+  //endregion Cancel Method Scenarios
 
   //region Helper Methods
 
@@ -612,9 +570,9 @@ class DefaultBookingWebServiceTest {
   private Stream<Booking> createBookingStream(@Nullable String testUser) {
     return IntStream.range(0, allBookingsCount)
         .mapToObj(id -> {
-          if (id % 2 == 0){
+          if (id % 2 == 0) {
             return BookingParams.of(bookingId + id, eventId + id, testUser);
-          }else{
+          } else {
             return BookingParams.of(bookingId + id, eventId + id);
           }
         })
@@ -623,13 +581,16 @@ class DefaultBookingWebServiceTest {
 
   @SuppressWarnings("all")
   private record BookingParams(int id, int eventId, @Nullable String user) {
+
     static BookingParams of(int id, int eventId) {
       return new BookingParams(id, eventId, null);
     }
+
     static BookingParams of(int id, int eventId, @Nullable String user) {
       return new BookingParams(id, eventId, user);
     }
   }
+
   private BookingDto createBookingDto(BookingParams bookingParams) {
 
     var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();
@@ -656,7 +617,7 @@ class DefaultBookingWebServiceTest {
         .build();
   }
 
-  private void mockBookingMapper(){
+  private void mockBookingMapper() {
     when(bookingMapper.entityToDto(any())).thenAnswer(
         args -> {
           Booking booking = args.getArgument(0);
@@ -671,7 +632,7 @@ class DefaultBookingWebServiceTest {
     );
   }
 
-  private void mockClock(){
+  private void mockClock() {
     given(clock.instant()).willReturn(clockInstant);
     given(clock.getZone()).willReturn(clockZone);
   }

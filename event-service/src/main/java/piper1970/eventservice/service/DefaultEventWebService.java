@@ -9,16 +9,14 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import piper1970.eventservice.common.events.EventDtoToStatusMapper;
-import piper1970.eventservice.common.events.status.EventStatus;
+import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.domain.Event;
+import piper1970.eventservice.dto.mapper.EventMapper;
 import piper1970.eventservice.dto.model.EventCreateRequest;
 import piper1970.eventservice.dto.model.EventUpdateRequest;
-import piper1970.eventservice.dto.mapper.EventMapper;
 import piper1970.eventservice.exceptions.EventCancellationException;
 import piper1970.eventservice.exceptions.EventTimeoutException;
 import piper1970.eventservice.exceptions.EventUpdateException;
@@ -32,7 +30,6 @@ public class DefaultEventWebService implements EventWebService {
 
   private final EventRepository eventRepository;
   private final EventMapper eventMapper;
-  private final EventDtoToStatusMapper eventDtoToStatusMapper;
   private final Clock clock;
   private final Integer updateCutoffMinutes;
   private final Integer eventRepositoryTimeoutInMilliseconds;
@@ -41,24 +38,22 @@ public class DefaultEventWebService implements EventWebService {
   public DefaultEventWebService(
       @NonNull EventRepository eventRepository,
       @NonNull EventMapper eventMapper,
-      @NonNull EventDtoToStatusMapper eventDtoToStatusMapper, Clock clock,
+      Clock clock,
       @NonNull @Value("${event.change.cutoff.minutes:30}") Integer updateCutoffMinutes,
-      @NonNull @Value("${event-repository.timout.milliseconds}")Integer eventRepositoryTimeoutInMilliseconds) {
+      @NonNull @Value("${event-repository.timout.milliseconds}") Integer eventRepositoryTimeoutInMilliseconds) {
 
     this.eventRepository = eventRepository;
     this.eventMapper = eventMapper;
-    this.eventDtoToStatusMapper = eventDtoToStatusMapper;
     this.clock = clock;
     this.updateCutoffMinutes = updateCutoffMinutes;
     this.eventRepositoryTimeoutInMilliseconds = eventRepositoryTimeoutInMilliseconds;
     this.eventsTimeoutDuration = Duration.ofMinutes(eventRepositoryTimeoutInMilliseconds);
   }
 
-  // TODO: needs to talk to bookingService, via kafka
-
   @Override
-  public Flux<Event> getEvents() {
+  public Flux<EventDto> getEvents() {
     return eventRepository.findAll()
+        .map(eventMapper::toDto)
         // handle timeout of fetch-all by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -68,8 +63,9 @@ public class DefaultEventWebService implements EventWebService {
   }
 
   @Override
-  public Mono<Event> getEvent(@NonNull Integer id) {
+  public Mono<EventDto> getEvent(@NonNull Integer id) {
     return eventRepository.findById(id)
+        .map(eventMapper::toDto)
         // handle timeout of fetch by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -79,36 +75,36 @@ public class DefaultEventWebService implements EventWebService {
   }
 
   @Override
-  public Mono<Event> createEvent(@NonNull EventCreateRequest createRequest) {
+  public Mono<EventDto> createEvent(@NonNull EventCreateRequest createRequest) {
     var event = eventMapper.toEntity(createRequest);
 
     return eventRepository.save(event)
+        .map(eventMapper::toDto)
         // handle timeout of save by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
                 provideTimeoutErrorMessage("attempting to create event"), ex)))
-        // send new-event msg to queue
-        .doOnNext(newEvent -> {
-          log.debug("Event [{}] has been created", newEvent.getId());
-          // TODO: send NewEvent event to kafka (performer)
-        });
+        .doOnNext(dto -> log.debug("Event {} has been created", dto.getId()));
   }
 
   @Transactional
   @Override
-  public Mono<Event> updateEvent(@NonNull Integer id, @NonNull EventUpdateRequest updateRequest) {
+  public Mono<EventDto> updateEvent(@NonNull Integer id,
+      @NonNull EventUpdateRequest updateRequest) {
     return eventRepository.findById(id)
         // handle timeouts of initial fetch by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to find event %d for updating".formatted(id)), ex)))
+                provideTimeoutErrorMessage(
+                    "attempting to find event %d for updating".formatted(id)), ex)))
         // if not found, throw EventNotFoundException
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found".formatted(id))))
         // attempt to merge... throws EventUpdateException if merge fails due to timing issues
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
         .flatMap(eventRepository::save)
+        .map(eventMapper::toDto)
         // handle timeout of save by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -117,56 +113,59 @@ public class DefaultEventWebService implements EventWebService {
         // send update-event msg to queue
         .doOnNext(updatedEvent -> {
           log.debug("Event [{}] has been updated", updatedEvent.getId());
-          // TODO: send UpdatedEvent event to kafka (bookings and performer)
+          // TODO:[KAFKA] Publish to 'event-changed' topic
         });
   }
 
   @Transactional
   @Override
-  public Mono<Void> deleteEvent(@NonNull Integer id) {
-    return eventRepository.findById(id)
-        // handle timeout of initial fetch by throwing EventTimeoutException
+  public Mono<EventDto> cancelEvent(Integer id, String facilitator) {
+
+    return eventRepository.findByIdAndFacilitator(id, facilitator)
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to find event [%d] for deletion".formatted(id)), ex)))
+                provideTimeoutErrorMessage(
+                    "attempting to find event [%d] for deletion".formatted(id)), ex)))
         // convert 404 to error
-        .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d} not found".formatted(id))))
-        // assure event not in progress. throw error if in progress
-        .filter(this::eventNotInProgress)
+        .switchIfEmpty(Mono.error(new EventNotFoundException(
+            "Event [%d} run by [%s]not found".formatted(id, facilitator))))
+        .filter(this::safeToCancel)
         .switchIfEmpty(Mono.defer(() -> Mono.error(new EventCancellationException(
-            "Cannot cancel event [%s] while it is in progress".formatted(id)))))
-        .flatMap(eventRepository::delete)
-        // handle timeout of delete by throwing EventTimeoutException
+            "Cannot cancel event [%d] if the cancellation window (%d minutes before the event starts) has passed or the event in progress"
+                .formatted(id, updateCutoffMinutes)))))
+        .flatMap(this::cancelAndSave)
+        .map(eventMapper::toDto)
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to delete event [%d}".formatted(id)), ex)))
-        // send event-cancellation msg to queue
+                provideTimeoutErrorMessage("attempting to save cancelled event [%d]".formatted(id)),
+                ex)))
         .doOnSuccess(_void -> {
-          log.debug("Event [{}] has been deleted", id);
-          // TODO: send CancelledEvent event to kafka (performer, booking members)
+          log.debug("Event [{}] has been cancelled", id);
+          // TODO:[KAFKA] Publish to 'event-cancelled' topic
         });
   }
 
-  private void logEventRetrieval(Event event) {
+  private void logEventRetrieval(EventDto event) {
     log.debug("Event {} has been retrieved", event.getId());
   }
 
-  /// Handles logic for merging update with current request
-  /// Updates can only happen if the event has not started, and
-  /// the updateCutoffMinutes window has already been passed
+  private Mono<Event> cancelAndSave(Event event) {
+    if (event.isCancelled()) {
+      return Mono.just(event);
+    }
+    var cancelledEvent = event.toBuilder().cancelled(true).build();
+    return eventRepository.save(cancelledEvent);
+  }
+
+  /// Handles logic for merging update with current request Updates can only happen if the event has
+  /// not started, and the updateCutoffMinutes window has already been passed
   private Mono<Event> mergeWithUpdateRequest(Event event, EventUpdateRequest updateRequest) {
-    EventStatus adjustedEventStatus = Optional.ofNullable(
-            getEventStatus(event.withEventDateTime(updateRequest.getEventDateTime())))
-        .orElseGet(() -> getEventStatus(event));
-    LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
-    LocalDateTime cutoffTime = event.getEventDateTime().minusMinutes(updateCutoffMinutes)
-        .truncatedTo(ChronoUnit.MINUTES);
 
-    var safeToChange = now.isBefore(cutoffTime) && adjustedEventStatus == EventStatus.AWAITING;
+    var isSafeToChange = safeToChange(event, updateRequest.getEventDateTime());
 
-    if (safeToChange) {
+    if (isSafeToChange) {
       if (updateRequest.getEventDateTime() != null) {
         event.setEventDateTime(updateRequest.getEventDateTime());
       }
@@ -190,24 +189,41 @@ public class DefaultEventWebService implements EventWebService {
       }
     } else {
       var exception = new EventUpdateException(
-          String.format("Cannot update event [%d] after cutoff window [%s]", event.getId(),
-              cutoffTime));
+          String.format(
+              "Cannot update event [%d] after cutoff window [%s minutes before vent starts]",
+              event.getId(),
+              updateCutoffMinutes));
       return Mono.error(exception);
     }
     return Mono.just(event);
   }
 
-  private boolean eventNotInProgress(Event event) {
-    return getEventStatus(event) != EventStatus.IN_PROGRESS;
-  }
-
-  @Nullable
-  private EventStatus getEventStatus(Event event) {
-    return eventDtoToStatusMapper.apply(eventMapper.toDto(event));
+  private boolean safeToCancel(Event event) {
+    LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
+    LocalDateTime cutoffTime = event.getEventDateTime().minusMinutes(updateCutoffMinutes)
+        .truncatedTo(ChronoUnit.MINUTES);
+    return now.isBefore(cutoffTime);
   }
 
   private String provideTimeoutErrorMessage(String subMessage) {
     return String.format("Event repository timed out [over %d milliseconds] %s",
         eventRepositoryTimeoutInMilliseconds, subMessage);
   }
+
+  private boolean safeToChange(Event event, LocalDateTime eventDateTime) {
+    if (event.isCancelled()) {
+      return false;
+    }
+    var now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
+    var originalCutoffTime = event.getEventDateTime().minusMinutes(updateCutoffMinutes);
+
+    var adjustedEvent = Optional.ofNullable(eventDateTime)
+        .map(event::withEventDateTime)
+        .orElse(event);
+    ;
+    var newCutoffTime = adjustedEvent.getEventDateTime().minusMinutes(updateCutoffMinutes)
+        .truncatedTo(ChronoUnit.MINUTES);
+    return now.isBefore(originalCutoffTime) && now.isBefore(newCutoffTime);
+  }
+
 }

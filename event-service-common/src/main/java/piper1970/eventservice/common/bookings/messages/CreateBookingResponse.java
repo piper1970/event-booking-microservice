@@ -13,10 +13,10 @@ import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class CreateBookingResponse extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 4428161160222295118L;
+  private static final long serialVersionUID = 7962963523279279365L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"CreateBookingResponse\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"bookingId\",\"type\":\"int\"},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"memberUsername\",\"type\":\"string\"},{\"name\":\"memberEmail\",\"type\":\"string\"},{\"name\":\"paymentApiId\",\"type\":\"string\"},{\"name\":\"paymentToken\",\"type\":[\"null\",{\"type\":\"string\",\"logicalType\":\"uuid\"}]},{\"name\":\"bookingStatus\",\"type\":{\"type\":\"enum\",\"name\":\"BookingStatus\",\"symbols\":[\"CONFIRMED\",\"CANCELLED\"]}}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"CreateBookingResponse\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"bookingId\",\"type\":\"int\"},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"memberUsername\",\"type\":\"string\"},{\"name\":\"memberEmail\",\"type\":\"string\"},{\"name\":\"paymentApiId\",\"type\":\"string\"},{\"name\":\"paymentToken\",\"type\":[\"null\",{\"type\":\"string\",\"logicalType\":\"uuid\"}]},{\"name\":\"bookingStatus\",\"type\":{\"type\":\"enum\",\"name\":\"BookingStatus\",\"symbols\":[\"CONFIRMED\",\"CANCELLED\"]}},{\"name\":\"message\",\"type\":[\"null\",\"string\"]}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();
@@ -82,6 +82,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
   private java.lang.CharSequence paymentApiId;
   private java.util.UUID paymentToken;
   private piper1970.eventservice.common.bookings.messages.BookingStatus bookingStatus;
+  private java.lang.CharSequence message;
 
   /**
    * Default constructor.  Note that this does not initialize fields
@@ -99,8 +100,9 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
    * @param paymentApiId The new value for paymentApiId
    * @param paymentToken The new value for paymentToken
    * @param bookingStatus The new value for bookingStatus
+   * @param message The new value for message
    */
-  public CreateBookingResponse(java.lang.Integer bookingId, java.lang.Integer eventId, java.lang.CharSequence memberUsername, java.lang.CharSequence memberEmail, java.lang.CharSequence paymentApiId, java.util.UUID paymentToken, piper1970.eventservice.common.bookings.messages.BookingStatus bookingStatus) {
+  public CreateBookingResponse(java.lang.Integer bookingId, java.lang.Integer eventId, java.lang.CharSequence memberUsername, java.lang.CharSequence memberEmail, java.lang.CharSequence paymentApiId, java.util.UUID paymentToken, piper1970.eventservice.common.bookings.messages.BookingStatus bookingStatus, java.lang.CharSequence message) {
     this.bookingId = bookingId;
     this.eventId = eventId;
     this.memberUsername = memberUsername;
@@ -108,6 +110,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
     this.paymentApiId = paymentApiId;
     this.paymentToken = paymentToken;
     this.bookingStatus = bookingStatus;
+    this.message = message;
   }
 
   @Override
@@ -127,6 +130,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
     case 4: return paymentApiId;
     case 5: return paymentToken;
     case 6: return bookingStatus;
+    case 7: return message;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -143,6 +147,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
     case 4: paymentApiId = (java.lang.CharSequence)value$; break;
     case 5: paymentToken = (java.util.UUID)value$; break;
     case 6: bookingStatus = (piper1970.eventservice.common.bookings.messages.BookingStatus)value$; break;
+    case 7: message = (java.lang.CharSequence)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -267,6 +272,23 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
   }
 
   /**
+   * Gets the value of the 'message' field.
+   * @return The value of the 'message' field.
+   */
+  public java.lang.CharSequence getMessage() {
+    return message;
+  }
+
+
+  /**
+   * Sets the value of the 'message' field.
+   * @param value the value to set.
+   */
+  public void setMessage(java.lang.CharSequence value) {
+    this.message = value;
+  }
+
+  /**
    * Creates a new CreateBookingResponse RecordBuilder.
    * @return A new CreateBookingResponse RecordBuilder
    */
@@ -314,6 +336,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
     private java.lang.CharSequence paymentApiId;
     private java.util.UUID paymentToken;
     private piper1970.eventservice.common.bookings.messages.BookingStatus bookingStatus;
+    private java.lang.CharSequence message;
 
     /** Creates a new Builder */
     private Builder() {
@@ -354,6 +377,10 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
         this.bookingStatus = data().deepCopy(fields()[6].schema(), other.bookingStatus);
         fieldSetFlags()[6] = other.fieldSetFlags()[6];
       }
+      if (isValidValue(fields()[7], other.message)) {
+        this.message = data().deepCopy(fields()[7].schema(), other.message);
+        fieldSetFlags()[7] = other.fieldSetFlags()[7];
+      }
     }
 
     /**
@@ -389,6 +416,10 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       if (isValidValue(fields()[6], other.bookingStatus)) {
         this.bookingStatus = data().deepCopy(fields()[6].schema(), other.bookingStatus);
         fieldSetFlags()[6] = true;
+      }
+      if (isValidValue(fields()[7], other.message)) {
+        this.message = data().deepCopy(fields()[7].schema(), other.message);
+        fieldSetFlags()[7] = true;
       }
     }
 
@@ -670,6 +701,46 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
       return this;
     }
 
+    /**
+      * Gets the value of the 'message' field.
+      * @return The value.
+      */
+    public java.lang.CharSequence getMessage() {
+      return message;
+    }
+
+
+    /**
+      * Sets the value of the 'message' field.
+      * @param value The value of 'message'.
+      * @return This builder.
+      */
+    public piper1970.eventservice.common.bookings.messages.CreateBookingResponse.Builder setMessage(java.lang.CharSequence value) {
+      validate(fields()[7], value);
+      this.message = value;
+      fieldSetFlags()[7] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'message' field has been set.
+      * @return True if the 'message' field has been set, false otherwise.
+      */
+    public boolean hasMessage() {
+      return fieldSetFlags()[7];
+    }
+
+
+    /**
+      * Clears the value of the 'message' field.
+      * @return This builder.
+      */
+    public piper1970.eventservice.common.bookings.messages.CreateBookingResponse.Builder clearMessage() {
+      message = null;
+      fieldSetFlags()[7] = false;
+      return this;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public CreateBookingResponse build() {
@@ -682,6 +753,7 @@ public class CreateBookingResponse extends org.apache.avro.specific.SpecificReco
         record.paymentApiId = fieldSetFlags()[4] ? this.paymentApiId : (java.lang.CharSequence) defaultValue(fields()[4]);
         record.paymentToken = fieldSetFlags()[5] ? this.paymentToken : (java.util.UUID) defaultValue(fields()[5]);
         record.bookingStatus = fieldSetFlags()[6] ? this.bookingStatus : (piper1970.eventservice.common.bookings.messages.BookingStatus) defaultValue(fields()[6]);
+        record.message = fieldSetFlags()[7] ? this.message : (java.lang.CharSequence) defaultValue(fields()[7]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
         throw e;

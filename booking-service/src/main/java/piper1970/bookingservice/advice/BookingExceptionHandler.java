@@ -70,9 +70,9 @@ public class BookingExceptionHandler {
   public ProblemDetail handleException(EventNotFoundException exc){
     log.warn("Event not found [{}]", exc.getMessage(), exc);
 
-    return buildProblemDetail(HttpStatus.GONE, exc.getMessage(), pd -> {
-      pd.setTitle("Event-Not-Available-For-Booking");
-      pd.setType(URI.create("http://booking-service/problem/event-not-available"));
+    return buildProblemDetail(HttpStatus.NOT_FOUND, exc.getMessage(), pd -> {
+      pd.setTitle("Event-Not-Found");
+      pd.setType(URI.create("http://booking-service/problem/event-not-found"));
     });
   }
 

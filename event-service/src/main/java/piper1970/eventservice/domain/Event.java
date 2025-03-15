@@ -17,7 +17,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Getter
 @Setter
 @NoArgsConstructor
-@EqualsAndHashCode(exclude = "id")
+@EqualsAndHashCode
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @With
@@ -25,6 +25,7 @@ import org.springframework.data.relational.core.mapping.Table;
 public class Event {
 
   @Id
+  @EqualsAndHashCode.Exclude
   private Integer id;
 
   private String facilitator;
@@ -35,6 +36,7 @@ public class Event {
   private Integer durationInMinutes;
   private BigDecimal cost;
   private Integer availableBookings;
+  private boolean cancelled;
 
   @CreatedDate
   private LocalDateTime createdDateTime;

@@ -40,6 +40,7 @@ class BookingRepositoryTest {
                     id                int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                     event_id          int     NOT NULL,
                     username          varchar(60) NOT NULL,
+                    email             varchar(255) NOT NULL,
                     event_date_time   timestamp   NOT NULL,
                     created_date_time timestamp,
                     updated_date_time timestamp,
@@ -63,6 +64,7 @@ class BookingRepositoryTest {
     var testUsername = "test_username";
     var booking1 = Booking.builder()
         .username(testUsername)
+        .email(testUsername  + "@test.com")
         .eventId(1)
         .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
@@ -70,6 +72,7 @@ class BookingRepositoryTest {
 
     var booking2 = Booking.builder()
         .username(testUsername + "somethingElse")
+        .email(testUsername + "somethingElse@test.com")
         .eventId(2)
         .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
@@ -77,6 +80,7 @@ class BookingRepositoryTest {
 
     var booking3 = Booking.builder()
         .username(testUsername)
+        .email(testUsername  + "@test.com")
         .eventId(3)
         .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
@@ -92,10 +96,11 @@ class BookingRepositoryTest {
 
   @Test
   @DisplayName("should be able to find a booking by id and username")
-  void findBookingByIdAndUsername() {
+  void findByIdAndUsername() {
     var testUsername = "test_username";
     var booking1 = Booking.builder()
         .username(testUsername)
+        .email(testUsername  + "@test.com")
         .eventId(1)
         .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
@@ -103,6 +108,7 @@ class BookingRepositoryTest {
 
     var booking2 = Booking.builder()
         .username(testUsername + "somethingElse")
+        .email(testUsername + "somethingElse@test.com")
         .eventId(2)
         .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
@@ -110,6 +116,7 @@ class BookingRepositoryTest {
 
     var booking3 = Booking.builder()
         .username(testUsername)
+        .email(testUsername + "@test.com")
         .eventId(3)
         .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
@@ -122,7 +129,7 @@ class BookingRepositoryTest {
 
     assertNotNull(expected);
 
-    bookingRepository.findBookingByIdAndUsername(expected.getId(), testUsername)
+    bookingRepository.findByIdAndUsername(expected.getId(), testUsername)
         .as(StepVerifier::create)
         .expectNext(booking1)
         .verifyComplete();

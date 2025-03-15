@@ -11,8 +11,6 @@ public interface BookingWebService {
   Mono<BookingDto> findBookingById(Integer id);
   Mono<BookingDto> findBookingByIdAndUsername(Integer id, String username);
   Mono<BookingDto> createBooking(BookingCreateRequest booking, String token);
-  Mono<Void> deleteBooking(Integer id, String token);
-  Mono<BookingDto> cancelBooking(Integer id, String token);
   Mono<BookingDto> cancelBooking(Integer id, String username, String token);
 
 }

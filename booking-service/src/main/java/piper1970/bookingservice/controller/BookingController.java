@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,11 +56,6 @@ public class BookingController {
 
     log.debug("Getting booking[{}] called by [{}]", id, username);
 
-    if (TokenUtilities.isAdmin(token)) {
-      return bookingWebService.findBookingById(id)
-          .switchIfEmpty(Mono.error(new BookingNotFoundException(createBookingNotFoundMessage(id))));
-    }
-
     return bookingWebService.findBookingByIdAndUsername(id, username)
         .switchIfEmpty(Mono.error(new BookingNotFoundException(createBookingNotFoundMessage(id))));
   }
@@ -87,22 +81,6 @@ public class BookingController {
         .switchIfEmpty(Mono.error(new EventNotFoundException(createEventNotFountMessage(createRequest.getEventId()))));
   }
 
-  @DeleteMapping("/{id}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  @PreAuthorize("hasAuthority('ADMIN')")
-  public Mono<Void> delete(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
-      @PathVariable Integer id) {
-
-    var user = TokenUtilities.getUserFromToken(jwtToken);
-
-    log.debug("Delete booking[{}] called by [{}]", id, user);
-
-    var token = jwtToken.getToken().getTokenValue();
-
-    return bookingWebService.deleteBooking(id, token);
-  }
-
-  // TODO: needs testing
   @PatchMapping("/{id}/cancel")
   @ResponseStatus(HttpStatus.OK)
   @PreAuthorize("hasAuthority('MEMBER')")
@@ -114,11 +92,8 @@ public class BookingController {
 
     var token = jwtToken.getToken().getTokenValue();
 
-    if(TokenUtilities.isAdmin(jwtToken)) {
-      return bookingWebService.cancelBooking(id, token);
-    }else{
-      return bookingWebService.cancelBooking(id, token, user);
-    }
+    return bookingWebService.cancelBooking(id, user, token);
+
   }
 
   private String createBookingNotFoundMessage(Integer eventId) {

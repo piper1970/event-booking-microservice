@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS event_service.events
     event_date_time     timestamp     NOT NULL,
     duration_in_minutes int           NOT NULL,
     cost                numeric(6, 2) NOT NULL,
+    cancelled           boolean       NOT NULL DEFAULT false,
     available_bookings  smallint      NOT NULL,
     created_date_time   timestamp,
     updated_date_time   timestamp

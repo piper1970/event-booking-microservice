@@ -46,6 +46,7 @@ public class BookingServiceConfig {
         .authorizeExchange(exchange -> exchange
             .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
+            .pathMatchers("api/admin/bookings/**", "/api/admin/bookings").hasAuthority("ADMIN")
             .anyExchange()
             .authenticated()).oauth2ResourceServer(oauth2 ->
             oauth2.jwt(jwt ->

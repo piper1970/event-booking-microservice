@@ -45,6 +45,7 @@ public class EventServiceConfig {
         .authorizeExchange(exchange -> exchange
             .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
+            .pathMatchers("api/admin/events/**", "/api/admin/events").hasAuthority("ADMIN")
             .anyExchange()
             .authenticated())
         .oauth2ResourceServer(oauth2 ->
