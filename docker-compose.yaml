@@ -3,8 +3,12 @@ volumes:
     name: "event-service-postgres-volume"
   zookeeper-data:
     name: "event-service-zookeeper-volume"
+  zookeeper-log:
+    name: "event-service-zookeeper-log-volume"
   kafka-data:
     name: "event-service-kafka-volume"
+  kafka-logs:
+    name: "event-service-kafka-logs-volume"
   schema-registry-data:
     name: "event-service-schema-registry-volume"
 #  pgadmin-data:
@@ -82,6 +86,7 @@ services:
       - "2181:2181"
     volumes:
       - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
     healthcheck:
@@ -96,6 +101,7 @@ services:
       - "9092:9092"
     volumes:
       - kafka-data:/var/lib/kafka/data
+      - kafka-logs:/tmp/kafka-logs
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -141,7 +147,7 @@ services:
       kafka:
         condition: service_healthy
     ports:
-      - "8081:8081"
+      - "9091:8081"
     volumes:
       - schema-registry-data:/usr/bin/confluent
     environment:
