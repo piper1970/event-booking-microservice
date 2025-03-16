@@ -37,6 +37,3 @@ build/
 .env
 **/.env
 
-### Docker Compose File
-docker-compose.yaml
-docker-compose.yml
