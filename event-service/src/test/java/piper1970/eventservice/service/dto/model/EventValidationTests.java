@@ -5,7 +5,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -110,7 +109,6 @@ public class EventValidationTests {
         .location("location")
         .eventDateTime(LocalDateTime.now(clock).plusHours(1))
         .durationInMinutes(30)
-        .cost(BigDecimal.TEN)
         .availableBookings(50);
   }
 
@@ -121,7 +119,6 @@ public class EventValidationTests {
         .location("location")
         .eventDateTime(LocalDateTime.now(clock).plusHours(1))
         .durationInMinutes(30)
-        .cost(BigDecimal.TEN)
         .availableBookings(50);
   }
 
@@ -210,18 +207,6 @@ public class EventValidationTests {
     methodArgs.add(MethodArgs.of("Should pass validation if durationInMinutes is at least 30 minutes",
         bldr -> bldr.durationInMinutes(30), true));
 
-    // cost checks
-    methodArgs.add(MethodArgs.of("Should fail validation if cost is set to null",
-        bldr -> bldr.cost(null), false));
-    methodArgs.add(MethodArgs.of("Should fail validation if cost is less than 0",
-        bldr -> bldr.cost(BigDecimal.valueOf(-0.1)), false));
-    methodArgs.add(MethodArgs.of("Should fail validation if cost structure has too many decimals for money 'numeric(6,2)'",
-        bldr -> bldr.cost(BigDecimal.valueOf(1.001)), false));
-    methodArgs.add(MethodArgs.of("Should fail validation if cost structure has is too large in whole numbers 'numeric(6,2)'",
-        bldr -> bldr.cost(BigDecimal.valueOf(10000.00)), false));
-    methodArgs.add(MethodArgs.of("Should pass validation if cost structure has is within database range 'numeric(6,2)'",
-        bldr -> bldr.cost(BigDecimal.valueOf(1000.00)), true));
-
     // availableBookings checks
     methodArgs.add(MethodArgs.of("Should fail validation if availableBookings is set to null",
         bldr -> bldr.availableBookings(null), false));
@@ -295,16 +280,6 @@ public class EventValidationTests {
         bldr -> bldr.durationInMinutes(29), false));
     methodArgs.add(MethodArgs.of("Should pass validation if durationInMinutes is at least 30 minutes",
         bldr -> bldr.durationInMinutes(30), true));
-
-    // cost checks
-    methodArgs.add(MethodArgs.of("Should fail validation if cost is less than 0",
-        bldr -> bldr.cost(BigDecimal.valueOf(-0.1)), false));
-    methodArgs.add(MethodArgs.of("Should fail validation if cost structure has too many decimals for money 'numeric(6,2)'",
-        bldr -> bldr.cost(BigDecimal.valueOf(1.001)), false));
-    methodArgs.add(MethodArgs.of("Should fail validation if cost structure has is too large in whole numbers 'numeric(6,2)'",
-        bldr -> bldr.cost(BigDecimal.valueOf(10000.00)), false));
-    methodArgs.add(MethodArgs.of("Should pass validation if cost structure has is within database range 'numeric(6,2)'",
-        bldr -> bldr.cost(BigDecimal.valueOf(1000.00)), true));
 
     // availableBookings checks
     methodArgs.add(MethodArgs.of("Should fail validation if availableBookings is set too large (<=32767)",

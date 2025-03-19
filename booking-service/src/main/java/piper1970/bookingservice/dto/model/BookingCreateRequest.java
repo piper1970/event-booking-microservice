@@ -23,4 +23,5 @@ public class BookingCreateRequest{
 
   @Null(message = "[email] field cannot be set manually. It is set via authentication token")
   private String email;
+
 }

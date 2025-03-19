@@ -2,6 +2,7 @@ api:
   uri:
     booking-service: http://localhost:8083
     event-service: http://localhost:8081
+    notification-service: http://localhost:8084
 
 csrf:enabled: false
 
@@ -52,7 +53,9 @@ spring:
         - id: event-service
           uri: ${api.uri.event-service}
           predicates:
-            - Path=/api/events/**,/api/events
+            - Path=/api/notifications/**,/api/notifications
+        - id: notification-service
+          uri: ${api.url.notification-services}
 
 # logging
 logging:

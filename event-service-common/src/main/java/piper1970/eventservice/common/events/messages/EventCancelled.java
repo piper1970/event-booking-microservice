@@ -13,10 +13,10 @@ import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 620240182192788718L;
+  private static final long serialVersionUID = 6292652022444738652L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"EventCancelled\",\"namespace\":\"piper1970.eventservice.common.events.messages\",\"fields\":[{\"name\":\"eventId\",\"type\":\"int\"}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"EventCancelled\",\"namespace\":\"piper1970.eventservice.common.events.messages\",\"fields\":[{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"message\",\"type\":[\"null\",\"string\"]}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();
@@ -73,6 +73,7 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
   }
 
   private int eventId;
+  private java.lang.CharSequence message;
 
   /**
    * Default constructor.  Note that this does not initialize fields
@@ -84,9 +85,11 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
   /**
    * All-args constructor.
    * @param eventId The new value for eventId
+   * @param message The new value for message
    */
-  public EventCancelled(java.lang.Integer eventId) {
+  public EventCancelled(java.lang.Integer eventId, java.lang.CharSequence message) {
     this.eventId = eventId;
+    this.message = message;
   }
 
   @Override
@@ -100,6 +103,7 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
   public java.lang.Object get(int field$) {
     switch (field$) {
     case 0: return eventId;
+    case 1: return message;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -110,6 +114,7 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
   public void put(int field$, java.lang.Object value$) {
     switch (field$) {
     case 0: eventId = (java.lang.Integer)value$; break;
+    case 1: message = (java.lang.CharSequence)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -129,6 +134,23 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
    */
   public void setEventId(int value) {
     this.eventId = value;
+  }
+
+  /**
+   * Gets the value of the 'message' field.
+   * @return The value of the 'message' field.
+   */
+  public java.lang.CharSequence getMessage() {
+    return message;
+  }
+
+
+  /**
+   * Sets the value of the 'message' field.
+   * @param value the value to set.
+   */
+  public void setMessage(java.lang.CharSequence value) {
+    this.message = value;
   }
 
   /**
@@ -173,6 +195,7 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
     implements org.apache.avro.data.RecordBuilder<EventCancelled> {
 
     private int eventId;
+    private java.lang.CharSequence message;
 
     /** Creates a new Builder */
     private Builder() {
@@ -189,6 +212,10 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
         this.eventId = data().deepCopy(fields()[0].schema(), other.eventId);
         fieldSetFlags()[0] = other.fieldSetFlags()[0];
       }
+      if (isValidValue(fields()[1], other.message)) {
+        this.message = data().deepCopy(fields()[1].schema(), other.message);
+        fieldSetFlags()[1] = other.fieldSetFlags()[1];
+      }
     }
 
     /**
@@ -200,6 +227,10 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
       if (isValidValue(fields()[0], other.eventId)) {
         this.eventId = data().deepCopy(fields()[0].schema(), other.eventId);
         fieldSetFlags()[0] = true;
+      }
+      if (isValidValue(fields()[1], other.message)) {
+        this.message = data().deepCopy(fields()[1].schema(), other.message);
+        fieldSetFlags()[1] = true;
       }
     }
 
@@ -242,12 +273,53 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
       return this;
     }
 
+    /**
+      * Gets the value of the 'message' field.
+      * @return The value.
+      */
+    public java.lang.CharSequence getMessage() {
+      return message;
+    }
+
+
+    /**
+      * Sets the value of the 'message' field.
+      * @param value The value of 'message'.
+      * @return This builder.
+      */
+    public piper1970.eventservice.common.events.messages.EventCancelled.Builder setMessage(java.lang.CharSequence value) {
+      validate(fields()[1], value);
+      this.message = value;
+      fieldSetFlags()[1] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'message' field has been set.
+      * @return True if the 'message' field has been set, false otherwise.
+      */
+    public boolean hasMessage() {
+      return fieldSetFlags()[1];
+    }
+
+
+    /**
+      * Clears the value of the 'message' field.
+      * @return This builder.
+      */
+    public piper1970.eventservice.common.events.messages.EventCancelled.Builder clearMessage() {
+      message = null;
+      fieldSetFlags()[1] = false;
+      return this;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public EventCancelled build() {
       try {
         EventCancelled record = new EventCancelled();
         record.eventId = fieldSetFlags()[0] ? this.eventId : (java.lang.Integer) defaultValue(fields()[0]);
+        record.message = fieldSetFlags()[1] ? this.message : (java.lang.CharSequence) defaultValue(fields()[1]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
         throw e;
@@ -282,6 +354,14 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
   {
     out.writeInt(this.eventId);
 
+    if (this.message == null) {
+      out.writeIndex(0);
+      out.writeNull();
+    } else {
+      out.writeIndex(1);
+      out.writeString(this.message);
+    }
+
   }
 
   @Override public void customDecode(org.apache.avro.io.ResolvingDecoder in)
@@ -291,11 +371,27 @@ public class EventCancelled extends org.apache.avro.specific.SpecificRecordBase 
     if (fieldOrder == null) {
       this.eventId = in.readInt();
 
+      if (in.readIndex() != 1) {
+        in.readNull();
+        this.message = null;
+      } else {
+        this.message = in.readString(this.message instanceof Utf8 ? (Utf8)this.message : null);
+      }
+
     } else {
-      for (int i = 0; i < 1; i++) {
+      for (int i = 0; i < 2; i++) {
         switch (fieldOrder[i].pos()) {
         case 0:
           this.eventId = in.readInt();
+          break;
+
+        case 1:
+          if (in.readIndex() != 1) {
+            in.readNull();
+            this.message = null;
+          } else {
+            this.message = in.readString(this.message instanceof Utf8 ? (Utf8)this.message : null);
+          }
           break;
 
         default:

@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "BookingEventUnavailable",
-  "namespace": "piper1970.eventservice.common.bookings.messages",
+  "namespace": "piper1970.eventservice.common.events.messages",
   "fields": [
     {
       "name": "bookingId",

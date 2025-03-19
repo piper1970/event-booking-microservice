@@ -12,6 +12,8 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import piper1970.eventservice.common.events.dto.EventDto;
+import piper1970.eventservice.common.events.messages.EventCancelled;
+import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.domain.Event;
 import piper1970.eventservice.dto.mapper.EventMapper;
@@ -29,23 +31,23 @@ import reactor.core.publisher.Mono;
 public class DefaultEventWebService implements EventWebService {
 
   private final EventRepository eventRepository;
+  private final MessagePostingService messagePostingService;
   private final EventMapper eventMapper;
   private final Clock clock;
-  private final Integer updateCutoffMinutes;
   private final Integer eventRepositoryTimeoutInMilliseconds;
   private final Duration eventsTimeoutDuration;
 
   public DefaultEventWebService(
       @NonNull EventRepository eventRepository,
+      @NonNull MessagePostingService messagePostingService,
       @NonNull EventMapper eventMapper,
       Clock clock,
-      @NonNull @Value("${event.change.cutoff.minutes:30}") Integer updateCutoffMinutes,
       @NonNull @Value("${event-repository.timout.milliseconds}") Integer eventRepositoryTimeoutInMilliseconds) {
 
     this.eventRepository = eventRepository;
+    this.messagePostingService = messagePostingService;
     this.eventMapper = eventMapper;
     this.clock = clock;
-    this.updateCutoffMinutes = updateCutoffMinutes;
     this.eventRepositoryTimeoutInMilliseconds = eventRepositoryTimeoutInMilliseconds;
     this.eventsTimeoutDuration = Duration.ofMinutes(eventRepositoryTimeoutInMilliseconds);
   }
@@ -113,8 +115,17 @@ public class DefaultEventWebService implements EventWebService {
         // send update-event msg to queue
         .doOnNext(updatedEvent -> {
           log.debug("Event [{}] has been updated", updatedEvent.getId());
-          // TODO:[KAFKA] Publish to 'event-changed' topic
+
+          var message = createEventChangedMessage(updatedEvent);
+          messagePostingService.postEventChangedMessage(message);
         });
+  }
+
+  private EventChanged createEventChangedMessage(EventDto updatedEvent) {
+    var message = new EventChanged();
+    message.setEventId(updatedEvent.getId());
+    message.setMessage(updatedEvent.toString());
+    return message;
   }
 
   @Transactional
@@ -132,8 +143,8 @@ public class DefaultEventWebService implements EventWebService {
             "Event [%d} run by [%s]not found".formatted(id, facilitator))))
         .filter(this::safeToCancel)
         .switchIfEmpty(Mono.defer(() -> Mono.error(new EventCancellationException(
-            "Cannot cancel event [%d] if the cancellation window (%d minutes before the event starts) has passed or the event in progress"
-                .formatted(id, updateCutoffMinutes)))))
+            "Cannot cancel event [%d] if the event already in progress or completed"
+                .formatted(id)))))
         .flatMap(this::cancelAndSave)
         .map(eventMapper::toDto)
         .timeout(eventsTimeoutDuration)
@@ -141,10 +152,18 @@ public class DefaultEventWebService implements EventWebService {
             Mono.error(new EventTimeoutException(
                 provideTimeoutErrorMessage("attempting to save cancelled event [%d]".formatted(id)),
                 ex)))
-        .doOnSuccess(_void -> {
-          log.debug("Event [{}] has been cancelled", id);
-          // TODO:[KAFKA] Publish to 'event-cancelled' topic
+        .doOnSuccess(dto -> {
+          log.debug("Event [{}] has been cancelled", dto.getId());
+
+          var message = createEventCancelledMessage(dto);
+          messagePostingService.postEventCancelledMessage(message);
         });
+  }
+
+  private EventCancelled createEventCancelledMessage(EventDto dto) {
+    var message = new EventCancelled();
+    message.setEventId(dto.getId());
+    return message;
   }
 
   private void logEventRetrieval(EventDto event) {
@@ -178,9 +197,6 @@ public class DefaultEventWebService implements EventWebService {
       if (updateRequest.getLocation() != null) {
         event.setLocation(updateRequest.getLocation());
       }
-      if (updateRequest.getCost() != null) {
-        event.setCost(updateRequest.getCost());
-      }
       if (updateRequest.getAvailableBookings() != null) {
         event.setAvailableBookings(updateRequest.getAvailableBookings());
       }
@@ -190,9 +206,8 @@ public class DefaultEventWebService implements EventWebService {
     } else {
       var exception = new EventUpdateException(
           String.format(
-              "Cannot update event [%d] after cutoff window [%s minutes before vent starts]",
-              event.getId(),
-              updateCutoffMinutes));
+              "Cannot update event [%d] once event starts",
+              event.getId()));
       return Mono.error(exception);
     }
     return Mono.just(event);
@@ -200,7 +215,7 @@ public class DefaultEventWebService implements EventWebService {
 
   private boolean safeToCancel(Event event) {
     LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
-    LocalDateTime cutoffTime = event.getEventDateTime().minusMinutes(updateCutoffMinutes)
+    LocalDateTime cutoffTime = event.getEventDateTime()
         .truncatedTo(ChronoUnit.MINUTES);
     return now.isBefore(cutoffTime);
   }
@@ -215,13 +230,13 @@ public class DefaultEventWebService implements EventWebService {
       return false;
     }
     var now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
-    var originalCutoffTime = event.getEventDateTime().minusMinutes(updateCutoffMinutes);
+    var originalCutoffTime = event.getEventDateTime();
 
     var adjustedEvent = Optional.ofNullable(eventDateTime)
         .map(event::withEventDateTime)
         .orElse(event);
     ;
-    var newCutoffTime = adjustedEvent.getEventDateTime().minusMinutes(updateCutoffMinutes)
+    var newCutoffTime = adjustedEvent.getEventDateTime()
         .truncatedTo(ChronoUnit.MINUTES);
     return now.isBefore(originalCutoffTime) && now.isBefore(newCutoffTime);
   }

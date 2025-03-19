@@ -6,6 +6,10 @@
     {
       "name": "eventId",
       "type": "int"
+    },
+    {
+      "name": "message",
+      "type": ["null", "string"]
     }
   ]
 }

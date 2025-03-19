@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "BookingCreated",
+  "namespace": "piper1970.eventservice.common.bookings.messages",
+  "fields": [
+    {
+      "name": "bookingId",
+      "type": "int"
+    },
+    {
+      "name": "eventId",
+      "type": "int"
+    },
+    {
+      "name": "memberUsername",
+      "type": "string"
+    },
+    {
+      "name": "memberEmail",
+      "type": "string"
+    }
+  ]
+}

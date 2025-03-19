@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,12 +42,14 @@ class DefaultEventWebServiceTest {
   private EventRepository eventRepository;
 
   @Mock
+  private MessagePostingService messagePostingService;
+
+  @Mock
   private EventMapper eventMapper;
 
   @Mock
   private Clock clock;
 
-  private static final Integer updateCutoffMinutes = 2;
   private static final Integer eventRepositoryTimeoutInMilliseconds = 1000;
   private static final int allEventsCount = 20;
   private static final String facilitator = "facilitator";
@@ -60,7 +61,8 @@ class DefaultEventWebServiceTest {
   void setUp() {
 
     webService = new DefaultEventWebService(eventRepository,
-        eventMapper, clock, updateCutoffMinutes,
+        messagePostingService,
+        eventMapper, clock,
         eventRepositoryTimeoutInMilliseconds);
   }
 
@@ -329,7 +331,6 @@ class DefaultEventWebServiceTest {
         .title(updatedEvent.getTitle())
         .description(updatedEvent.getDescription())
         .location(updatedEvent.getLocation())
-        .cost(updatedEvent.getCost())
         .availableBookings(updatedEvent.getAvailableBookings())
         .eventDateTime(updatedEvent.getEventDateTime())
         .durationInMinutes(updatedEvent.getDurationInMinutes())
@@ -391,20 +392,6 @@ class DefaultEventWebServiceTest {
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
     originalEvent.setEventDateTime(LocalDateTime.now(clock).minusMinutes(1));
 
-    var eventDto = EventDto.builder()
-        .id(originalEvent.getId())
-        .facilitator(originalEvent.getFacilitator())
-        .title(originalEvent.getTitle())
-        .description(originalEvent.getDescription())
-        .location(originalEvent.getLocation())
-        .cost(originalEvent.getCost())
-        .availableBookings(originalEvent.getAvailableBookings())
-        .eventDateTime(originalEvent.getEventDateTime())
-        .durationInMinutes(originalEvent.getDurationInMinutes())
-        .build();
-
-//    when(eventMapper.toDto(any(Event.class))).thenReturn(eventDto);
-
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
 
     StepVerifier.create(webService.cancelEvent(eventId, facilitator))
@@ -422,7 +409,6 @@ class DefaultEventWebServiceTest {
 
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
 
-    // TODO: change to save
     when(eventRepository.save(any(Event.class))).thenAnswer(args -> Mono.just((Event)args.getArgument(0)
     ).delayElement(eventDuration));
 
@@ -473,7 +459,6 @@ class DefaultEventWebServiceTest {
               .title(argument.getTitle())
               .description(argument.getDescription())
               .location(argument.getLocation())
-              .cost(argument.getCost())
               .availableBookings(argument.getAvailableBookings())
               .eventDateTime(argument.getEventDateTime())
               .durationInMinutes(argument.getDurationInMinutes())
@@ -495,15 +480,12 @@ class DefaultEventWebServiceTest {
         .location("location-" + param.id())
         .eventDateTime(param.dateTime())
         .durationInMinutes(param.durationInMinutes())
-        .cost(BigDecimal.TEN)
         .availableBookings(50)
         .build();
   }
 
   record UpdateEventRequestParam(Integer id, LocalDateTime dateTime,
-                                 Integer durationInMinutes) {
-
-  }
+                                 Integer durationInMinutes) {}
 
   private EventUpdateRequest createEventUpdateRequest(UpdateEventRequestParam param) {
     return EventUpdateRequest.builder()
@@ -512,7 +494,6 @@ class DefaultEventWebServiceTest {
         .location("location-" + param.id())
         .eventDateTime(param.dateTime())
         .durationInMinutes(param.durationInMinutes())
-        .cost(BigDecimal.TEN)
         .availableBookings(25)
         .build();
   }
@@ -533,7 +514,6 @@ class DefaultEventWebServiceTest {
         .location("location-" + param.id())
         .eventDateTime(LocalDateTime.now(clock).plusDays(1))
         .durationInMinutes(60)
-        .cost(BigDecimal.TEN)
         .availableBookings(50)
         .build();
   }
@@ -548,7 +528,6 @@ class DefaultEventWebServiceTest {
         .location("location-" + param.id())
         .eventDateTime(LocalDateTime.now(clock).plusDays(1))
         .durationInMinutes(60)
-        .cost(BigDecimal.TEN)
         .availableBookings(50)
         .build();
   }

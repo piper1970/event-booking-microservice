@@ -1,6 +1,5 @@
 package piper1970.eventservice.bootstrap;
 
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,7 +34,6 @@ public class EventBootstrap implements CommandLineRunner {
                     .location("Location1")
                     .eventDateTime(LocalDateTime.now(clock).plusDays(2))
                     .durationInMinutes(120)
-                    .cost(new BigDecimal("100.00"))
                     .availableBookings(100)
                     .build(),
                 Event.builder()
@@ -45,7 +43,6 @@ public class EventBootstrap implements CommandLineRunner {
                     .location("Location2")
                     .eventDateTime(LocalDateTime.now(clock).plusDays(4))
                     .durationInMinutes(60)
-                    .cost(new BigDecimal("150.00"))
                     .availableBookings(100)
                     .build(),
                 Event.builder()
@@ -55,7 +52,6 @@ public class EventBootstrap implements CommandLineRunner {
                     .location("Location3")
                     .eventDateTime(LocalDateTime.now(clock).plusDays(6))
                     .durationInMinutes(30)
-                    .cost(new BigDecimal("200.00"))
                     .availableBookings(100)
                     .build())
         )).subscribe(event -> log.info(event.toString()));

@@ -22,7 +22,6 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.r2dbc.spi.ConnectionFactory;
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -87,7 +86,10 @@ import reactor.core.publisher.Mono;
         name = "keystore-service",
         baseUrlProperties = "keystore-service.url")
 })
-public class BookingControllerTests{
+public class BookingControllerTests {
+
+  // Fix using spring-kafka-test
+
 
   //region Setup Properties
 
@@ -192,32 +194,8 @@ public class BookingControllerTests{
   }
 
   @Test
-  @DisplayName("authorized admin users should be able to retrieve all bookings from all users")
-  void getAllBookings_Authenticated_And_Authorized_As_Admin() throws JOSEException {
-    //add bookings to the repo
-
-    var books = initializeDatabase()
-        .block();
-
-    // ADMIN implies MEMBER
-    var token = getJwtToken("non_test_member", "ADMIN", "MEMBER");
-
-    webClient.get()
-        .uri("/api/bookings")
-        .accept(MediaType.APPLICATION_JSON)
-        .headers(headers -> {
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          headers.setBearerAuth(token);
-        })
-        .exchange()
-        .expectStatus().isOk()
-        .expectBodyList(BookingDto.class)
-        .hasSize(Objects.requireNonNull(books, dbInitializationFailure).size());
-  }
-
-  @Test
   @DisplayName("non-authenticated users should not be able to retrieve bookings")
-  void getAllBookings_Not_Authenticated(){
+  void getAllBookings_Not_Authenticated() {
 
     webClient.get()
         .uri("/api/bookings")
@@ -276,7 +254,7 @@ public class BookingControllerTests{
 
   @Test
   @DisplayName("non-authenticated user should not be able to access a booking")
-  void getBookingById_Not_Authenticated(){
+  void getBookingById_Not_Authenticated() {
 
     var bookings = initializeDatabase()
         .block();
@@ -380,7 +358,8 @@ public class BookingControllerTests{
         .getResponseBody();
 
     assertNotNull(results);
-    assertEquals(BookingStatus.IN_PROGRESS.name(), results.getBookingStatus(), "Booking status should be IN_PROGRESS");
+    assertEquals(BookingStatus.IN_PROGRESS.name(), results.getBookingStatus(),
+        "Booking status should be IN_PROGRESS");
     assertEquals(Boolean.TRUE, bookingRepository.existsById(results.getId()).block());
   }
 
@@ -507,7 +486,8 @@ public class BookingControllerTests{
         .returnResult()
         .getResponseBody();
 
-    assertEquals(BookingStatus.CANCELLED.name(), Objects.requireNonNull(results).getBookingStatus());
+    assertEquals(BookingStatus.CANCELLED.name(),
+        Objects.requireNonNull(results).getBookingStatus());
   }
 
   @Test
@@ -638,7 +618,6 @@ public class BookingControllerTests{
         .eventDateTime(eventDateTime)
         .durationInMinutes(60)
         .location("Test location")
-        .cost(BigDecimal.valueOf(100))
         .build();
 
     String path = "/api/events/" + eventId;
@@ -686,7 +665,7 @@ public class BookingControllerTests{
   @TestConfiguration
   @Profile("test")
   @ActiveProfiles("test")
-  public static class TestControllerConfiguration{
+  public static class TestControllerConfiguration {
 
     private final String apiUri;
 

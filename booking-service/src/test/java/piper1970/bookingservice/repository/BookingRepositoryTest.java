@@ -42,9 +42,9 @@ class BookingRepositoryTest {
                     username          varchar(60) NOT NULL,
                     email             varchar(255) NOT NULL,
                     event_date_time   timestamp   NOT NULL,
+                    booking_status    varchar(30) NOT NULL,
                     created_date_time timestamp,
-                    updated_date_time timestamp,
-                    booking_status    varchar(30) NOT NULL
+                    updated_date_time timestamp
                 );
             """);
 

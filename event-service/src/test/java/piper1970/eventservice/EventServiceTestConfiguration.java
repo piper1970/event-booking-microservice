@@ -14,8 +14,9 @@ public class EventServiceTestConfiguration {
 
   @Bean
   @ServiceConnection
-  KafkaContainer kafkaContainer1() {
-    return new KafkaContainer(DockerImageName.parse("apache/kafka-native:4.0.0-rc3"));
+  KafkaContainer kafkaContainer() {
+    return new KafkaContainer(DockerImageName.parse("apache/kafka-native:4.0.0-rc3")
+    ).withNetworkAliases("kafka");
   }
 
   @Bean
@@ -23,7 +24,7 @@ public class EventServiceTestConfiguration {
   @SuppressWarnings("all")
   GenericContainer<?> zipkinContainer() {
     return new GenericContainer<>(
-        DockerImageName.parse("openzipkin/zipkin:latest")).withExposedPorts(9411);
+        DockerImageName.parse("openzipkin/zipkin:3")).withExposedPorts(9411);
   }
 
 }

@@ -1,12 +1,9 @@
 package piper1970.eventservice.dto.model;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,10 +35,6 @@ public class EventUpdateRequest {
 
   @Min(value = 30, message = "[durationInMinutes] field must be at least 30 minutes")
   private Integer durationInMinutes;
-
-  @DecimalMin(value = "0.0") // positive-or-zero
-  @Digits(integer = 4, fraction = 2) // numeric(6,2)
-  private BigDecimal cost;
 
   @PositiveOrZero(message = "[availableBookings] field cannot be negative")
   @Max(value=32767) // smallint

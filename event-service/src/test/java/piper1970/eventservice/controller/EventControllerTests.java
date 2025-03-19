@@ -24,7 +24,6 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.r2dbc.spi.ConnectionFactory;
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -86,10 +85,9 @@ import reactor.core.publisher.Mono;
 })
 public class EventControllerTests {
 
-  //region Properties Setup
+  // TODO: fix using spring-kafka-test
 
-  @Value("${event.change.cutoff.minutes}")
-  Integer cutoffPoint;
+  //region Properties Setup
 
   static RSAKey rsaKey;
 
@@ -191,9 +189,7 @@ public class EventControllerTests {
     webClient.get()
         .uri("/api/bookings")
         .accept(MediaType.APPLICATION_JSON)
-        .headers(headers -> {
-          headers.setContentType(MediaType.APPLICATION_JSON);
-        })
+        .headers(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
         .exchange()
         .expectStatus().isUnauthorized();
   }
@@ -278,7 +274,6 @@ public class EventControllerTests {
             LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
         .durationInMinutes(30)
         .availableBookings(20)
-        .cost(BigDecimal.valueOf(20))
         .build();
 
     var results = webClient.post()
@@ -316,7 +311,6 @@ public class EventControllerTests {
             LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
         .durationInMinutes(60)
         .availableBookings(20)
-        .cost(BigDecimal.valueOf(20))
         .build();
 
     webClient.post()
@@ -342,7 +336,6 @@ public class EventControllerTests {
         .eventDateTime(
             LocalDateTime.now(clock).plusDays(2).withHour(13).withMinute(0).withSecond(0))
         .availableBookings(20)
-        .cost(BigDecimal.valueOf(20))
         .build();
 
     webClient.post()
@@ -375,7 +368,6 @@ public class EventControllerTests {
         .description("Test Description - Updated")
         .location("Test Location - Updated")
         .availableBookings(99)
-        .cost(BigDecimal.valueOf(27.27))
         .eventDateTime(event.getEventDateTime().plusHours(12))
         .build();
 
@@ -405,7 +397,6 @@ public class EventControllerTests {
         .description("Test Description - Updated")
         .location("Test Location - Updated")
         .availableBookings(99)
-        .cost(BigDecimal.valueOf(27.27))
         .eventDateTime(event.getEventDateTime().plusHours(12))
         .build();
 
@@ -435,7 +426,6 @@ public class EventControllerTests {
         .description("Test Description - Updated")
         .location("Test Location - Updated")
         .availableBookings(99)
-        .cost(BigDecimal.valueOf(27.27))
         .eventDateTime(event.getEventDateTime().plusHours(12))
         .build();
 
@@ -499,10 +489,7 @@ public class EventControllerTests {
         .eventDateTime(event.getEventDateTime().plusMinutes(5))
         .build();
 
-    // manually adjust time
-    long cutoffPointToSeconds = cutoffPoint.longValue() * 60;
-    Instant newInstant = clockInstant.minusSeconds(cutoffPointToSeconds);
-    when(clock.instant()).thenReturn(newInstant);
+    when(clock.instant()).thenReturn(clockInstant);
 
     webClient.put()
         .uri("/api/events/{eventId}", event.getId())
@@ -554,7 +541,6 @@ public class EventControllerTests {
     var token = getJwtToken("test_performer", "PERFORMER");
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(10))
-        .cost(BigDecimal.TEN)
         .build();
 
     webClient.put()
@@ -769,7 +755,6 @@ public class EventControllerTests {
             .location("Test Location 1")
             .eventDateTime(LocalDateTime.now(clock).plusDays(2).plusHours(2))
             .durationInMinutes(30)
-            .cost(BigDecimal.valueOf(100))
             .availableBookings(100)
             .build(),
         Event.builder() // IN_PROGRESS
@@ -779,7 +764,6 @@ public class EventControllerTests {
             .location("Test Location 2")
             .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
             .durationInMinutes(30)
-            .cost(BigDecimal.valueOf(100))
             .availableBookings(100)
             .build(),
         Event.builder()  // COMPLETED
@@ -789,7 +773,6 @@ public class EventControllerTests {
             .location("Test Location 3")
             .eventDateTime(LocalDateTime.now(clock).minusDays(2))
             .durationInMinutes(30)
-            .cost(BigDecimal.valueOf(100))
             .availableBookings(100)
             .build()
     )).collectList();
@@ -884,10 +867,10 @@ public class EventControllerTests {
         ConnectionFactory connectionFactory) {
       ConnectionFactoryInitializer initializer = new ConnectionFactoryInitializer();
       initializer.setConnectionFactory(connectionFactory);
-      CompositeDatabasePopulator populator = new CompositeDatabasePopulator();
-      populator.addPopulators(new ResourceDatabasePopulator(new ClassPathResource(
+      CompositeDatabasePopulator populater = new CompositeDatabasePopulator();
+      populater.addPopulators(new ResourceDatabasePopulator(new ClassPathResource(
           "schema.sql")));
-      initializer.setDatabasePopulator(populator);
+      initializer.setDatabasePopulator(populater);
       return initializer;
     }
   }

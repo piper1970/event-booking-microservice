@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "BookingConfirmed",
+  "namespace": "piper1970.eventservice.common.notifications.messages",
+  "fields": [
+    {
+      "name": "bookingId",
+      "type": "int"
+    },
+    {
+      "name": "eventId",
+      "type": "int"
+    }
+  ]
+}

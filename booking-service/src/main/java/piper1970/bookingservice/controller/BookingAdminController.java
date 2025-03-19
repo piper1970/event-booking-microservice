@@ -12,5 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class BookingAdminController {
 
   // TODO: move all admin logic here
+  // getAllBookings
+  // deleteBooking
+  // updateBooking
+  // getBookingById
+  // getBookingsForUser
 
 }

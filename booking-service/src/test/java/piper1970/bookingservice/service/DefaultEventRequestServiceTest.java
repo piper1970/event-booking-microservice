@@ -11,7 +11,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import org.apache.http.HttpHeaders;
@@ -196,7 +195,6 @@ class DefaultEventRequestServiceTest {
         .title("title")
         .description("description")
         .location("location")
-        .cost(BigDecimal.TEN)
         .availableBookings(100)
         .eventDateTime(LocalDateTime.now().plusDays(1))
         .durationInMinutes(90)

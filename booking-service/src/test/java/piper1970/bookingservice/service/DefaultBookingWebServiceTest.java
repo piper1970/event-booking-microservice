@@ -4,7 +4,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -49,6 +48,8 @@ class DefaultBookingWebServiceTest {
   @Mock
   EventRequestService eventRequestService;
   @Mock
+  MessagePostingService messagePostingService;
+  @Mock
   EventDtoToStatusMapper eventDtoToStatusMapper;
   @Mock
   BookingMapper bookingMapper;
@@ -74,6 +75,7 @@ class DefaultBookingWebServiceTest {
         bookingMapper,
         bookingRepository,
         eventRequestService,
+        messagePostingService,
         eventDtoToStatusMapper,
         timeoutValue
     );
@@ -548,7 +550,6 @@ class DefaultBookingWebServiceTest {
         .title("title")
         .description("description")
         .location("location")
-        .cost(BigDecimal.TEN)
         .facilitator("facilitator")
         .availableBookings(10)
         .eventDateTime(eventDateTime)

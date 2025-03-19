@@ -16,9 +16,12 @@ import piper1970.bookingservice.exceptions.BookingCreationException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
+import piper1970.eventservice.common.bookings.messages.BookingCancelled;
+import piper1970.eventservice.common.bookings.messages.BookingCreated;
 import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
+import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,6 +32,7 @@ public class DefaultBookingWebService implements BookingWebService {
   private final BookingMapper bookingMapper;
   private final BookingRepository bookingRepository;
   private final EventRequestService eventRequestService;
+  private final MessagePostingService messagePostingService;
   private final EventDtoToStatusMapper eventDtoToStatusMapper;
   private final Long bookingRepositoryTimeoutInMilliseconds;
   private final Duration bookingTimeoutDuration;
@@ -37,11 +41,13 @@ public class DefaultBookingWebService implements BookingWebService {
       BookingMapper bookingMapper,
       BookingRepository bookingRepository,
       EventRequestService eventRequestService,
+      MessagePostingService messagePostingService,
       EventDtoToStatusMapper eventDtoToStatusMapper,
       @Value("${booking-repository.timout.milliseconds}") Long bookingRepositoryTimeoutInMilliseconds) {
     this.bookingMapper = bookingMapper;
     this.bookingRepository = bookingRepository;
     this.eventRequestService = eventRequestService;
+    this.messagePostingService = messagePostingService;
     this.eventDtoToStatusMapper = eventDtoToStatusMapper;
     this.bookingRepositoryTimeoutInMilliseconds = bookingRepositoryTimeoutInMilliseconds;
     bookingTimeoutDuration = Duration.ofMillis(bookingRepositoryTimeoutInMilliseconds);
@@ -99,6 +105,7 @@ public class DefaultBookingWebService implements BookingWebService {
             && EventStatus.AWAITING == eventDtoToStatusMapper.apply(dto);
 
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
+        .switchIfEmpty(Mono.error(new EventNotFoundException(createEventNotFountMessage(createRequest.getEventId()))))
         .filter(validEvent)
         // throw error if event in question has already started
         .switchIfEmpty(Mono.error(new BookingCreationException(
@@ -120,10 +127,13 @@ public class DefaultBookingWebService implements BookingWebService {
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new BookingTimeoutException(
                 provideTimeoutErrorMessage("saving booking"), ex))
-        ).doOnNext(booking -> {
-          log.debug("Booking [{}] has been created for [{}]", booking.getId(),
-              booking.getUsername());
-          // TODO: [KAFKA] Publish to 'create-booking-request' topic
+        ).doOnNext(dto -> {
+          log.debug("Booking [{}] has been created for [{}]", dto.getId(),
+              dto.getUsername());
+          var bookingCreatedMessage = createBookingCreatedMessage(dto);
+
+          // send asynchronously via messaging service
+          messagePostingService.postBookingCreatedMessage(bookingCreatedMessage);
         });
   }
 
@@ -166,11 +176,32 @@ public class DefaultBookingWebService implements BookingWebService {
               String.format("Booking [%s] can no longer be cancelled for the event", booking.getId())));
         }))
         .doOnSuccess(bookingDto -> {
+
           log.debug("Booking [{}] has been cancelled", booking.getId());
-          // TODO: [KAFKA] Publish to 'cancel-booking' topic
+
+          var bookingCancelledMessage = createBookingCancelledMessage(bookingDto);
+          messagePostingService.postBookingCancelledMessage(bookingCancelledMessage);
+
         });
   }
 
+  private BookingCreated createBookingCreatedMessage(BookingDto booking) {
+    var message = new BookingCreated();
+    message.setEventId(booking.getEventId());
+    message.setBookingId(booking.getId());
+    message.setMemberEmail(booking.getEmail());
+    message.setMemberUsername(booking.getUsername());
+    return message;
+  }
+
+  private BookingCancelled createBookingCancelledMessage(BookingDto booking) {
+    var message = new BookingCancelled();
+    message.setEventId(booking.getEventId());
+    message.setBookingId(booking.getId());
+    message.setMemberEmail(booking.getEmail());
+    message.setMemberUsername(booking.getUsername());
+    return message;
+  }
   private void logBookingRetrieval(BookingDto booking) {
     log.debug("Booking [{}] has been retrieved", booking.getEventId());
   }
@@ -182,5 +213,9 @@ public class DefaultBookingWebService implements BookingWebService {
   private String provideTimeoutErrorMessage(String subMessage) {
     return String.format("Booking repository timed out [over %d milliseconds] %s",
         bookingRepositoryTimeoutInMilliseconds, subMessage);
+  }
+
+  private String createEventNotFountMessage(Integer eventId) {
+    return String.format("Event [%d] not found", eventId);
   }
 }

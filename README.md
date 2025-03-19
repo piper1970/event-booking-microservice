@@ -22,8 +22,7 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 
 1. **event-service**: Manages event information and creation
 2. **booking-service**: Handles booking requests associated with event-service events
-3. **payment-service**: Processes payments and refunds for bookings
-4. **notification-service**: Sends mock email notifications
+4. **notification-service**: Sends mock booking confirmation emails and other notification emails
 5. **event-service-gateway**: Routes client requests to appropriate services
 6. **discovery-server**: Provides service discovery for microservices
 7. **event-service-config**: Centralized configuration
@@ -34,7 +33,6 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 3. **keycloak**: oauth2/openid authentication and authorization
 4. **kafka**: message broker for asynchronous microservice communication
 5. **zookeeper**: kafka dependency for distributed configuration management
-6. **wiremock**: library used to mock external payment api
 7. **prometheus**: metrics monitoring
 8. **grafana**: visualization of metrics
 

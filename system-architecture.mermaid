@@ -8,14 +8,12 @@ graph TB
     subgraph Services
         EventService[Event Service]
         BookingService[Booking Service]
-        PaymentService[Payment Service]
         NotificationService[Notification Service]
     end
     
     subgraph Databases
         EventDB[(Postgres - Event DB)]
         BookingDB[(Postgres - Booking DB)]
-        PaymentDB[(Postgres - Payment DB)]
     end
     
     subgraph Messaging
@@ -25,19 +23,14 @@ graph TB
             topic1[create-booking-request]
             topic2[create-booking-response]
             topic3[cancel-booking]
-            topic4[payment-refund-problems]
-            topic5[event-changed]
-            topic6[booking-updates]
-            topic7[event-cancelled]
-            topic8[booking-cancellations]
-            topic9(booking-event-unavailable)
+            topic4[event-changed]
+            topic5[booking-updates]
+            topic6[event-cancelled]
+            topic7[booking-cancellations]
+            topic8(booking-event-unavailable)
         end
     end
-    
-    subgraph External
-        PaymentAPI[External Payment API]
-    end
-    
+
     Client --> Gateway
     Gateway --> EventService
     Gateway --> BookingService
@@ -46,7 +39,6 @@ graph TB
     
     EventService --> EventDB
     BookingService --> BookingDB
-    PaymentService --> PaymentDB
     
     EventService --> Eureka
     BookingService --> Eureka
@@ -55,12 +47,9 @@ graph TB
     BookingService --> EventService
     
     BookingService --> Kafka
-    PaymentService --> Kafka
     NotificationService --> Kafka
     EventService --> Kafka
-    
-    PaymentService --> PaymentAPI
-    
+
     style Gateway fill:#f9f,stroke:#333
     style Eureka fill:#ff9,stroke:#333
     style Config fill:#ff9,stroke:#333

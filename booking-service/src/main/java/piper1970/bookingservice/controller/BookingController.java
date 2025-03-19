@@ -19,7 +19,6 @@ import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.service.BookingWebService;
-import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.tokens.TokenUtilities;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -40,10 +39,6 @@ public class BookingController {
 
     log.debug("Getting all bookings called by [{}]", username);
 
-    if (TokenUtilities.isAdmin(token)) {
-      return bookingWebService.findAllBookings();
-    }
-
     return bookingWebService.findBookingsByUsername(username);
   }
 
@@ -57,7 +52,8 @@ public class BookingController {
     log.debug("Getting booking[{}] called by [{}]", id, username);
 
     return bookingWebService.findBookingByIdAndUsername(id, username)
-        .switchIfEmpty(Mono.error(new BookingNotFoundException(createBookingNotFoundMessage(id))));
+        .switchIfEmpty(Mono.error(new BookingNotFoundException(
+            String.format("Booking [%d] not found", id))));
   }
 
   @PostMapping
@@ -67,18 +63,16 @@ public class BookingController {
       @Valid @RequestBody BookingCreateRequest createRequest) {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
-
     var email = TokenUtilities.getEmailFromToken(jwtToken);
+    var token = jwtToken.getToken().getTokenValue();
 
     log.debug("Creating booking called by [{}]", user);
 
+    // set username/email based on caller credentials
     createRequest.setUsername(user);
     createRequest.setEmail(email);
 
-    var token = jwtToken.getToken().getTokenValue(); // needed for event-service call
-
-    return bookingWebService.createBooking(createRequest, token)
-        .switchIfEmpty(Mono.error(new EventNotFoundException(createEventNotFountMessage(createRequest.getEventId()))));
+    return bookingWebService.createBooking(createRequest, token);
   }
 
   @PatchMapping("/{id}/cancel")
@@ -86,21 +80,13 @@ public class BookingController {
   @PreAuthorize("hasAuthority('MEMBER')")
   public Mono<BookingDto> cancel(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
       @PathVariable Integer id) {
+
     var user = TokenUtilities.getUserFromToken(jwtToken);
+    var token = jwtToken.getToken().getTokenValue();
 
     log.debug("Cancel booking[{}] called by [{}]", id, user);
 
-    var token = jwtToken.getToken().getTokenValue();
-
     return bookingWebService.cancelBooking(id, user, token);
-
   }
 
-  private String createBookingNotFoundMessage(Integer eventId) {
-    return String.format("Booking [%d] not found", eventId);
-  }
-
-  private String createEventNotFountMessage(Integer eventId) {
-    return String.format("Event [%d] not found", eventId);
-  }
 }

@@ -114,7 +114,6 @@
     <module>event-service-config</module>
     <module>discovery-server</module>
     <module>event-service-common</module>
-    <module>payment-service</module>
     <module>notification-service</module>
   </modules>
 

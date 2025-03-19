@@ -1,7 +1,5 @@
 package piper1970.eventservice.dto.model;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -9,7 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -48,11 +45,6 @@ public class EventCreateRequest {
   @NotNull(message = "[durationInMinutes] field must be present and non-null")
   @Min(value = 30, message = "[durationInMinutes] field must be at least 30 minutes")
   private Integer durationInMinutes;
-
-  @NotNull(message = "[cost] field must be present and non-null")
-  @DecimalMin(value = "0.0") // positive-or-zero
-  @Digits(integer = 4, fraction = 2) // numeric(6,2)
-  private BigDecimal cost;
 
   @NotNull(message = "[availableBookings] field must be present and non-null")
   @PositiveOrZero(message = "[availableBookings] field cannot be negative")

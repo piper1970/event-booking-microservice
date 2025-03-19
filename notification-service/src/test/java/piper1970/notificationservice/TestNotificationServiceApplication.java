@@ -6,7 +6,7 @@ public class TestNotificationServiceApplication {
 
   public static void main(String[] args) {
     SpringApplication.from(NotificationServiceApplication::main)
-        .with(TestcontainersConfiguration.class).run(args);
+        .with(TestNotificationsConfiguration.class).run(args);
   }
 
 }

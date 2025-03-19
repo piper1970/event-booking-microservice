@@ -1,0 +1,27 @@
+{
+  "type": "record",
+  "name": "BookingCancelled",
+  "namespace": "piper1970.eventservice.common.bookings.messages",
+  "fields": [
+    {
+      "name": "bookingId",
+      "type": "int"
+    },
+    {
+      "name": "eventId",
+      "type": "int"
+    },
+    {
+      "name": "memberEmail",
+      "type": "string"
+    },
+    {
+      "name": "memberUsername",
+      "type": "string"
+    },
+    {
+      "name": "message",
+      "type": ["null", "string"]
+    }
+  ]
+}
