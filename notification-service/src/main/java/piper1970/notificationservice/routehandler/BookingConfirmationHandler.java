@@ -137,7 +137,7 @@ public class BookingConfirmationHandler {
   private boolean confirmBooking(BookingConfirmation confirmation) {
     var now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
     var expirationTime = confirmation.getConfirmationDateTime()
-        .plusMinutes(confirmation.getConfirmationDuration().toMinutes())
+        .plusMinutes(confirmation.getDurationInMinutes())
         .truncatedTo(ChronoUnit.MINUTES);
     return now.isBefore(expirationTime);
   }

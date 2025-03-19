@@ -28,14 +28,14 @@ spring:
             authorization-grant-type: authorization_code
             client-id: ${oauth2.client.id}
             client-secret: ${KC_CLIENT_SECRET}
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: {baseUrl}/login/oauth2/code/{registrationId}
             scope: openid, profile, roles
         provider:
           keycloak:
             issuer-uri: ${oauth2.provider.base-uri}
       resourceserver:
         jwt:
-          jwk-set-uri: "${oauth2.provider.base-uri}/protocol/openid-connect/certs"
+          jwk-set-uri: ${oauth2.provider.base-uri}/protocol/openid-connect/certs
           issuer-uri: ${oauth2.provider.base-uri}
 
   # Routing

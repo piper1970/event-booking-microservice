@@ -8,7 +8,6 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -77,7 +76,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
         .eventId(message.getEventId())
         .confirmationString(confirmToken)
         .confirmationDateTime(LocalDateTime.now(clock))
-        .confirmationDuration(Duration.ofMinutes(confirmationInMinutes))
+        .durationInMinutes(confirmationInMinutes)
         .confirmationStatus(ConfirmationStatus.AWAITING_CONFIRMATION)
         .build();
 

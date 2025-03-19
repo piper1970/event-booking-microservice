@@ -1,6 +1,5 @@
 package piper1970.notificationservice.domain;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -30,7 +29,7 @@ public class BookingConfirmation {
   private Integer eventId;
   private UUID confirmationString;
   private LocalDateTime confirmationDateTime;
-  private Duration confirmationDuration;
+  private Integer durationInMinutes;
 
   private ConfirmationStatus confirmationStatus;
 
