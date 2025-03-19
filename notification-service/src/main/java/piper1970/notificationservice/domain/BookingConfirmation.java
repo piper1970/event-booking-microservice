@@ -1,12 +1,5 @@
 package piper1970.notificationservice.domain;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -17,8 +10,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.With;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
 @Getter
 @Setter
 @Builder(toBuilder = true)
@@ -30,7 +24,6 @@ import lombok.With;
 public class BookingConfirmation {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.AUTO)
   private Integer id;
 
   private Integer bookingId;
@@ -39,7 +32,6 @@ public class BookingConfirmation {
   private LocalDateTime confirmationDateTime;
   private Duration confirmationDuration;
 
-  @Enumerated(EnumType.STRING)
   private ConfirmationStatus confirmationStatus;
 
 }

@@ -3,33 +3,41 @@ package piper1970.bookingservice.repository;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
 import org.springframework.r2dbc.core.DatabaseClient;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import reactor.test.StepVerifier;
 
-@SpringBootTest
+@DataR2dbcTest
 @DisplayName("Booking repository")
 class BookingRepositoryTest {
 
   @Autowired
   BookingRepository bookingRepository;
 
+  @InjectMocks
+  Clock clock = Clock.fixed(Instant.now(), ZoneId.systemDefault());
+
   @Autowired
   DatabaseClient databaseClient;
 
-  @Autowired
-  Clock clock;
+  final Instant clockInstant = Instant.now();
+  final ZoneId clockZone = ZoneId.systemDefault();
 
   @BeforeEach
   void setUp() {
+
+
 
     var statements = List.of("DROP TABLE IF EXISTS event_service.bookings;",
         "DROP SCHEMA IF EXISTS event_service;",

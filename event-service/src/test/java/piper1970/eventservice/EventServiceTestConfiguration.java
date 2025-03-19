@@ -8,6 +8,7 @@ import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @TestConfiguration(proxyBeanMethods = false)
+@SuppressWarnings("all")
 public class EventServiceTestConfiguration {
 
   // Postgres test-container set up from spring.r2dbc.url in properties file
@@ -16,12 +17,12 @@ public class EventServiceTestConfiguration {
   @ServiceConnection
   KafkaContainer kafkaContainer() {
     return new KafkaContainer(DockerImageName.parse("apache/kafka-native:4.0.0-rc3")
-    ).withNetworkAliases("kafka");
+    ).withNetworkAliases("kafka")
+        .withExposedPorts(9092);
   }
 
   @Bean
   @ServiceConnection(name = "openzipkin/zipkin")
-  @SuppressWarnings("all")
   GenericContainer<?> zipkinContainer() {
     return new GenericContainer<>(
         DockerImageName.parse("openzipkin/zipkin:3")).withExposedPorts(9411);

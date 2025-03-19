@@ -4,12 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
 import piper1970.eventservice.common.topics.Topics;
 
 @RequiredArgsConstructor
-@Service
 @Slf4j
 public class KafkaMessagePostingService implements MessagePostingService {
 
