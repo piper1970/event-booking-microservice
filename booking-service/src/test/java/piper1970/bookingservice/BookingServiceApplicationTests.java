@@ -2,11 +2,11 @@ package piper1970.bookingservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 
 
 @SpringBootTest
-@Import(BookingServiceTestConfiguration.class)
+@EmbeddedKafka
 class BookingServiceApplicationTests {
 
   @Test

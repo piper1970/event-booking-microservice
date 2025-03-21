@@ -2,10 +2,10 @@ package piper1970.eventservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 
 @SpringBootTest
-@Import(EventServiceTestConfiguration.class)
+@EmbeddedKafka
 class EventServiceApplicationTests {
 
 	@Test

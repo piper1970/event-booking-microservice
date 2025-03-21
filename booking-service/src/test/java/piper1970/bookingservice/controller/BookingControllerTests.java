@@ -22,6 +22,8 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.r2dbc.spi.ConnectionFactory;
+import java.io.File;
+import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -34,6 +36,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,9 +49,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -56,13 +58,15 @@ import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.testcontainers.containers.ComposeContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
-import piper1970.bookingservice.BookingServiceTestConfiguration;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
@@ -72,11 +76,11 @@ import piper1970.eventservice.common.events.dto.EventDto;
 import reactor.core.publisher.Mono;
 
 @DisplayName("Booking Controller")
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "integration"})
 @Testcontainers
-@Import(BookingServiceTestConfiguration.class)
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
 @EnableWireMock({
     @ConfigureWireMock(
         name = "event-service",
@@ -88,10 +92,10 @@ import reactor.core.publisher.Mono;
 })
 public class BookingControllerTests {
 
-  // Fix using spring-kafka-test
-
-
   //region Setup Properties
+
+  @Container
+  static ComposeContainer composeContainer = createComposeContainer();
 
   static RSAKey rsaKey;
 
@@ -128,6 +132,18 @@ public class BookingControllerTests {
 
   //endregion Setup Properties
 
+  //region Before/After Setup
+
+  @BeforeAll
+  static void setup() {
+    composeContainer.start();
+  }
+
+  @AfterAll
+  static void tearDown() {
+    composeContainer.stop();
+  }
+
   @BeforeEach
   void setUp() throws JOSEException, JsonProcessingException {
 
@@ -142,6 +158,8 @@ public class BookingControllerTests {
         .block();
     setupKeyCloakServer();
   }
+
+  //endregion Before/After Setup
 
   //region GET ALL BOOKINGS
 
@@ -658,29 +676,49 @@ public class BookingControllerTests {
     keycloakServerInitialized = true;
   }
 
+  /// Setup TestContainer based off docker-compose test file
+  @SuppressWarnings("all")
+  static ComposeContainer createComposeContainer() {
+    String userDirectory = System.getProperty("user.dir");
+    String filePath = userDirectory + "/../docker-compose-bookings-tests.yaml";
+    var path = Paths.get(filePath).normalize().toAbsolutePath();
+    var file = new File(filePath);
+    return new ComposeContainer(
+        file
+    )
+        .withLocalCompose(true)
+        .withExposedService("postgres-bookings-test", 5432)
+        .withExposedService("kafka-bookings-test", 9092);
+  }
+
+
+
   //endregion Helper Methods
 
   //region Test Configuration
 
   @TestConfiguration
-  @Profile("test")
-  @ActiveProfiles("test")
+  @ActiveProfiles({"test", "integration"})
+  @EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
   public static class TestControllerConfiguration {
 
-    private final String apiUri;
+    final String apiUri;
 
     public TestControllerConfiguration(@Value("${api.event-service.uri}") String apiUri) {
+      System.out.println(("Initializing TestControllerConfiguration: ".toUpperCase()));
       this.apiUri = apiUri;
     }
 
+    ///  Initializes database structure from schema
     @Bean
     public ConnectionFactoryInitializer connectionFactoryInitializer(
         ConnectionFactory connectionFactory) {
+
       ConnectionFactoryInitializer initializer = new ConnectionFactoryInitializer();
       initializer.setConnectionFactory(connectionFactory);
       CompositeDatabasePopulator populater = new CompositeDatabasePopulator();
       populater.addPopulators(new ResourceDatabasePopulator(new ClassPathResource(
-          "schema.sql")));
+          "schema-integration.sql")));
       initializer.setDatabasePopulator(populater);
       return initializer;
     }

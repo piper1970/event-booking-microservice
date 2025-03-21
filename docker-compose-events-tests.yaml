@@ -1,55 +1,24 @@
-volumes:
-  postgres-data:
-    name: "event-service-postgres-volume"
-  zookeeper-data:
-    name: "event-service-zookeeper-volume"
-  zookeeper-log:
-    name: "event-service-zookeeper-log-volume"
-  kafka-data:
-    name: "event-service-kafka-volume"
-  kafka-logs:
-    name: "event-service-kafka-logs-volume"
-  schema-registry-data:
-    name: "event-service-schema-registry-volume"
-#  pgadmin-data:
-#    name: "event-service-pgadmin-volume"
 
 services:
 
-  postgres:
+  postgres-events-test:
     image: postgres:15
     restart: always
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
       - ./data/scripts:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
 
-#  pgadmin4:
-#    image: elestio/pgadmin:latest
-#    restart: always
-#    ports:
-#      - "1500:8080"
-#    volumes:
-#      - ./data/pgadmin/servers.json:/pgadmin4/servers.json
-#      - pgadmin-data:/var/lib/pgadmin
-#    environment:
-#      PGADMIN_LISTEN_PORT: 8080
-#      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-#      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-#    depends_on:
-#      - postgres
-
-  zipkin:
+  zipkin-events-test:
     image: openzipkin/zipkin:3
     restart: always
     shm_size: 128mb
     ports:
       - "9411:9411"
 
-  keycloak:
+  keycloak-events-test:
     image: keycloak/keycloak:26.1
     ports:
       - "9090:8080"
@@ -57,7 +26,7 @@ services:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      KC_DB_URL_HOST: postgres
+      KC_DB_URL_HOST: postgres-events-test
       KC_DB_URL_DATABASE: keycloak
       KEYCLOAK_ADMIN: ${KC_ADMIN_USER}
       KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
@@ -70,22 +39,19 @@ services:
       - ./data/keycloak/:/opt/keycloak/data/import/
     command:
       - start-dev
-#      - --import-realm
+      - --import-realm
     healthcheck:
       test: ['CMD-SHELL', '[ -f /tmp/HealthCheck.java ] || echo "public class HealthCheck { public static void main(String[] args) throws java.lang.Throwable { System.exit(java.net.HttpURLConnection.HTTP_OK == ((java.net.HttpURLConnection)new java.net.URL(args[0]).openConnection()).getResponseCode() ? 0 : 1); } }" > /tmp/HealthCheck.java && java /tmp/HealthCheck.java http://localhost:8080/auth/health/live']
       interval: 5s
       timeout: 5s
       retries: 20
     depends_on:
-      - postgres
+      - postgres-events-test
 
-  zookeeper:
+  zookeeper-events-test:
     image: confluentinc/cp-zookeeper:7.9.0
     ports:
       - "2181:2181"
-    volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-log:/var/lib/zookeeper/log
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
     healthcheck:
@@ -94,23 +60,20 @@ services:
       timeout: 5s
       retries: 5
 
-  kafka:
+  kafka-events-test:
     image: confluentinc/cp-kafka:7.9.0
     ports:
       - "9092:9092"
-    volumes:
-      - kafka-data:/var/lib/kafka/data
-      - kafka-logs:/tmp/kafka-logs
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-events-test:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-events-test:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     depends_on:
-      zookeeper:
+      zookeeper-events-test:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
@@ -138,17 +101,15 @@ services:
 #        echo 'Topics created.'
 #      "
 
-  schema-registry:
+  schema-registry-events-test:
     image: confluentinc/cp-schema-registry:7.5.0
-    hostname: schema-registry
+    hostname: schema-registry-events-test
     depends_on:
-      kafka:
+      kafka-events-test:
         condition: service_healthy
     ports:
       - "9091:8081"
-    volumes:
-      - schema-registry-data:/usr/bin/confluent
     environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry-events-test
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka-events-test:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081

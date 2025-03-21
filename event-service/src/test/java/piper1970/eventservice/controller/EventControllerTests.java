@@ -24,6 +24,8 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.r2dbc.spi.ConnectionFactory;
+import java.io.File;
+import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -36,6 +38,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,7 +51,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.r2dbc.connection.init.CompositeDatabasePopulator;
@@ -55,12 +58,14 @@ import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.testcontainers.containers.ComposeContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
-import piper1970.eventservice.EventServiceTestConfiguration;
 import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
@@ -72,11 +77,11 @@ import piper1970.eventservice.repository.EventRepository;
 import reactor.core.publisher.Mono;
 
 @DisplayName("EventController")
-@ActiveProfiles("test")
-@Import(EventServiceTestConfiguration.class)
+@ActiveProfiles({"test", "integration"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Slf4j
+@EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnableWireMock({
     @ConfigureWireMock(
@@ -85,9 +90,10 @@ import reactor.core.publisher.Mono;
 })
 public class EventControllerTests {
 
-  // TODO: fix using spring-kafka-test
-
   //region Properties Setup
+
+  @Container
+  static ComposeContainer composeContainer = createComposeContainer();
 
   static RSAKey rsaKey;
 
@@ -126,6 +132,18 @@ public class EventControllerTests {
 
   //endregion Properties Setup
 
+  //region Before/After Setup
+
+  @BeforeAll
+  static void setup() {
+    composeContainer.start();
+  }
+
+  @AfterAll
+  static void tearDown() {
+    composeContainer.stop();
+  }
+
   @BeforeEach
   void setUp() throws JOSEException, JsonProcessingException {
 
@@ -142,6 +160,8 @@ public class EventControllerTests {
         .block();
     setupKeyCloakServer();
   }
+
+  //endregion Before/After Setup
 
   //region GET ALL EVENTS
 
@@ -745,6 +765,7 @@ public class EventControllerTests {
 
   //region Helper Methods
 
+  /// Initialize database for each run
   Mono<List<Event>> initializeDatabase() {
 
     return eventRepository.saveAll(List.of(
@@ -822,6 +843,7 @@ public class EventControllerTests {
     return signedJwt.serialize();
   }
 
+  /// Initialize RSA Key and set mock oauth2 server to return it when prompted
   void setupKeyCloakServer()
       throws JOSEException, JsonProcessingException {
 
@@ -852,13 +874,28 @@ public class EventControllerTests {
     return expectedStatus == eventDtoToStatusMapper.apply(eventMapper.toDto(event));
   }
 
+  /// Setup TestContainer based off docker-compose test file
+  @SuppressWarnings("all")
+  static ComposeContainer createComposeContainer() {
+    String userDirectory = System.getProperty("user.dir");
+    String filePath = userDirectory + "/../docker-compose-events-tests.yaml";
+    var path = Paths.get(filePath).normalize().toAbsolutePath();
+    var file = new File(filePath);
+    return new ComposeContainer(
+        file
+    )
+        .withLocalCompose(true)
+        .withExposedService("postgres-events-test", 5432)
+        .withExposedService("kafka-events-test", 9092);
+  }
+
   //endregion Helper Methods
 
   //region TestConfig
 
   @TestConfiguration
-  @ActiveProfiles({"test"})
-  @Slf4j
+  @ActiveProfiles({"test", "integration"})
+  @EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
   public static class TestIntegrationConfiguration {
 
     ///  Initializes database structure from schema
@@ -869,7 +906,7 @@ public class EventControllerTests {
       initializer.setConnectionFactory(connectionFactory);
       CompositeDatabasePopulator populater = new CompositeDatabasePopulator();
       populater.addPopulators(new ResourceDatabasePopulator(new ClassPathResource(
-          "schema.sql")));
+          "schema-integration.sql")));
       initializer.setDatabasePopulator(populater);
       return initializer;
     }
