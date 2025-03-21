@@ -1,4 +1,4 @@
-package piper1970.event_service_gateway.config;
+package piper1970.api_gateway.config;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -29,8 +28,7 @@ import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
-@EnableReactiveMethodSecurity
-public class EventServiceGatewayConfig {
+public class ApiGatewayConfig {
 
   @Value("${csrf.enabled:false}")
   private boolean csrfEnabled;
@@ -42,7 +40,7 @@ public class EventServiceGatewayConfig {
 
   private final GrantedAuthoritiesExtractor grantedAuthoritiesExtractor;
 
-  public EventServiceGatewayConfig(
+  public ApiGatewayConfig(
       ReactiveClientRegistrationRepository clientRegistrationRepository,
       @Value("${oauth2.client.id}") String clientId) {
     this.clientRegistrationRepository = clientRegistrationRepository;
@@ -85,7 +83,7 @@ public class EventServiceGatewayConfig {
     config.setAllowCredentials(true);
     config.addAllowedOrigin(allowedOrigin);
     config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     config.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

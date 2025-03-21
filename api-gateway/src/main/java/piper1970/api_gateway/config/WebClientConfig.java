@@ -1,4 +1,4 @@
-package piper1970.event_service_gateway.config;
+package piper1970.api_gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

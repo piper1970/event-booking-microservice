@@ -14,7 +14,6 @@ spring:
             client-id: ${oauth2.client.id}
             client-secret: dummySecret
             scope: openid
-            redirect-uri: "http://bogus.test.uri"
         provider:
           keycloak:
             jwk-set-uri: "http://bogus.jwk-set.uri"

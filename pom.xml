@@ -110,7 +110,7 @@
   <modules>
     <module>event-service</module>
     <module>booking-service</module>
-    <module>event-service-gateway</module>
+    <module>api-gateway</module>
     <module>event-service-config</module>
     <module>discovery-server</module>
     <module>event-service-common</module>

@@ -1,16 +1,20 @@
 package piper1970.notificationservice.config;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.MustacheFactory;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
@@ -18,6 +22,13 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerResponse;
@@ -30,6 +41,7 @@ import piper1970.notificationservice.service.MessagePostingService;
 
 @Configuration
 @EnableKafka
+@EnableWebFluxSecurity
 public class NotificationConfig {
 
   private final BookingConfirmationRepository bookingConfirmationRepository;
@@ -76,6 +88,19 @@ public class NotificationConfig {
   }
 
   @Bean
+  public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+    http.csrf(CsrfSpec::disable)
+        .cors(withDefaults())
+        .authorizeExchange(exchange -> exchange
+            .pathMatchers(HttpMethod.GET, "/actuator/**","/api/notifications/confirm/**").permitAll()
+            .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
+            .anyExchange()
+            .denyAll());
+
+    return http.build();
+  }
+
+  @Bean
   public BookingConfirmationHandler bookingConfirmationHandler(MessagePostingService messagePostingService,
       Clock clock) {
     return new BookingConfirmationHandler(
@@ -84,6 +109,20 @@ public class NotificationConfig {
         objectMapper,
         clock
     );
+  }
+
+  @Bean
+  public CorsWebFilter corsWebFilter() {
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowCredentials(true);
+    config.addAllowedOrigin("*");
+    config.setAllowedMethods(List.of("GET", "OPTIONS"));
+    config.setMaxAge(3600L);
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+
+    return new CorsWebFilter(source);
   }
 
   //endregion Rout Handling

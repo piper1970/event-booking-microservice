@@ -62,7 +62,7 @@ public class EventServiceConfig {
     config.setAllowCredentials(true);
     config.addAllowedOrigin("*");
     config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     config.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
