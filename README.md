@@ -1,4 +1,4 @@
-# Event-Booking Service (POC)
+# Event-Booking Service (POC, WIP)
 
 _A microservice-based event management and booking system, utilizing Spring Boot and Spring Cloud components._
 
