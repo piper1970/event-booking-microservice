@@ -31,6 +31,21 @@ __.gitignore__ is set up to ignore saving this file.
 
 See _env-sample_ in the root directory for a list of all environment variable used.
 
+### Running Integration Tests with Maven
+
+The major microservices all have integration tests around the controller logic, relying primarily on 
+Testcontainers (keycloak is mocked, while the other services are live)
+
+To run these integration tests, you must have Docker Running and have Docker Compose.
+Also, since the ports used are the same as the regular applications, the services from the root _docker-compose.yaml_ 
+file should not be running.
+
+The following command will run all integration tests:
+
+`./mvnw verify` (or `./mvnw verifiy -P macos-arm` if using a Mac with an Apple Silicon M1+ processor)
+
+**Note:** *these tests take some time*
+
 ## Setting Up Databases For Each Service
 
 The postgres container in the docker-compose file runs the initialization scripts from the 
