@@ -20,7 +20,7 @@ import reactor.test.StepVerifier;
 
 @DataR2dbcTest
 @DisplayName("Booking repository")
-class BookingRepositoryTest {
+class BookingRepositoryTests {
 
   @Autowired
   BookingRepository bookingRepository;

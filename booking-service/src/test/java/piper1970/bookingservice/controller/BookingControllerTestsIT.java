@@ -36,10 +36,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +60,6 @@ import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.testcontainers.containers.ComposeContainer;
@@ -80,7 +81,6 @@ import reactor.core.publisher.Mono;
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
 @EnableWireMock({
     @ConfigureWireMock(
         name = "event-service",
@@ -90,7 +90,9 @@ import reactor.core.publisher.Mono;
         name = "keystore-service",
         baseUrlProperties = "keystore-service.url")
 })
-public class BookingControllerTests {
+@Tag("integration-test")
+@Slf4j
+public class BookingControllerTestsIT {
 
   //region Setup Properties
 
@@ -680,17 +682,17 @@ public class BookingControllerTests {
   @SuppressWarnings("all")
   static ComposeContainer createComposeContainer() {
     String userDirectory = System.getProperty("user.dir");
-    String filePath = userDirectory + "/../docker-compose-bookings-tests.yaml";
+    String filePath = userDirectory + "/docker-compose-tests.yaml";
     var path = Paths.get(filePath).normalize().toAbsolutePath();
     var file = new File(filePath);
     return new ComposeContainer(
         file
     )
+        .withEnv("POSTGRES_PASSWORD", "test_postgres_password")
         .withLocalCompose(true)
         .withExposedService("postgres-bookings-test", 5432)
         .withExposedService("kafka-bookings-test", 9092);
   }
-
 
 
   //endregion Helper Methods
@@ -699,7 +701,6 @@ public class BookingControllerTests {
 
   @TestConfiguration
   @ActiveProfiles({"test", "integration"})
-  @EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
   public static class TestControllerConfiguration {
 
     final String apiUri;

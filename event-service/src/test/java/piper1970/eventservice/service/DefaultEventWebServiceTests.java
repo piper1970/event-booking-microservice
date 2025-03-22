@@ -34,7 +34,7 @@ import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Event Web Service")
-class DefaultEventWebServiceTest {
+class DefaultEventWebServiceTests {
 
   private DefaultEventWebService webService;
 

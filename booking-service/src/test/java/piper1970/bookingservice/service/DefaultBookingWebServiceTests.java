@@ -37,7 +37,7 @@ import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Booking Web Service")
-class DefaultBookingWebServiceTest {
+class DefaultBookingWebServiceTests {
 
   // service to test
   private DefaultBookingWebService webService;

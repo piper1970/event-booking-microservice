@@ -42,6 +42,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +59,6 @@ import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.testcontainers.containers.ComposeContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -81,14 +81,14 @@ import reactor.core.publisher.Mono;
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Slf4j
-@EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnableWireMock({
     @ConfigureWireMock(
         name = "keystore-service",
         baseUrlProperties = "keystore-service.url")
 })
-public class EventControllerTests {
+@Tag("integration-test")
+public class EventControllerTestsIT {
 
   //region Properties Setup
 
@@ -877,13 +877,15 @@ public class EventControllerTests {
   /// Setup TestContainer based off docker-compose test file
   @SuppressWarnings("all")
   static ComposeContainer createComposeContainer() {
+
     String userDirectory = System.getProperty("user.dir");
-    String filePath = userDirectory + "/../docker-compose-events-tests.yaml";
+    String filePath = userDirectory + "/docker-compose-tests.yaml";
     var path = Paths.get(filePath).normalize().toAbsolutePath();
     var file = new File(filePath);
     return new ComposeContainer(
         file
     )
+        .withEnv("POSTGRES_PASSWORD", "test_postgres_password")
         .withLocalCompose(true)
         .withExposedService("postgres-events-test", 5432)
         .withExposedService("kafka-events-test", 9092);
@@ -895,7 +897,6 @@ public class EventControllerTests {
 
   @TestConfiguration
   @ActiveProfiles({"test", "integration"})
-  @EnabledIf(expression = "#{systemEnvironment['INTEGRATION_TESTS'] == 'TRUE'}", loadContext = false)
   public static class TestIntegrationConfiguration {
 
     ///  Initializes database structure from schema

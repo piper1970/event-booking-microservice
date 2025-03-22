@@ -29,7 +29,7 @@ import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.test.StepVerifier;
 
 @DisplayName("EventRequestServiceTest")
-class DefaultEventRequestServiceTest {
+class DefaultEventRequestServiceTests {
 
   private DefaultEventRequestService requestService;
 
