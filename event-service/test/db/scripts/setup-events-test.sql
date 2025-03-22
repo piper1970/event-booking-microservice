@@ -20,7 +20,6 @@ CREATE ROLE test_events_user WITH
     NOBYPASSRLS
     CONNECTION LIMIT -1
     ENCRYPTED PASSWORD 'test_events_password';
--- make sure .env file matches
 
 -- grant permissions for events_admin_user
 GRANT ALL ON DATABASE events TO test_events_user;
