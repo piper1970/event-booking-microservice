@@ -26,6 +26,10 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class BookingConfirmationHandler {
 
+  // TODO: consider using ProblemDetail here, to be consistent with other apis.
+  //  When creating problem-detail, make problem-detail type an actual url with explanation
+  //  Also need to fill 'instance' field with actual relative url that caused the problem
+
   private final BookingConfirmationRepository bookingConfirmationRepository;
   private final MessagePostingService messagePostingService;
   private final ObjectMapper objectMapper;

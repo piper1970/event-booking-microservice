@@ -9,8 +9,8 @@ CREATE DATABASE notifications
     IS_TEMPLATE = False;
 
 -- Create  role notifications_admin_user
-DROP ROLE IF EXISTS test_notifications_user;
-CREATE ROLE test_notifications_user WITH
+DROP ROLE IF EXISTS notifications_user_test;
+CREATE ROLE notifications_user_test WITH
     LOGIN
     NOSUPERUSER
     NOCREATEDB
@@ -19,19 +19,19 @@ CREATE ROLE test_notifications_user WITH
     NOREPLICATION
     NOBYPASSRLS
     CONNECTION LIMIT -1
-    ENCRYPTED PASSWORD 'test_notifications_password';
+    ENCRYPTED PASSWORD 'notifications_password_test';
 
 -- Grant permissions for notifications_admin_user
-GRANT ALL ON DATABASE notifications TO test_notifications_user;
+GRANT ALL ON DATABASE notifications TO notifications_user_test;
 
 -- move to notifications db
 \c notifications
 
 -- setup schema
 CREATE SCHEMA event_service;
-GRANT ALL ON SCHEMA event_service to test_notifications_user;
-GRANT ALL ON ALL TABLES IN SCHEMA event_service to test_notifications_user;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA event_service to test_notifications_user;
+GRANT ALL ON SCHEMA event_service to notifications_user_test;
+GRANT ALL ON ALL TABLES IN SCHEMA event_service to notifications_user_test;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA event_service to notifications_user_test;
 
 
 

@@ -688,7 +688,6 @@ public class BookingControllerTestsIT {
     return new ComposeContainer(
         file
     )
-        .withEnv("POSTGRES_PASSWORD", "test_postgres_password")
         .withLocalCompose(true)
         .withExposedService("postgres-bookings-test", 5432)
         .withExposedService("kafka-bookings-test", 9092);

@@ -885,7 +885,6 @@ public class EventControllerTestsIT {
     return new ComposeContainer(
         file
     )
-        .withEnv("POSTGRES_PASSWORD", "test_postgres_password")
         .withLocalCompose(true)
         .withExposedService("postgres-events-test", 5432)
         .withExposedService("kafka-events-test", 9092);

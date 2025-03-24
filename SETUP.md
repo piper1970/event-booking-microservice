@@ -6,8 +6,6 @@
 - Maven
 - Docker and Docker Compose
 
-## Environment Files Used
-
 ## Building Maven Artifacts
 
 All projects share the same parent modules.  As such, a single command from the project's
@@ -26,11 +24,6 @@ as such:
 
 `./mvnw clean package -P macos-arm`
 
-An __.env__ file is needed in the root directory for docker compose to run correctly.
-__.gitignore__ is set up to ignore saving this file.
-
-See _env-sample_ in the root directory for a list of all environment variable used.
-
 ### Running Integration Tests with Maven
 
 The major microservices all have integration tests around the controller logic, relying primarily on 
@@ -48,7 +41,7 @@ The following command will run all integration tests:
 
 ## Setting Up Databases For Each Service
 
-The postgres container in the docker-compose file runs the initialization scripts from the 
+The postgres container in the docker-compose file runs the initialization bash shell scripts from the 
 _./data/scripts_ directory.  Once done, it closes the container. The container will need to
 be restarted again.
 

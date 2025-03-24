@@ -95,7 +95,6 @@
         <version>${maven-failsafe-plugin.version}</version>
         <executions>
           <execution>
-            <phase>initialize</phase>
             <goals>
               <goal>integration-test</goal>
               <goal>verify</goal>

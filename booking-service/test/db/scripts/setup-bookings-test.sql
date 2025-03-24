@@ -9,8 +9,8 @@ CREATE DATABASE bookings
     IS_TEMPLATE = False;
 
 -- Create role test_bookings_user
-DROP ROLE IF EXISTS test_bookings_user;
-CREATE ROLE test_bookings_user WITH
+DROP ROLE IF EXISTS bookings_user_test;
+CREATE ROLE bookings_user_test WITH
     LOGIN
     NOSUPERUSER
     NOCREATEDB
@@ -19,19 +19,19 @@ CREATE ROLE test_bookings_user WITH
     NOREPLICATION
     NOBYPASSRLS
     CONNECTION LIMIT -1
-    ENCRYPTED PASSWORD 'test_bookings_password';
+    ENCRYPTED PASSWORD 'bookings_password_test';
 
 -- Grant permissions for bookings_admin_user
-GRANT ALL ON DATABASE bookings TO test_bookings_user;
+GRANT ALL ON DATABASE bookings TO bookings_user_test;
 
 -- move to bookings db
 \c bookings
 
 -- setup schema
 CREATE SCHEMA event_service;
-GRANT ALL ON SCHEMA event_service to test_bookings_user;
-GRANT ALL ON ALL TABLES IN SCHEMA event_service to test_bookings_user;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA event_service to test_bookings_user;
+GRANT ALL ON SCHEMA event_service to bookings_user_test;
+GRANT ALL ON ALL TABLES IN SCHEMA event_service to bookings_user_test;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA event_service to bookings_user_test;
 
 
 
