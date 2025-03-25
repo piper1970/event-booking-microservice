@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
 import piper1970.notificationservice.domain.BookingConfirmation;
 import piper1970.notificationservice.domain.ConfirmationStatus;
@@ -110,7 +111,11 @@ public class BookingConfirmationHandler {
   private BookingConfirmed buildBookingConfirmedMessage(BookingConfirmation confirmation) {
     var message = new BookingConfirmed();
     message.setEventId(confirmation.getEventId());
-    message.setBookingId(confirmation.getBookingId());
+    var bookingId = new BookingId();
+    bookingId.setId(confirmation.getBookingId());
+    bookingId.setEmail(confirmation.getBookingEmail());
+    bookingId.setUsername(confirmation.getBookingUser());
+    message.setBooking(bookingId);
     return message;
   }
 

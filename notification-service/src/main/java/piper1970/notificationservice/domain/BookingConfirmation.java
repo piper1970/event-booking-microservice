@@ -30,6 +30,8 @@ public class BookingConfirmation {
   private Integer bookingId;
   private Integer eventId;
   private UUID confirmationString;
+  private String bookingUser;
+  private String bookingEmail;
   private LocalDateTime confirmationDateTime;
   private Integer durationInMinutes;
 

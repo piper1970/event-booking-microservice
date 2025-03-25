@@ -18,6 +18,7 @@ import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.bookings.messages.BookingCancelled;
 import piper1970.eventservice.common.bookings.messages.BookingCreated;
+import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
@@ -188,18 +189,15 @@ public class DefaultBookingWebService implements BookingWebService {
   private BookingCreated createBookingCreatedMessage(BookingDto booking) {
     var message = new BookingCreated();
     message.setEventId(booking.getEventId());
-    message.setBookingId(booking.getId());
-    message.setMemberEmail(booking.getEmail());
-    message.setMemberUsername(booking.getUsername());
+    booking.setUsername(booking.getUsername());
+    message.setBooking(dtoToBookingId(booking));
     return message;
   }
 
   private BookingCancelled createBookingCancelledMessage(BookingDto booking) {
     var message = new BookingCancelled();
     message.setEventId(booking.getEventId());
-    message.setBookingId(booking.getId());
-    message.setMemberEmail(booking.getEmail());
-    message.setMemberUsername(booking.getUsername());
+    message.setBooking(dtoToBookingId(booking));
     return message;
   }
   private void logBookingRetrieval(BookingDto booking) {
@@ -217,5 +215,13 @@ public class DefaultBookingWebService implements BookingWebService {
 
   private String createEventNotFountMessage(Integer eventId) {
     return String.format("Event [%d] not found", eventId);
+  }
+
+  private BookingId dtoToBookingId(BookingDto dto) {
+    BookingId bookingId = new BookingId();
+    bookingId.setId(dto.getId());
+    bookingId.setUsername(dto.getUsername());
+    bookingId.setEmail(dto.getEmail());
+    return bookingId;
   }
 }

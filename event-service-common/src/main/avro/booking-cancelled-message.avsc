@@ -4,20 +4,12 @@
   "namespace": "piper1970.eventservice.common.bookings.messages",
   "fields": [
     {
-      "name": "bookingId",
-      "type": "int"
+      "name": "booking",
+      "type": "piper1970.eventservice.common.bookings.messages.types.BookingId"
     },
     {
       "name": "eventId",
       "type": "int"
-    },
-    {
-      "name": "memberEmail",
-      "type": "string"
-    },
-    {
-      "name": "memberUsername",
-      "type": "string"
     },
     {
       "name": "message",

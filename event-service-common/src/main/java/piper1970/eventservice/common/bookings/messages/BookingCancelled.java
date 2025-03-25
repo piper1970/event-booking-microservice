@@ -13,10 +13,10 @@ import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = -8586660674294048650L;
+  private static final long serialVersionUID = 3063183054173439558L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingCancelled\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"bookingId\",\"type\":\"int\"},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"memberEmail\",\"type\":\"string\"},{\"name\":\"memberUsername\",\"type\":\"string\"},{\"name\":\"message\",\"type\":[\"null\",\"string\"]}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingCancelled\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"booking\",\"type\":{\"type\":\"record\",\"name\":\"BookingId\",\"namespace\":\"piper1970.eventservice.common.bookings.messages.types\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"Email\",\"type\":\"string\"},{\"name\":\"username\",\"type\":\"string\"}]}},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"message\",\"type\":[\"null\",\"string\"]}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();
@@ -72,10 +72,8 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
     return DECODER.decode(b);
   }
 
-  private int bookingId;
+  private piper1970.eventservice.common.bookings.messages.types.BookingId booking;
   private int eventId;
-  private java.lang.CharSequence memberEmail;
-  private java.lang.CharSequence memberUsername;
   private java.lang.CharSequence message;
 
   /**
@@ -87,17 +85,13 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
 
   /**
    * All-args constructor.
-   * @param bookingId The new value for bookingId
+   * @param booking The new value for booking
    * @param eventId The new value for eventId
-   * @param memberEmail The new value for memberEmail
-   * @param memberUsername The new value for memberUsername
    * @param message The new value for message
    */
-  public BookingCancelled(java.lang.Integer bookingId, java.lang.Integer eventId, java.lang.CharSequence memberEmail, java.lang.CharSequence memberUsername, java.lang.CharSequence message) {
-    this.bookingId = bookingId;
+  public BookingCancelled(piper1970.eventservice.common.bookings.messages.types.BookingId booking, java.lang.Integer eventId, java.lang.CharSequence message) {
+    this.booking = booking;
     this.eventId = eventId;
-    this.memberEmail = memberEmail;
-    this.memberUsername = memberUsername;
     this.message = message;
   }
 
@@ -111,11 +105,9 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
   @Override
   public java.lang.Object get(int field$) {
     switch (field$) {
-    case 0: return bookingId;
+    case 0: return booking;
     case 1: return eventId;
-    case 2: return memberEmail;
-    case 3: return memberUsername;
-    case 4: return message;
+    case 2: return message;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
@@ -125,30 +117,28 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
   @SuppressWarnings(value="unchecked")
   public void put(int field$, java.lang.Object value$) {
     switch (field$) {
-    case 0: bookingId = (java.lang.Integer)value$; break;
+    case 0: booking = (piper1970.eventservice.common.bookings.messages.types.BookingId)value$; break;
     case 1: eventId = (java.lang.Integer)value$; break;
-    case 2: memberEmail = (java.lang.CharSequence)value$; break;
-    case 3: memberUsername = (java.lang.CharSequence)value$; break;
-    case 4: message = (java.lang.CharSequence)value$; break;
+    case 2: message = (java.lang.CharSequence)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
   }
 
   /**
-   * Gets the value of the 'bookingId' field.
-   * @return The value of the 'bookingId' field.
+   * Gets the value of the 'booking' field.
+   * @return The value of the 'booking' field.
    */
-  public int getBookingId() {
-    return bookingId;
+  public piper1970.eventservice.common.bookings.messages.types.BookingId getBooking() {
+    return booking;
   }
 
 
   /**
-   * Sets the value of the 'bookingId' field.
+   * Sets the value of the 'booking' field.
    * @param value the value to set.
    */
-  public void setBookingId(int value) {
-    this.bookingId = value;
+  public void setBooking(piper1970.eventservice.common.bookings.messages.types.BookingId value) {
+    this.booking = value;
   }
 
   /**
@@ -166,40 +156,6 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
    */
   public void setEventId(int value) {
     this.eventId = value;
-  }
-
-  /**
-   * Gets the value of the 'memberEmail' field.
-   * @return The value of the 'memberEmail' field.
-   */
-  public java.lang.CharSequence getMemberEmail() {
-    return memberEmail;
-  }
-
-
-  /**
-   * Sets the value of the 'memberEmail' field.
-   * @param value the value to set.
-   */
-  public void setMemberEmail(java.lang.CharSequence value) {
-    this.memberEmail = value;
-  }
-
-  /**
-   * Gets the value of the 'memberUsername' field.
-   * @return The value of the 'memberUsername' field.
-   */
-  public java.lang.CharSequence getMemberUsername() {
-    return memberUsername;
-  }
-
-
-  /**
-   * Sets the value of the 'memberUsername' field.
-   * @param value the value to set.
-   */
-  public void setMemberUsername(java.lang.CharSequence value) {
-    this.memberUsername = value;
   }
 
   /**
@@ -260,10 +216,9 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
   public static class Builder extends org.apache.avro.specific.SpecificRecordBuilderBase<BookingCancelled>
     implements org.apache.avro.data.RecordBuilder<BookingCancelled> {
 
-    private int bookingId;
+    private piper1970.eventservice.common.bookings.messages.types.BookingId booking;
+    private piper1970.eventservice.common.bookings.messages.types.BookingId.Builder bookingBuilder;
     private int eventId;
-    private java.lang.CharSequence memberEmail;
-    private java.lang.CharSequence memberUsername;
     private java.lang.CharSequence message;
 
     /** Creates a new Builder */
@@ -277,25 +232,20 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
      */
     private Builder(piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder other) {
       super(other);
-      if (isValidValue(fields()[0], other.bookingId)) {
-        this.bookingId = data().deepCopy(fields()[0].schema(), other.bookingId);
+      if (isValidValue(fields()[0], other.booking)) {
+        this.booking = data().deepCopy(fields()[0].schema(), other.booking);
         fieldSetFlags()[0] = other.fieldSetFlags()[0];
+      }
+      if (other.hasBookingBuilder()) {
+        this.bookingBuilder = piper1970.eventservice.common.bookings.messages.types.BookingId.newBuilder(other.getBookingBuilder());
       }
       if (isValidValue(fields()[1], other.eventId)) {
         this.eventId = data().deepCopy(fields()[1].schema(), other.eventId);
         fieldSetFlags()[1] = other.fieldSetFlags()[1];
       }
-      if (isValidValue(fields()[2], other.memberEmail)) {
-        this.memberEmail = data().deepCopy(fields()[2].schema(), other.memberEmail);
+      if (isValidValue(fields()[2], other.message)) {
+        this.message = data().deepCopy(fields()[2].schema(), other.message);
         fieldSetFlags()[2] = other.fieldSetFlags()[2];
-      }
-      if (isValidValue(fields()[3], other.memberUsername)) {
-        this.memberUsername = data().deepCopy(fields()[3].schema(), other.memberUsername);
-        fieldSetFlags()[3] = other.fieldSetFlags()[3];
-      }
-      if (isValidValue(fields()[4], other.message)) {
-        this.message = data().deepCopy(fields()[4].schema(), other.message);
-        fieldSetFlags()[4] = other.fieldSetFlags()[4];
       }
     }
 
@@ -305,63 +255,93 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
      */
     private Builder(piper1970.eventservice.common.bookings.messages.BookingCancelled other) {
       super(SCHEMA$, MODEL$);
-      if (isValidValue(fields()[0], other.bookingId)) {
-        this.bookingId = data().deepCopy(fields()[0].schema(), other.bookingId);
+      if (isValidValue(fields()[0], other.booking)) {
+        this.booking = data().deepCopy(fields()[0].schema(), other.booking);
         fieldSetFlags()[0] = true;
       }
+      this.bookingBuilder = null;
       if (isValidValue(fields()[1], other.eventId)) {
         this.eventId = data().deepCopy(fields()[1].schema(), other.eventId);
         fieldSetFlags()[1] = true;
       }
-      if (isValidValue(fields()[2], other.memberEmail)) {
-        this.memberEmail = data().deepCopy(fields()[2].schema(), other.memberEmail);
+      if (isValidValue(fields()[2], other.message)) {
+        this.message = data().deepCopy(fields()[2].schema(), other.message);
         fieldSetFlags()[2] = true;
       }
-      if (isValidValue(fields()[3], other.memberUsername)) {
-        this.memberUsername = data().deepCopy(fields()[3].schema(), other.memberUsername);
-        fieldSetFlags()[3] = true;
-      }
-      if (isValidValue(fields()[4], other.message)) {
-        this.message = data().deepCopy(fields()[4].schema(), other.message);
-        fieldSetFlags()[4] = true;
-      }
     }
 
     /**
-      * Gets the value of the 'bookingId' field.
+      * Gets the value of the 'booking' field.
       * @return The value.
       */
-    public int getBookingId() {
-      return bookingId;
+    public piper1970.eventservice.common.bookings.messages.types.BookingId getBooking() {
+      return booking;
     }
 
 
     /**
-      * Sets the value of the 'bookingId' field.
-      * @param value The value of 'bookingId'.
+      * Sets the value of the 'booking' field.
+      * @param value The value of 'booking'.
       * @return This builder.
       */
-    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder setBookingId(int value) {
+    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder setBooking(piper1970.eventservice.common.bookings.messages.types.BookingId value) {
       validate(fields()[0], value);
-      this.bookingId = value;
+      this.bookingBuilder = null;
+      this.booking = value;
       fieldSetFlags()[0] = true;
       return this;
     }
 
     /**
-      * Checks whether the 'bookingId' field has been set.
-      * @return True if the 'bookingId' field has been set, false otherwise.
+      * Checks whether the 'booking' field has been set.
+      * @return True if the 'booking' field has been set, false otherwise.
       */
-    public boolean hasBookingId() {
+    public boolean hasBooking() {
       return fieldSetFlags()[0];
     }
 
+    /**
+     * Gets the Builder instance for the 'booking' field and creates one if it doesn't exist yet.
+     * @return This builder.
+     */
+    public piper1970.eventservice.common.bookings.messages.types.BookingId.Builder getBookingBuilder() {
+      if (bookingBuilder == null) {
+        if (hasBooking()) {
+          setBookingBuilder(piper1970.eventservice.common.bookings.messages.types.BookingId.newBuilder(booking));
+        } else {
+          setBookingBuilder(piper1970.eventservice.common.bookings.messages.types.BookingId.newBuilder());
+        }
+      }
+      return bookingBuilder;
+    }
 
     /**
-      * Clears the value of the 'bookingId' field.
+     * Sets the Builder instance for the 'booking' field
+     * @param value The builder instance that must be set.
+     * @return This builder.
+     */
+
+    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder setBookingBuilder(piper1970.eventservice.common.bookings.messages.types.BookingId.Builder value) {
+      clearBooking();
+      bookingBuilder = value;
+      return this;
+    }
+
+    /**
+     * Checks whether the 'booking' field has an active Builder instance
+     * @return True if the 'booking' field has an active Builder instance
+     */
+    public boolean hasBookingBuilder() {
+      return bookingBuilder != null;
+    }
+
+    /**
+      * Clears the value of the 'booking' field.
       * @return This builder.
       */
-    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder clearBookingId() {
+    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder clearBooking() {
+      booking = null;
+      bookingBuilder = null;
       fieldSetFlags()[0] = false;
       return this;
     }
@@ -406,86 +386,6 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
     }
 
     /**
-      * Gets the value of the 'memberEmail' field.
-      * @return The value.
-      */
-    public java.lang.CharSequence getMemberEmail() {
-      return memberEmail;
-    }
-
-
-    /**
-      * Sets the value of the 'memberEmail' field.
-      * @param value The value of 'memberEmail'.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder setMemberEmail(java.lang.CharSequence value) {
-      validate(fields()[2], value);
-      this.memberEmail = value;
-      fieldSetFlags()[2] = true;
-      return this;
-    }
-
-    /**
-      * Checks whether the 'memberEmail' field has been set.
-      * @return True if the 'memberEmail' field has been set, false otherwise.
-      */
-    public boolean hasMemberEmail() {
-      return fieldSetFlags()[2];
-    }
-
-
-    /**
-      * Clears the value of the 'memberEmail' field.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder clearMemberEmail() {
-      memberEmail = null;
-      fieldSetFlags()[2] = false;
-      return this;
-    }
-
-    /**
-      * Gets the value of the 'memberUsername' field.
-      * @return The value.
-      */
-    public java.lang.CharSequence getMemberUsername() {
-      return memberUsername;
-    }
-
-
-    /**
-      * Sets the value of the 'memberUsername' field.
-      * @param value The value of 'memberUsername'.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder setMemberUsername(java.lang.CharSequence value) {
-      validate(fields()[3], value);
-      this.memberUsername = value;
-      fieldSetFlags()[3] = true;
-      return this;
-    }
-
-    /**
-      * Checks whether the 'memberUsername' field has been set.
-      * @return True if the 'memberUsername' field has been set, false otherwise.
-      */
-    public boolean hasMemberUsername() {
-      return fieldSetFlags()[3];
-    }
-
-
-    /**
-      * Clears the value of the 'memberUsername' field.
-      * @return This builder.
-      */
-    public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder clearMemberUsername() {
-      memberUsername = null;
-      fieldSetFlags()[3] = false;
-      return this;
-    }
-
-    /**
       * Gets the value of the 'message' field.
       * @return The value.
       */
@@ -500,9 +400,9 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
       * @return This builder.
       */
     public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder setMessage(java.lang.CharSequence value) {
-      validate(fields()[4], value);
+      validate(fields()[2], value);
       this.message = value;
-      fieldSetFlags()[4] = true;
+      fieldSetFlags()[2] = true;
       return this;
     }
 
@@ -511,7 +411,7 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
       * @return True if the 'message' field has been set, false otherwise.
       */
     public boolean hasMessage() {
-      return fieldSetFlags()[4];
+      return fieldSetFlags()[2];
     }
 
 
@@ -521,7 +421,7 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
       */
     public piper1970.eventservice.common.bookings.messages.BookingCancelled.Builder clearMessage() {
       message = null;
-      fieldSetFlags()[4] = false;
+      fieldSetFlags()[2] = false;
       return this;
     }
 
@@ -530,11 +430,18 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
     public BookingCancelled build() {
       try {
         BookingCancelled record = new BookingCancelled();
-        record.bookingId = fieldSetFlags()[0] ? this.bookingId : (java.lang.Integer) defaultValue(fields()[0]);
+        if (bookingBuilder != null) {
+          try {
+            record.booking = this.bookingBuilder.build();
+          } catch (org.apache.avro.AvroMissingFieldException e) {
+            e.addParentField(record.getSchema().getField("booking"));
+            throw e;
+          }
+        } else {
+          record.booking = fieldSetFlags()[0] ? this.booking : (piper1970.eventservice.common.bookings.messages.types.BookingId) defaultValue(fields()[0]);
+        }
         record.eventId = fieldSetFlags()[1] ? this.eventId : (java.lang.Integer) defaultValue(fields()[1]);
-        record.memberEmail = fieldSetFlags()[2] ? this.memberEmail : (java.lang.CharSequence) defaultValue(fields()[2]);
-        record.memberUsername = fieldSetFlags()[3] ? this.memberUsername : (java.lang.CharSequence) defaultValue(fields()[3]);
-        record.message = fieldSetFlags()[4] ? this.message : (java.lang.CharSequence) defaultValue(fields()[4]);
+        record.message = fieldSetFlags()[2] ? this.message : (java.lang.CharSequence) defaultValue(fields()[2]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
         throw e;
@@ -567,13 +474,9 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
   @Override public void customEncode(org.apache.avro.io.Encoder out)
     throws java.io.IOException
   {
-    out.writeInt(this.bookingId);
+    this.booking.customEncode(out);
 
     out.writeInt(this.eventId);
-
-    out.writeString(this.memberEmail);
-
-    out.writeString(this.memberUsername);
 
     if (this.message == null) {
       out.writeIndex(0);
@@ -590,13 +493,12 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
   {
     org.apache.avro.Schema.Field[] fieldOrder = in.readFieldOrderIfDiff();
     if (fieldOrder == null) {
-      this.bookingId = in.readInt();
+      if (this.booking == null) {
+        this.booking = new piper1970.eventservice.common.bookings.messages.types.BookingId();
+      }
+      this.booking.customDecode(in);
 
       this.eventId = in.readInt();
-
-      this.memberEmail = in.readString(this.memberEmail instanceof Utf8 ? (Utf8)this.memberEmail : null);
-
-      this.memberUsername = in.readString(this.memberUsername instanceof Utf8 ? (Utf8)this.memberUsername : null);
 
       if (in.readIndex() != 1) {
         in.readNull();
@@ -606,10 +508,13 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
       }
 
     } else {
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 3; i++) {
         switch (fieldOrder[i].pos()) {
         case 0:
-          this.bookingId = in.readInt();
+          if (this.booking == null) {
+            this.booking = new piper1970.eventservice.common.bookings.messages.types.BookingId();
+          }
+          this.booking.customDecode(in);
           break;
 
         case 1:
@@ -617,14 +522,6 @@ public class BookingCancelled extends org.apache.avro.specific.SpecificRecordBas
           break;
 
         case 2:
-          this.memberEmail = in.readString(this.memberEmail instanceof Utf8 ? (Utf8)this.memberEmail : null);
-          break;
-
-        case 3:
-          this.memberUsername = in.readString(this.memberUsername instanceof Utf8 ? (Utf8)this.memberUsername : null);
-          break;
-
-        case 4:
           if (in.readIndex() != 1) {
             in.readNull();
             this.message = null;

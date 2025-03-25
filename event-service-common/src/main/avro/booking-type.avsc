@@ -1,0 +1,19 @@
+{
+  "type": "record",
+  "name": "BookingId",
+  "namespace": "piper1970.eventservice.common.bookings.messages.types",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int"
+    },
+    {
+      "name": "Email",
+      "type": "string"
+    },
+    {
+      "name": "username",
+      "type": "string"
+    }
+  ]
+}
