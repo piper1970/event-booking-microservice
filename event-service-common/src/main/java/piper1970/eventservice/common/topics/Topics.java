@@ -9,4 +9,5 @@ public class Topics {
   public static final String BOOKINGS_UPDATED = "bookings-updated";
   public static final String EVENT_CANCELLED = "event-cancelled";
   public static final String BOOKINGS_CANCELLED = "bookings-cancelled";
+  public static final String EVENT_COMPLETED = "event-completed";
 }

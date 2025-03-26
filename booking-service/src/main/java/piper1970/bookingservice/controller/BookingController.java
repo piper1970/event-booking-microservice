@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
-import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.service.BookingWebService;
 import piper1970.eventservice.common.tokens.TokenUtilities;
 import reactor.core.publisher.Flux;
@@ -51,9 +50,7 @@ public class BookingController {
 
     log.debug("Getting booking[{}] called by [{}]", id, username);
 
-    return bookingWebService.findBookingByIdAndUsername(id, username)
-        .switchIfEmpty(Mono.error(new BookingNotFoundException(
-            String.format("Booking [%d] not found", id))));
+    return bookingWebService.findBookingByIdAndUsername(id, username);
   }
 
   @PostMapping

@@ -20,9 +20,6 @@ import piper1970.eventservice.exceptions.EventUpdateException;
 @Slf4j
 public class EventExceptionHandler {
 
-  // TODO: make problem-detail type an actual url with explanation
-  //  Also need to fill 'instance' field with actual relative url that caused the problem
-
   @ExceptionHandler(EventNotFoundException.class)
   public ProblemDetail handleNotFound(EventNotFoundException exc) {
     log.warn("Event not found [{}]", exc.getMessage(), exc);

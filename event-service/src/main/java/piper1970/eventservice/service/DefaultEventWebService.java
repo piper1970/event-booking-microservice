@@ -95,37 +95,19 @@ public class DefaultEventWebService implements EventWebService {
   public Mono<EventDto> updateEvent(@NonNull Integer id,
       @NonNull EventUpdateRequest updateRequest) {
     return eventRepository.findById(id)
-        // handle timeouts of initial fetch by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
                 provideTimeoutErrorMessage(
                     "attempting to find event %d for updating".formatted(id)), ex)))
-        // if not found, throw EventNotFoundException
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found".formatted(id))))
-        // attempt to merge... throws EventUpdateException if merge fails due to timing issues
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
-        .flatMap(eventRepository::save)
         .map(eventMapper::toDto)
-        // handle timeout of save by throwing EventTimeoutException
-        .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to update event [%d]".formatted(id)), ex)))
-        // send update-event msg to queue
         .doOnNext(updatedEvent -> {
           log.debug("Event [{}] has been updated", updatedEvent.getId());
-
           var message = createEventChangedMessage(updatedEvent);
           messagePostingService.postEventChangedMessage(message);
         });
-  }
-
-  private EventChanged createEventChangedMessage(EventDto updatedEvent) {
-    var message = new EventChanged();
-    message.setEventId(updatedEvent.getId());
-    message.setMessage(updatedEvent.toString());
-    return message;
   }
 
   @Transactional
@@ -138,7 +120,6 @@ public class DefaultEventWebService implements EventWebService {
             Mono.error(new EventTimeoutException(
                 provideTimeoutErrorMessage(
                     "attempting to find event [%d] for deletion".formatted(id)), ex)))
-        // convert 404 to error
         .switchIfEmpty(Mono.error(new EventNotFoundException(
             "Event [%d} run by [%s]not found".formatted(id, facilitator))))
         .filter(this::safeToCancel)
@@ -146,18 +127,24 @@ public class DefaultEventWebService implements EventWebService {
             "Cannot cancel event [%d] if the event already in progress or completed"
                 .formatted(id)))))
         .flatMap(this::cancelAndSave)
-        .map(eventMapper::toDto)
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
                 provideTimeoutErrorMessage("attempting to save cancelled event [%d]".formatted(id)),
                 ex)))
-        .doOnSuccess(dto -> {
+        .map(eventMapper::toDto)
+        .doOnNext(dto -> {
           log.debug("Event [{}] has been cancelled", dto.getId());
-
           var message = createEventCancelledMessage(dto);
           messagePostingService.postEventCancelledMessage(message);
         });
+  }
+
+  private EventChanged createEventChangedMessage(EventDto updatedEvent) {
+    var message = new EventChanged();
+    message.setEventId(updatedEvent.getId());
+    message.setMessage(updatedEvent.toString());
+    return message;
   }
 
   private EventCancelled createEventCancelledMessage(EventDto dto) {
@@ -210,7 +197,12 @@ public class DefaultEventWebService implements EventWebService {
               event.getId()));
       return Mono.error(exception);
     }
-    return Mono.just(event);
+    return eventRepository.save(event)
+        .timeout(eventsTimeoutDuration)
+        .onErrorResume(TimeoutException.class, ex ->
+            Mono.error(new EventTimeoutException(
+                provideTimeoutErrorMessage("attempting to update event [%d]".formatted(event.getId())), ex)));
+
   }
 
   private boolean safeToCancel(Event event) {
@@ -235,7 +227,7 @@ public class DefaultEventWebService implements EventWebService {
     var adjustedEvent = Optional.ofNullable(eventDateTime)
         .map(event::withEventDateTime)
         .orElse(event);
-    ;
+
     var newCutoffTime = adjustedEvent.getEventDateTime()
         .truncatedTo(ChronoUnit.MINUTES);
     return now.isBefore(originalCutoffTime) && now.isBefore(newCutoffTime);

@@ -58,6 +58,11 @@ public class KafkaConfig {
     return topicCreater.create(Topics.EVENT_CHANGED);
   }
 
+  @Bean
+  NewTopic createEventCompletedTopic(TopicCreater topicCreater) {
+    return topicCreater.create(Topics.EVENT_COMPLETED);
+  }
+
   //endregion Producer Topics
 
   //region Consumer Topics

@@ -86,6 +86,11 @@ public class KafkaConfig {
     return topicCreater.create(Topics.BOOKING_EVENT_UNAVAILABLE);
   }
 
+  @Bean
+  NewTopic eventCompletedTopic(TopicCreater topicCreater) {
+    return topicCreater.create(Topics.EVENT_COMPLETED);
+  }
+
   //endregion Consumer Topics
 
   //endregion Topic Creation

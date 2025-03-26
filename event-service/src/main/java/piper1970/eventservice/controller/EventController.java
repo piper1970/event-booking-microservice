@@ -48,7 +48,6 @@ public class EventController {
       @PathVariable Integer id) {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
-
     log.debug("User [{}] is retrieving event [{}]", user, id);
 
     return eventWebService.getEvent(id);
@@ -62,7 +61,6 @@ public class EventController {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
     createRequest.setFacilitator(user);
-
     log.debug("Facilitator [{}] is creating event", user);
 
     return eventWebService.createEvent(createRequest);
@@ -75,7 +73,6 @@ public class EventController {
       @Valid @RequestBody EventUpdateRequest updateRequest) {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
-
     log.debug("User [{}] is updating event [{}]", user, id);
 
     return eventWebService.updateEvent(id, updateRequest);
@@ -87,10 +84,8 @@ public class EventController {
       @PathVariable Integer id){
 
     var facilitator = TokenUtilities.getUserFromToken(jwtToken);
-
     log.debug("Cancel event[{}] called by [{}]", id, facilitator);
 
     return eventWebService.cancelEvent(id, facilitator);
-
   }
 }

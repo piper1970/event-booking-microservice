@@ -37,6 +37,9 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class KafkaMessageConsumingService implements MessageConsumingService {
 
+  // TODO: need to deal with timeout logic
+  //  also: consider executor-service w/virtual threads for calls to mailSender
+
   private static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
   public static final String BOOKING_EVENT_UNAVAILABLE_SUBJECT = "RE: Booking event is no longer available";
   public static final String BOOKING_HAS_BEEN_CREATED_SUBJECT = "Booking has been created";
@@ -103,10 +106,9 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
         .confirmationStatus(ConfirmationStatus.AWAITING_CONFIRMATION)
         .build();
 
-    // needs to set up timeout logic
     return bookingConfirmationRepository.save(dbConfirmation)
-        .doOnNext(confirmation -> log.info("Booking confirmation: {}", confirmation)).then();
-
+        .doOnNext(confirmation -> log.info("Booking confirmation: {}", confirmation))
+        .then();
   }
 
   @Override
@@ -155,7 +157,6 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
     logMailDelivery(bookingId.getEmail(), formattedEmail);
 
     return Mono.empty();
-
   }
 
   @Override
@@ -209,10 +210,6 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
           var formattedEmail = executeMustache(BookingUpdatedMessage.template(), mustacheHandler);
 
 //          sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, formattedEmail);
-
-          // TODO: setup mailer logic
-          // may need some bulk logic here
-          // May need to add some parallelism
 
           logMailDelivery(bookingId.getEmail(), formattedEmail);
         });
@@ -306,6 +303,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   //endregion Helper Records
 
   private void sendMail(String to, String subject, String body) {
+
     try {
       MimeMessage message = mailSender.createMimeMessage();
 

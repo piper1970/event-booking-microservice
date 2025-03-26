@@ -27,9 +27,6 @@ import piper1970.eventservice.common.exceptions.UnknownCauseException;
 @Slf4j
 public class BookingExceptionHandler {
 
-  // TODO: make problem-detail type an actual url with explanation
-  //  Also need to fill 'instance' field with actual relative url that caused the problem
-
   @ExceptionHandler(BookingNotFoundException.class)
   public ProblemDetail handleException(BookingNotFoundException exc){
     log.warn("Booking not found [{}]", exc.getMessage(), exc);

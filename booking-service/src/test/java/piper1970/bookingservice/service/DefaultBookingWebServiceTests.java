@@ -253,14 +253,14 @@ class DefaultBookingWebServiceTests {
   }
 
   @Test
-  @DisplayName("findBookingByIdAndUsername should not throw error if booking with given user and id cannot be found")
+  @DisplayName("findBookingByIdAndUsername should throw error if booking with given user and id cannot be found")
   void findBookingByIdAndUsername_BookingNotFound() {
 
     when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.empty());
 
     StepVerifier.create(webService.findBookingByIdAndUsername(bookingId, username))
-        .verifyComplete();
+        .verifyError(BookingNotFoundException.class);
 
   }
 

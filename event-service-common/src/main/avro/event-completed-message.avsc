@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "EventCompleted",
+  "namespace": "piper1970.eventservice.common.events.messages",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "int"
+    },
+    {
+      "name": "message",
+      "type": ["null", "string"]
+    }
+  ]
+}
