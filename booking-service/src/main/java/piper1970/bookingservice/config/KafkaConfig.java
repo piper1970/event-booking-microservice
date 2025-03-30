@@ -9,15 +9,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.KafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import piper1970.eventservice.common.kafka.TopicCreater;
 import piper1970.eventservice.common.topics.Topics;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableKafka
 public class KafkaConfig {
 
@@ -98,7 +100,7 @@ public class KafkaConfig {
   //region KafkaTemplate Creation
 
   @Bean
-  ProducerFactory<Integer, Object> producerFactory(KafkaProperties kafkaProperties) {
+  ProducerFactory<Integer,Object> producerFactory(KafkaProperties kafkaProperties) {
     Map<String, Object> propertiesMap = kafkaProperties.buildProducerProperties();
     return new DefaultKafkaProducerFactory<>(propertiesMap);
   }
@@ -119,11 +121,20 @@ public class KafkaConfig {
   }
 
   @Bean
-  public ConcurrentKafkaListenerContainerFactory<Integer, Object> kafkaListenerContainerFactory(
-      ConsumerFactory<Integer, Object> consumerFactory
+  public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, Object>> kafkaListenerContainerFactory(
+      ConsumerFactory<Integer, Object> consumerFactory,
+      KafkaTemplate<Integer, Object> kafkaTemplate
   ){
+
+    // TODO: determine if default poll-timeout (5_000 ms) is sufficient
+    //  if not, then call `factory.getContainerProperties().setPollTimeout(8_000L), or whatever value in milliseconds is needed
+
     ConcurrentKafkaListenerContainerFactory<Integer, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory);
+    factory.setConcurrency(partitionCount * 5); // 5 consumer topics X # of partitions
+    // factory.getContainerProperties().setPollTimeout(X)
+//    factory.getContainerProperties().setListenerTaskExecutor(new VirtualThreadTaskExecutor());
+    factory.setReplyTemplate(kafkaTemplate);
     return factory;
   }
 

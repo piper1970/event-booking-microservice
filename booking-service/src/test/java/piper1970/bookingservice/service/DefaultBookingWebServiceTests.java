@@ -94,8 +94,6 @@ class DefaultBookingWebServiceTests {
   @DisplayName("findAllBookings should be able to retrieve all bookings")
   void findAllBookings() {
 
-    mockClock();
-
     mockBookingMapper();
 
     when(bookingRepository.findAll()).thenReturn(createBookingFlux(null));
@@ -119,8 +117,6 @@ class DefaultBookingWebServiceTests {
   @DisplayName("findAllBookings should throw proper exception if it takes too long")
   void findAllBookings_TimeoutExceeded() {
 
-    mockClock();
-
     when(bookingRepository.findAll()).thenReturn(createBookingFlux(null)
         .delaySequence(timeoutDuration)
     );
@@ -134,8 +130,6 @@ class DefaultBookingWebServiceTests {
   @Test
   @DisplayName("findBookingsByUsername should return bookings by user if in the system")
   void findBookingsByUsername_UserFound() {
-
-    mockClock();
 
     when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(username)
         .filter(booking -> booking.getUsername().equals(username))
@@ -156,8 +150,6 @@ class DefaultBookingWebServiceTests {
   @DisplayName("findBookingsByUsername should not error out if bookings for username are not in the system")
   void findBookingsByUsername_UserNotFound() {
 
-    mockClock();
-
     when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(null)
         .filter(booking -> booking.getUsername().equals(username))
     );
@@ -169,8 +161,6 @@ class DefaultBookingWebServiceTests {
   @Test
   @DisplayName("findBookingsByUsername should throw error if booking-repo takes too long")
   void findBookingsByUsername_TimedOut() {
-
-    mockClock();
 
     when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(username)
         .delaySequence(timeoutDuration)
@@ -186,8 +176,6 @@ class DefaultBookingWebServiceTests {
   @Test
   @DisplayName("findBookingById should properly return booking found with id")
   void findBookingById() {
-
-    mockClock();
 
     var bookingParams = BookingParams.of(bookingId, eventId);
     var booking = createBooking(bookingParams);
@@ -217,8 +205,6 @@ class DefaultBookingWebServiceTests {
   @DisplayName("findBookingById should throw error if booking-repo takes too long")
   void findBookingById_TimedOut() {
 
-    mockClock();
-
     var booking = createBooking(BookingParams.of(bookingId, eventId));
 
     when(bookingRepository.findById(bookingId)).thenReturn(Mono.just(booking)
@@ -235,8 +221,6 @@ class DefaultBookingWebServiceTests {
   @Test
   @DisplayName("findBookingByIdAndUsername should properly return booking with given user and id")
   void findBookingByIdAndUsername_BookingFound() {
-
-    mockClock();
 
     var params = BookingParams.of(bookingId, eventId, username);
     var booking = createBooking(params);
@@ -267,8 +251,6 @@ class DefaultBookingWebServiceTests {
   @Test
   @DisplayName("findBookingByIdAndUsername should throw error if it takes too long")
   void findBookingByIdAndUsername_TimedOut() {
-
-    mockClock();
 
     var params = BookingParams.of(bookingId, eventId, username);
     var booking = createBooking(params);
@@ -428,8 +410,6 @@ class DefaultBookingWebServiceTests {
   @DisplayName("cancelBooking should throw BookingTimeoutException if the repository times out when looking up the booking")
   void cancelBooking_timeout_while_trying_to_find_booking() {
 
-    mockClock();
-
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
     when(bookingRepository.findByIdAndUsername(bookingId, username))
@@ -467,8 +447,6 @@ class DefaultBookingWebServiceTests {
   @Test
   @DisplayName("cancelBooking should pass error through if the event-request-services throws an error")
   void cancelBooking_call_to_event_request_service_times_out() {
-
-    mockClock();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
 
@@ -600,7 +578,6 @@ class DefaultBookingWebServiceTests {
         .id(bookingParams.id())
         .eventId(bookingParams.eventId())
         .username(user)
-        .eventDateTime(LocalDateTime.now(clock).plusDays(bookingParams.id()))
         .bookingStatus(BookingStatus.IN_PROGRESS.name())
         .build();
   }
@@ -613,7 +590,6 @@ class DefaultBookingWebServiceTests {
         .id(bookingParams.id())
         .eventId(bookingParams.eventId())
         .username(user)
-        .eventDateTime(LocalDateTime.now(clock).plusDays(bookingParams.id()))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
   }
@@ -626,7 +602,6 @@ class DefaultBookingWebServiceTests {
               .id(booking.getId())
               .username(booking.getUsername())
               .eventId(booking.getEventId())
-              .eventDateTime(booking.getEventDateTime())
               .bookingStatus(booking.getBookingStatus().name())
               .build();
         }

@@ -106,10 +106,15 @@ public class KafkaConfig {
 
   @Bean
   public ConcurrentKafkaListenerContainerFactory<Integer, Object> kafkaListenerContainerFactory(
-      ConsumerFactory<Integer, Object> consumerFactory
+      ConsumerFactory<Integer, Object> consumerFactory,
+      KafkaTemplate<Integer, Object> kafkaTemplate
   ){
     ConcurrentKafkaListenerContainerFactory<Integer, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setReplyTemplate(kafkaTemplate);
     factory.setConsumerFactory(consumerFactory);
+    factory.setConcurrency(partitionCount * 2); // 2 consumer topics X # of partitions
+    // factory.getContainerProperties().setPollTimeout(X)
+//    factory.getContainerProperties().setListenerTaskExecutor(new VirtualThreadTaskExecutor());
     return factory;
   }
 

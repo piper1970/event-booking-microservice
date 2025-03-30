@@ -2,15 +2,10 @@ package piper1970.bookingservice.repository;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
 import org.springframework.r2dbc.core.DatabaseClient;
@@ -24,9 +19,6 @@ class BookingRepositoryTests {
 
   @Autowired
   BookingRepository bookingRepository;
-
-  @InjectMocks
-  Clock clock = Clock.fixed(Instant.now(), ZoneId.systemDefault());
 
   @Autowired
   DatabaseClient databaseClient;
@@ -44,7 +36,6 @@ class BookingRepositoryTests {
                     event_id          int     NOT NULL,
                     username          varchar(60) NOT NULL,
                     email             varchar(255) NOT NULL,
-                    event_date_time   timestamp   NOT NULL,
                     booking_status    varchar(30) NOT NULL,
                     created_date_time timestamp,
                     updated_date_time timestamp
@@ -69,7 +60,6 @@ class BookingRepositoryTests {
         .username(testUsername)
         .email(testUsername  + "@test.com")
         .eventId(1)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -77,7 +67,6 @@ class BookingRepositoryTests {
         .username(testUsername + "somethingElse")
         .email(testUsername + "somethingElse@test.com")
         .eventId(2)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -85,7 +74,6 @@ class BookingRepositoryTests {
         .username(testUsername)
         .email(testUsername  + "@test.com")
         .eventId(3)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -105,7 +93,6 @@ class BookingRepositoryTests {
         .username(testUsername)
         .email(testUsername  + "@test.com")
         .eventId(1)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -113,7 +100,6 @@ class BookingRepositoryTests {
         .username(testUsername + "somethingElse")
         .email(testUsername + "somethingElse@test.com")
         .eventId(2)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -121,7 +107,6 @@ class BookingRepositoryTests {
         .username(testUsername)
         .email(testUsername + "@test.com")
         .eventId(3)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -146,7 +131,6 @@ class BookingRepositoryTests {
         .username(testUsername + 1)
         .email(testUsername  + "1@test.com")
         .eventId(1)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -154,7 +138,6 @@ class BookingRepositoryTests {
         .username(testUsername + 2)
         .email(testUsername + "2@test.com")
         .eventId(2)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -162,7 +145,6 @@ class BookingRepositoryTests {
         .username(testUsername + 3)
         .email(testUsername + "3@test.com")
         .eventId(1)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.CONFIRMED)
         .build();
 
@@ -170,7 +152,6 @@ class BookingRepositoryTests {
         .username(testUsername + 4)
         .email(testUsername + "4@test.com")
         .eventId(1)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.CANCELLED)
         .build();
 
@@ -178,7 +159,6 @@ class BookingRepositoryTests {
         .username(testUsername + 5)
         .email(testUsername + "5@test.com")
         .eventId(2)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.IN_PROGRESS)
         .build();
 
@@ -186,7 +166,6 @@ class BookingRepositoryTests {
         .username(testUsername + 6)
         .email(testUsername + "6@test.com")
         .eventId(1)
-        .eventDateTime(LocalDateTime.now(clock))
         .bookingStatus(BookingStatus.COMPLETED)
         .build();
 

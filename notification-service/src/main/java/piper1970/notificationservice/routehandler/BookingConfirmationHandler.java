@@ -4,18 +4,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
-import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
@@ -27,14 +28,15 @@ import piper1970.notificationservice.repository.BookingConfirmationRepository;
 import piper1970.notificationservice.service.MessagePostingService;
 import reactor.core.publisher.Mono;
 
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class BookingConfirmationHandler {
 
   private final BookingConfirmationRepository bookingConfirmationRepository;
   private final MessagePostingService messagePostingService;
   private final ObjectMapper objectMapper;
   private final Clock clock;
+  private final Duration notificationTimeoutDuration;
 
   //region Main Handler
 
@@ -45,8 +47,8 @@ public class BookingConfirmationHandler {
     try {
       var confimationUUID = UUID.fromString(confirmationString);
 
-      // TODO: need to handle timeout behavior
       return bookingConfirmationRepository.findByConfirmationString(confimationUUID)
+          .timeout(notificationTimeoutDuration)
           .switchIfEmpty(Mono.defer(() -> {
             var message = "Booking confirmation string [%s] not found".formatted(
                 confirmationString);
@@ -56,13 +58,19 @@ public class BookingConfirmationHandler {
           .flatMap(confirmation -> handleConfirmationLogic(confirmation, confirmationString))
           .onErrorResume(ConfirmationNotFoundException.class, e ->
               buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), pd -> {
-                pd.setTitle("Booking confirmation failed");
-                pd.setType(URI.create("http://notification-service/booking-confirmation-failed"));
+                pd.setTitle("Booking confirmation not found");
+                pd.setType(URI.create("http://notification-service/booking-confirmation-not-found"));
               }).map(body ->
                       ServerResponse.status(HttpStatus.NOT_FOUND)
                           .contentType(MediaType.APPLICATION_JSON)
-                          .body(BodyInserters.fromValue(body)))
-                  .orElseGet(() -> ServerResponse.notFound().build()));
+                          .bodyValue(body))
+                  .orElseGet(() -> ServerResponse.notFound().build()))
+          .onErrorResume(TimeoutException.class, e -> {
+            log.warn("Repository timed out during find of confirmation string {}: {}",
+                confirmationString, e.getMessage(),
+                e);
+            return handleServiceUnavailableResponse();
+          });
 
     } catch (IllegalArgumentException e) {
       var message = "[%s] is not a UUID-formatted string".formatted(confirmationString);
@@ -74,7 +82,7 @@ public class BookingConfirmationHandler {
           .map(body ->
               ServerResponse.status(HttpStatus.BAD_REQUEST)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .body(BodyInserters.fromValue(body)))
+                  .bodyValue(body))
           .orElseGet(() -> ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
     }
   }
@@ -146,6 +154,7 @@ public class BookingConfirmationHandler {
           .build();
 
       return bookingConfirmationRepository.save(updatedConfirmation)
+          .timeout(notificationTimeoutDuration)
           .doOnNext(bookingConfirmation -> {
             // post to confirmation to kafka channel
             var message = buildBookingConfirmedMessage(bookingConfirmation);
@@ -156,14 +165,19 @@ public class BookingConfirmationHandler {
                   .map(json ->
                       ServerResponse.ok()
                           .contentType(MediaType.APPLICATION_JSON)
-                          .body(BodyInserters.fromValue(json)))
+                          .bodyValue(json))
                   .orElseGet(() ->
                       // fallback if json marshalling fails
                       ServerResponse.ok()
                           .contentType(MediaType.TEXT_PLAIN)
-                          .body(BodyInserters.fromValue(
-                              "Booking has been confirmed for event " + confirmation.getEventId()))
-                  ));
+                          .bodyValue(
+                              "Booking has been confirmed for event " + confirmation.getEventId())
+                  ))
+      .onErrorResume(TimeoutException.class, e -> {
+        log.error("Repository timed out during save of confirmed booking confirmation: [{}]. Manual adjustment may be necessary", e.getMessage(),
+            e);
+        return handleServiceUnavailableResponse();
+      });
     } else {
 
       var expiredConfirmation = confirmation.toBuilder()
@@ -176,6 +190,7 @@ public class BookingConfirmationHandler {
       log.warn(errorMessage);
 
       return bookingConfirmationRepository.save(expiredConfirmation)
+          .timeout(notificationTimeoutDuration)
           .flatMap(_ignored ->
               buildErrorResponse(HttpStatus.BAD_REQUEST, errorMessage, pd -> {
                 pd.setTitle("Booking confirmation expired");
@@ -183,15 +198,18 @@ public class BookingConfirmationHandler {
               })
                   .map(msg -> ServerResponse.badRequest()
                       .contentType(MediaType.APPLICATION_JSON)
-                      .body(BodyInserters.fromValue(msg))
+                      .bodyValue(msg)
                   ).orElseGet(() -> {
                     // fallback if JSON marshalling fails
                     return ServerResponse.badRequest()
                         .contentType(MediaType.TEXT_PLAIN)
-                        .body(BodyInserters.fromValue(
-                            "Booking has been expired for event " + confirmation.getEventId()));
+                        .bodyValue("Booking has been expired for event " + confirmation.getEventId());
                   })
-          );
+          ).onErrorResume(TimeoutException.class, e -> {
+            log.error("Repository timed out during save of expired booking confirmation: [{}]. Manual adjustment may be necessary", e.getMessage(),
+                e);
+            return handleServiceUnavailableResponse();
+          });
     }
   }
 
@@ -204,6 +222,21 @@ public class BookingConfirmationHandler {
   }
 
   //endregion Confirmation Logic
+
+  private Mono<ServerResponse> handleServiceUnavailableResponse(){
+    var message = "Service Unavailable. Please try again later.";
+    return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, message, pd -> {
+      pd.setTitle("Service Unavailable");
+      pd.setType(URI.create("http://notification-service/service-unavailable"));
+    })
+        .map(body -> ServerResponse
+            .status(HttpStatus.SERVICE_UNAVAILABLE)
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(body))
+        .orElseGet(() -> ServerResponse.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .contentType(MediaType.TEXT_PLAIN)
+            .bodyValue(message));
+  }
 
   //endregion Helper Methods
 

@@ -16,6 +16,8 @@ import piper1970.eventservice.common.topics.Topics;
 @Slf4j
 public class KafkaMessagePostingService implements MessagePostingService {
 
+  // TODO: what about dead-letter-queue ???
+
   private final KafkaTemplate<Integer, Object> kafkaTemplate;
 
   @Override
@@ -26,7 +28,6 @@ public class KafkaMessagePostingService implements MessagePostingService {
     }catch(Exception e){
       log.error("Unknown error occurred while posting BookingCreated message to kafka: {}", e.getMessage(), e);
     }
-
   }
 
   @Override

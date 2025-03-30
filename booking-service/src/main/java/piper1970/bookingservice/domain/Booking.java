@@ -29,7 +29,7 @@ public class Booking {
   private Integer eventId;
   private String username;
   private String email;
-  private LocalDateTime eventDateTime;
+//  private LocalDateTime eventDateTime;
   private BookingStatus bookingStatus;
 
   @CreatedDate

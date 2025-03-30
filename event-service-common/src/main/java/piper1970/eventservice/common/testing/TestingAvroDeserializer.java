@@ -16,6 +16,8 @@ import piper1970.eventservice.common.topics.Topics;
 
 public class TestingAvroDeserializer extends KafkaAvroDeserializer {
 
+  // TODO: add breakpoints to see how deserialization is working
+
   @Override
   public Object deserialize(String topic, byte[] bytes) {
     switch (topic) {

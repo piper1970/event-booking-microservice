@@ -1,7 +1,6 @@
 package piper1970.bookingservice.boostrap;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,14 +30,12 @@ public class BookingBootstrap implements CommandLineRunner {
                     .eventId(1)
                     .username("test-member")
                     .email("test-member@whatever.com")
-                    .eventDateTime(LocalDateTime.now(clock).plusDays(2))
                     .bookingStatus(BookingStatus.CONFIRMED)
                     .build(),
                 Booking.builder()
                     .eventId(2)
                     .username("test-member")
                     .email("test-member@whatever.com")
-                    .eventDateTime(LocalDateTime.now(clock).plusDays(3))
                     .bookingStatus(BookingStatus.IN_PROGRESS)
                     .build())
         )).subscribe(booking -> log.info(booking.toString()));

@@ -76,8 +76,8 @@ import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
 import reactor.core.publisher.Mono;
 
-@DisplayName("Booking Controller")
-@ActiveProfiles({"test", "integration"})
+@DisplayName("Booking Service Integration Test")
+@ActiveProfiles({"test", "integration_test_containers"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -546,21 +546,18 @@ public class BookingControllerTestsIT {
             .eventId(1)
             .username("test_member")
             .email("test_member@example.com")
-            .eventDateTime(LocalDateTime.now(clock).plusDays(5))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build(),
         Booking.builder()
             .eventId(2)
             .username("test_member")
             .email("test_member@example.com")
-            .eventDateTime(LocalDateTime.now(clock).plusDays(6))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build(),
         Booking.builder()
             .eventId(1)
             .username("test_member-2")
             .email("test_member-2@example.com")
-            .eventDateTime(LocalDateTime.now(clock).plusDays(5))
             .bookingStatus(BookingStatus.IN_PROGRESS)
             .build()
     )).collectList();
@@ -699,7 +696,7 @@ public class BookingControllerTestsIT {
   //region Test Configuration
 
   @TestConfiguration
-  @ActiveProfiles({"test", "integration"})
+  @ActiveProfiles({"test", "integration_test_containers"})
   public static class TestControllerConfiguration {
 
     final String apiUri;

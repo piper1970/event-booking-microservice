@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
-import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.events.messages.EventCompleted;
@@ -17,16 +16,6 @@ import piper1970.eventservice.common.topics.Topics;
 public class KafkaMessagePostingService implements MessagePostingService {
 
   private final KafkaTemplate<Integer, Object> kafkaTemplate;
-
-  @Override
-  public void postBookingEventUnavailableMessage(BookingEventUnavailable message) {
-    try{
-      kafkaTemplate.send(Topics.BOOKING_EVENT_UNAVAILABLE, message.getEventId(), message)
-          .whenComplete(this::logPostResponse);
-    }catch(Exception e){
-      log.error("Unknown error occurred while posting BookingEventUnavailable message to kafka: {}", e.getMessage(), e);
-    }
-  }
 
   @Override
   public void postEventCancelledMessage(EventCancelled message) {

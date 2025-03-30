@@ -10,11 +10,11 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiFunction;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -34,11 +34,9 @@ import reactor.core.publisher.Mono;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class KafkaMessageConsumingService implements MessageConsumingService {
 
-  // TODO: need to deal with timeout logic
-  //  also: consider executor-service w/virtual threads for calls to mailSender
+  // TODO: consider executor-service w/virtual threads for calls to mailSender\
 
   private static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
   public static final String BOOKING_EVENT_UNAVAILABLE_SUBJECT = "RE: Booking event is no longer available";
@@ -49,6 +47,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   private final MustacheFactory mustacheFactory;
   private final Clock clock;
   private final JavaMailSender mailSender;
+  private final Duration notificationTimeoutDuration;
+
 
   @Value("${mustache.location:classpath:/templates}")
   private String mustacheLocation;
@@ -69,6 +69,18 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   private String bookingsApiAddress;
 
   //region Kafka Consumers
+
+  public KafkaMessageConsumingService(BookingConfirmationRepository bookingConfirmationRepository,
+      MustacheFactory mustacheFactory,
+      Clock clock,
+      JavaMailSender mailSender,
+      @Value("${notification-repository.timout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds) {
+    this.bookingConfirmationRepository = bookingConfirmationRepository;
+    this.mustacheFactory = mustacheFactory;
+    this.clock = clock;
+    this.mailSender = mailSender;
+    notificationTimeoutDuration = Duration.ofMillis(notificationRepositoryTimeoutInMilliseconds);
+  }
 
   @Override
   @KafkaListener(topics = Topics.BOOKING_CREATED)
@@ -107,6 +119,13 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
         .build();
 
     return bookingConfirmationRepository.save(dbConfirmation)
+        .timeout(notificationTimeoutDuration)
+        .onErrorResume(e -> {
+          log.error(
+              "Save of booking confirmation for confirmation string [{}] failed due to timeout. Manual adjustment of record may be necessary",
+              confirmToken, e);
+          return Mono.empty();
+        })
         .doOnNext(confirmation -> log.info("Booking confirmation: {}", confirmation))
         .then();
   }
@@ -291,7 +310,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   record BookingEventUnavailableMessage(String username, String bookingLink, String eventLink) {
 
 
-    public static BookingEventUnavailableMessage of(String username, String bookingLink, String eventLink) {
+    public static BookingEventUnavailableMessage of(String username, String bookingLink,
+        String eventLink) {
       return new BookingEventUnavailableMessage(username, bookingLink, eventLink);
     }
 
@@ -327,7 +347,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
     return eventsApiAddress + "/" + eventId;
   }
 
-  private BiFunction<Mustache, StringWriter, String> buildMustacheCancellationHandler(BookingCancelledMessage props){
+  private BiFunction<Mustache, StringWriter, String> buildMustacheCancellationHandler(
+      BookingCancelledMessage props) {
     return (mustache, writer) -> {
       mustache.execute(writer, props);
       return writer.toString();

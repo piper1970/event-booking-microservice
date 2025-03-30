@@ -50,17 +50,20 @@ public class NotificationConfig {
   private final Integer replicationFactor;
   private final Integer partitionCount;
   private final String kafkaRetentionProperty;
+  private final Duration notificationTimeoutDuration;
 
   public NotificationConfig(BookingConfirmationRepository bookingConfirmationRepository,
       ObjectMapper objectMapper,
       @Value("${kafka.replication.factor}") Integer replicationFactor,
       @Value("${kafka.partition.count}") Integer partitionCount,
-      @Value("${kafka.retention.days}") Integer retentionDays) {
+      @Value("${kafka.retention.days}") Integer retentionDays,
+      @Value("${notification-repository.timout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds) {
     this.bookingConfirmationRepository = bookingConfirmationRepository;
     this.objectMapper = objectMapper;
     this.replicationFactor = replicationFactor;
     this.partitionCount = partitionCount;
     this.kafkaRetentionProperty = String.valueOf(Duration.ofDays(retentionDays).toMillis());
+    notificationTimeoutDuration = Duration.ofMillis(notificationRepositoryTimeoutInMilliseconds);
   }
 
   //region Mustache Template Factory
@@ -80,7 +83,8 @@ public class NotificationConfig {
   }
 
   @Bean
-  public RouterFunction<ServerResponse> route(BookingConfirmationHandler bookingConfirmationHandler) {
+  public RouterFunction<ServerResponse> route(
+      BookingConfirmationHandler bookingConfirmationHandler) {
     return RouterFunctions.route()
         .GET("/api/notifications/confirm/{confirmationString}",
             bookingConfirmationHandler::handleConfirmation)
@@ -92,8 +96,8 @@ public class NotificationConfig {
     http.csrf(CsrfSpec::disable)
         .cors(withDefaults())
         .authorizeExchange(exchange -> exchange
-            .pathMatchers(HttpMethod.GET, "/actuator/**","/api/notifications/confirm/**").permitAll()
-            .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/api/notifications/confirm/**")
+            .permitAll()
             .anyExchange()
             .denyAll());
 
@@ -101,13 +105,15 @@ public class NotificationConfig {
   }
 
   @Bean
-  public BookingConfirmationHandler bookingConfirmationHandler(MessagePostingService messagePostingService,
+  public BookingConfirmationHandler bookingConfirmationHandler(
+      MessagePostingService messagePostingService,
       Clock clock) {
     return new BookingConfirmationHandler(
         bookingConfirmationRepository,
         messagePostingService,
         objectMapper,
-        clock
+        clock,
+        notificationTimeoutDuration
     );
   }
 
@@ -116,7 +122,7 @@ public class NotificationConfig {
     CorsConfiguration config = new CorsConfiguration();
     config.setAllowCredentials(true);
     config.addAllowedOrigin("*");
-    config.setAllowedMethods(List.of("GET", "OPTIONS"));
+    config.setAllowedMethods(List.of("GET"));
     config.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -207,9 +213,12 @@ public class NotificationConfig {
   @Bean
   public ConcurrentKafkaListenerContainerFactory<Integer, Object> kafkaListenerContainerFactory(
       ConsumerFactory<Integer, Object> consumerFactory
-  ){
+  ) {
     ConcurrentKafkaListenerContainerFactory<Integer, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory);
+    factory.setConcurrency(partitionCount * 5); // 5 consumer topics X # of partitions
+    // factory.getContainerProperties().setPollTimeout(X)
+//    factory.getContainerProperties().setListenerTaskExecutor(new VirtualThreadTaskExecutor());
     return factory;
   }
 

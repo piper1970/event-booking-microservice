@@ -113,7 +113,6 @@ public class DefaultBookingWebService implements BookingWebService {
                   .eventId(createRequest.getEventId())
                   .username(createRequest.getUsername())
                   .email(createRequest.getEmail())
-                  .eventDateTime(dto.getEventDateTime())
                   .bookingStatus(BookingStatus.IN_PROGRESS)
                   .build();
               return bookingRepository.save(booking)

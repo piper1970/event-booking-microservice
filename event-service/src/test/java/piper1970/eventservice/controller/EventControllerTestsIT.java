@@ -76,7 +76,7 @@ import piper1970.eventservice.dto.model.EventUpdateRequest;
 import piper1970.eventservice.repository.EventRepository;
 import reactor.core.publisher.Mono;
 
-@DisplayName("EventController")
+@DisplayName("Event Service Integration Test")
 @ActiveProfiles({"test", "integration"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)

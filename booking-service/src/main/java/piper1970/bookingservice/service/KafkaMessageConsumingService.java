@@ -4,7 +4,9 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Service;
+import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.bookings.messages.BookingsCancelled;
@@ -24,7 +26,6 @@ import reactor.core.publisher.Mono;
 public class KafkaMessageConsumingService implements MessageConsumingService {
 
   private final BookingRepository bookingRepository;
-  private final MessagePostingService messagePostingService;
 
   @Override
   @KafkaListener(topics = Topics.BOOKING_CONFIRMED)
@@ -52,7 +53,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
               .build();
           return bookingRepository.save(updatedBooking);
         })
-        .doOnNext(booking ->
+        .doOnNext((Booking booking) ->
             log.warn("Booking [{}] for event [{}] has been cancelled due to unavailability",
                 booking.getId(),
                 booking.getEventId()))
@@ -61,31 +62,33 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
   @Override
   @KafkaListener(topics = Topics.EVENT_CHANGED)
-  public Mono<Void> consumeEventChangedMessage(EventChanged message) {
+  @SendTo(Topics.BOOKINGS_UPDATED)
+  public Mono<BookingsUpdated> consumeEventChangedMessage(EventChanged message) {
     var eventId = message.getEventId();
     return getBookingIds(eventId)
-        .doOnNext(list -> {
+        .map(list -> {
           var buMsg = new BookingsUpdated();
           buMsg.setEventId(eventId);
           buMsg.setMessage(message.getMessage());
           buMsg.setBookings(list);
-          messagePostingService.postBookingsUpdatedMessage(buMsg);
-        })
-        .then();
+          return buMsg;
+        });
   }
 
   @Override
   @KafkaListener(topics = Topics.EVENT_CANCELLED)
-  public Mono<Void> consumeEventCancelledMessage(EventCancelled message) {
+  @SendTo(Topics.BOOKINGS_CANCELLED)
+  public Mono<BookingsCancelled> consumeEventCancelledMessage(EventCancelled message) {
     var eventId = message.getEventId();
+
     return getBookingIds(eventId)
-        .doOnNext(list -> {
-          var bcMsg = new BookingsCancelled();
-          bcMsg.setEventId(eventId);
-          bcMsg.setMessage(message.getMessage());
-          bcMsg.setBookings(list);
-          messagePostingService.postBookingsCancelledMessage(bcMsg);
-        }).then();
+        .map(bookings -> {
+          var buMsg = new BookingsCancelled();
+          buMsg.setEventId(eventId);
+          buMsg.setMessage(message.getMessage());
+          buMsg.setBookings(bookings);
+          return buMsg;
+        });
   }
 
   @Override
