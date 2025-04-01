@@ -77,7 +77,7 @@ import piper1970.eventservice.repository.EventRepository;
 import reactor.core.publisher.Mono;
 
 @DisplayName("Event Service Integration Test")
-@ActiveProfiles({"test", "integration"})
+@ActiveProfiles({"test", "integration_test_containers"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Slf4j
@@ -895,7 +895,7 @@ public class EventControllerTestsIT {
   //region TestConfig
 
   @TestConfiguration
-  @ActiveProfiles({"test", "integration"})
+  @ActiveProfiles({"test", "integration_test_containers"})
   public static class TestIntegrationConfiguration {
 
     ///  Initializes database structure from schema

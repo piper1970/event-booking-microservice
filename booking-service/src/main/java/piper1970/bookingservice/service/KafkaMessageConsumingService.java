@@ -47,6 +47,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   @KafkaListener(topics = Topics.BOOKING_EVENT_UNAVAILABLE)
   public Mono<Void> consumeBookingEventUnavailableMessage(BookingEventUnavailable message) {
     return bookingRepository.findById(message.getBooking().getId())
+        .filter(booking -> !BookingStatus.COMPLETED.equals(booking.getBookingStatus()))
         .flatMap(booking -> {
           var updatedBooking = booking.toBuilder()
               .bookingStatus(BookingStatus.CANCELLED)

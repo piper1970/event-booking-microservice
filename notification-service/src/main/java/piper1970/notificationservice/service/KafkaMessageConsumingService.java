@@ -36,12 +36,12 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class KafkaMessageConsumingService implements MessageConsumingService {
 
-  // TODO: consider executor-service w/virtual threads for calls to mailSender\
+  // TODO: consider executor-service w/virtual threads for calls to mailSender
 
-  private static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
-  public static final String BOOKING_EVENT_UNAVAILABLE_SUBJECT = "RE: Booking event is no longer available";
-  public static final String BOOKING_HAS_BEEN_CREATED_SUBJECT = "Booking has been created";
-  public static final String BOOKING_HAS_BEEN_UPDATED_SUBJECT = "Booking has been updated";
+  static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
+  static final String BOOKING_EVENT_UNAVAILABLE_SUBJECT = "RE: Booking event is no longer available";
+  static final String BOOKING_HAS_BEEN_CREATED_SUBJECT = "Booking has been created";
+  static final String BOOKING_HAS_BEEN_UPDATED_SUBJECT = "Booking has been updated";
 
   private final BookingConfirmationRepository bookingConfirmationRepository;
   private final MustacheFactory mustacheFactory;
@@ -50,7 +50,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   private final Duration notificationTimeoutDuration;
 
 
-  @Value("${mustache.location:classpath:/templates}")
+  @Value("${mustache.location:templates}")
   private String mustacheLocation;
 
   @Value("${confirmation.url:http://localhost:8084/api/notifications/confirm}")
@@ -103,7 +103,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
     var formattedEmail = executeMustache(BookingCreatedMessage.template(), mustacheHandler);
 
-//    sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_CREATED_SUBJECT, formattedEmail);
+    sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_CREATED_SUBJECT, formattedEmail);
 
     logMailDelivery(bookingId.getEmail(), formattedEmail);
 
@@ -147,8 +147,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
     var formattedEmail = executeMustache(BookingEventUnavailableMessage.template(),
         mustacheHandler);
 
-//    sendMail(bookingId.getEmail().toString(), BOOKING_EVENT_UNAVAILABLE_SUBJECT,
-//        formattedEmail);
+    sendMail(bookingId.getEmail().toString(), BOOKING_EVENT_UNAVAILABLE_SUBJECT,
+        formattedEmail);
 
     logMailDelivery(bookingId.getEmail(), formattedEmail);
 
@@ -170,8 +170,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
     var formattedEmail = executeMustache(BookingCancelledMessage.template(), mustacheHandler);
 
-//    sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT,
-//        formattedEmail);
+    sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT,
+        formattedEmail);
 
     logMailDelivery(bookingId.getEmail(), formattedEmail);
 
@@ -198,7 +198,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
           var formattedEmail = executeMustache(BookingCancelledMessage.template(), mustacheHandler);
 
-//          sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_UPDATED_SUBJECT, formattedEmail);
+          sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_UPDATED_SUBJECT, formattedEmail);
 
           logMailDelivery(bookingId.getEmail(), formattedEmail);
 
@@ -228,7 +228,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
           var formattedEmail = executeMustache(BookingUpdatedMessage.template(), mustacheHandler);
 
-//          sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, formattedEmail);
+          sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, formattedEmail);
 
           logMailDelivery(bookingId.getEmail(), formattedEmail);
         });

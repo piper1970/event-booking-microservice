@@ -43,7 +43,7 @@ import piper1970.notificationservice.repository.BookingConfirmationRepository;
 import reactor.core.publisher.Mono;
 
 @DisplayName("Notification Service Integration Test")
-@ActiveProfiles({"test", "integration"})
+@ActiveProfiles({"test", "integration_test_containers"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Slf4j
@@ -187,7 +187,7 @@ public class NotificationServiceTestsIT {
   //region TestConfig
 
   @TestConfiguration
-  @ActiveProfiles({"test", "integration"})
+  @ActiveProfiles({"test", "integration_test_containers"})
   public static class TestIntegrationConfiguration {
 
     ///  Initializes database structure from schema
@@ -205,6 +205,5 @@ public class NotificationServiceTestsIT {
   }
 
   //endregion TestConfig
-
 
 }

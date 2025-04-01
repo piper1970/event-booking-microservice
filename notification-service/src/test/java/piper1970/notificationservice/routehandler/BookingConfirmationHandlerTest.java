@@ -28,9 +28,10 @@ import reactor.test.StepVerifier;
 @ExtendWith(MockitoExtension.class)
 class BookingConfirmationHandlerTest {
 
-  private BookingConfirmationHandler testHandler;
 
-  //region Mocked Services
+  //region Properties Used
+
+  private BookingConfirmationHandler testHandler;
 
   @Mock
   private BookingConfirmationRepository mockRepository;
@@ -40,10 +41,6 @@ class BookingConfirmationHandlerTest {
 
   @Mock
   private ServerRequest mockServerRequest;
-
-  //endregion Mocked Services
-
-  //region Helper Fields
 
   private final Clock clock = Clock.systemUTC();
   private final Duration notificationTimeoutDuration = Duration.ofSeconds(5);
@@ -61,7 +58,9 @@ class BookingConfirmationHandlerTest {
       .bookingEmail("test_user@test.com")
       .build();
 
-  //endregion Helper Fields
+  //endregion Properties Used
+
+  //region Before/After
 
   @BeforeEach
   void setUp() {
@@ -76,6 +75,8 @@ class BookingConfirmationHandlerTest {
         notificationTimeoutDuration
     );
   }
+
+  //endregion Before/After
 
   // @formatter:off
 

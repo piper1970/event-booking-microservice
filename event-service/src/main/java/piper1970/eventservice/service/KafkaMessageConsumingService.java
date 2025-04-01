@@ -18,7 +18,6 @@ import reactor.core.publisher.Mono;
 public class KafkaMessageConsumingService implements MessageConsumingService {
 
   private final EventRepository eventRepository;
-//  private final MessagePostingService messagePostingService;
 
   @Override
   @KafkaListener(topics = Topics.BOOKING_CANCELLED)
