@@ -13,10 +13,10 @@ import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class BookingsCancelled extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 2182325694613126009L;
+  private static final long serialVersionUID = -3616833253133397073L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingsCancelled\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"bookings\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"BookingId\",\"namespace\":\"piper1970.eventservice.common.bookings.messages.types\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"Email\",\"type\":\"string\"},{\"name\":\"username\",\"type\":\"string\"}]}}},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"message\",\"type\":[\"null\",\"string\"]}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingsCancelled\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"bookings\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"BookingId\",\"namespace\":\"piper1970.eventservice.common.bookings.messages.types\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"email\",\"type\":\"string\"},{\"name\":\"username\",\"type\":\"string\"}]}}},{\"name\":\"eventId\",\"type\":\"int\"},{\"name\":\"message\",\"type\":[\"null\",\"string\"]}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();

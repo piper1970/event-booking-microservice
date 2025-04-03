@@ -13,10 +13,10 @@ import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class BookingId extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = -322154038444085720L;
+  private static final long serialVersionUID = 4608070977307370635L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingId\",\"namespace\":\"piper1970.eventservice.common.bookings.messages.types\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"Email\",\"type\":\"string\"},{\"name\":\"username\",\"type\":\"string\"}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingId\",\"namespace\":\"piper1970.eventservice.common.bookings.messages.types\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"email\",\"type\":\"string\"},{\"name\":\"username\",\"type\":\"string\"}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();
@@ -73,7 +73,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
   }
 
   private int id;
-  private java.lang.CharSequence Email;
+  private java.lang.CharSequence email;
   private java.lang.CharSequence username;
 
   /**
@@ -86,12 +86,12 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
   /**
    * All-args constructor.
    * @param id The new value for id
-   * @param Email The new value for Email
+   * @param email The new value for email
    * @param username The new value for username
    */
-  public BookingId(java.lang.Integer id, java.lang.CharSequence Email, java.lang.CharSequence username) {
+  public BookingId(java.lang.Integer id, java.lang.CharSequence email, java.lang.CharSequence username) {
     this.id = id;
-    this.Email = Email;
+    this.email = email;
     this.username = username;
   }
 
@@ -106,7 +106,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
   public java.lang.Object get(int field$) {
     switch (field$) {
     case 0: return id;
-    case 1: return Email;
+    case 1: return email;
     case 2: return username;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
@@ -118,7 +118,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
   public void put(int field$, java.lang.Object value$) {
     switch (field$) {
     case 0: id = (java.lang.Integer)value$; break;
-    case 1: Email = (java.lang.CharSequence)value$; break;
+    case 1: email = (java.lang.CharSequence)value$; break;
     case 2: username = (java.lang.CharSequence)value$; break;
     default: throw new IndexOutOfBoundsException("Invalid index: " + field$);
     }
@@ -142,20 +142,20 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
   }
 
   /**
-   * Gets the value of the 'Email' field.
-   * @return The value of the 'Email' field.
+   * Gets the value of the 'email' field.
+   * @return The value of the 'email' field.
    */
   public java.lang.CharSequence getEmail() {
-    return Email;
+    return email;
   }
 
 
   /**
-   * Sets the value of the 'Email' field.
+   * Sets the value of the 'email' field.
    * @param value the value to set.
    */
   public void setEmail(java.lang.CharSequence value) {
-    this.Email = value;
+    this.email = value;
   }
 
   /**
@@ -217,7 +217,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
     implements org.apache.avro.data.RecordBuilder<BookingId> {
 
     private int id;
-    private java.lang.CharSequence Email;
+    private java.lang.CharSequence email;
     private java.lang.CharSequence username;
 
     /** Creates a new Builder */
@@ -235,8 +235,8 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
         this.id = data().deepCopy(fields()[0].schema(), other.id);
         fieldSetFlags()[0] = other.fieldSetFlags()[0];
       }
-      if (isValidValue(fields()[1], other.Email)) {
-        this.Email = data().deepCopy(fields()[1].schema(), other.Email);
+      if (isValidValue(fields()[1], other.email)) {
+        this.email = data().deepCopy(fields()[1].schema(), other.email);
         fieldSetFlags()[1] = other.fieldSetFlags()[1];
       }
       if (isValidValue(fields()[2], other.username)) {
@@ -255,8 +255,8 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
         this.id = data().deepCopy(fields()[0].schema(), other.id);
         fieldSetFlags()[0] = true;
       }
-      if (isValidValue(fields()[1], other.Email)) {
-        this.Email = data().deepCopy(fields()[1].schema(), other.Email);
+      if (isValidValue(fields()[1], other.email)) {
+        this.email = data().deepCopy(fields()[1].schema(), other.email);
         fieldSetFlags()[1] = true;
       }
       if (isValidValue(fields()[2], other.username)) {
@@ -305,29 +305,29 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
     }
 
     /**
-      * Gets the value of the 'Email' field.
+      * Gets the value of the 'email' field.
       * @return The value.
       */
     public java.lang.CharSequence getEmail() {
-      return Email;
+      return email;
     }
 
 
     /**
-      * Sets the value of the 'Email' field.
-      * @param value The value of 'Email'.
+      * Sets the value of the 'email' field.
+      * @param value The value of 'email'.
       * @return This builder.
       */
     public piper1970.eventservice.common.bookings.messages.types.BookingId.Builder setEmail(java.lang.CharSequence value) {
       validate(fields()[1], value);
-      this.Email = value;
+      this.email = value;
       fieldSetFlags()[1] = true;
       return this;
     }
 
     /**
-      * Checks whether the 'Email' field has been set.
-      * @return True if the 'Email' field has been set, false otherwise.
+      * Checks whether the 'email' field has been set.
+      * @return True if the 'email' field has been set, false otherwise.
       */
     public boolean hasEmail() {
       return fieldSetFlags()[1];
@@ -335,11 +335,11 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
 
 
     /**
-      * Clears the value of the 'Email' field.
+      * Clears the value of the 'email' field.
       * @return This builder.
       */
     public piper1970.eventservice.common.bookings.messages.types.BookingId.Builder clearEmail() {
-      Email = null;
+      email = null;
       fieldSetFlags()[1] = false;
       return this;
     }
@@ -390,7 +390,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
       try {
         BookingId record = new BookingId();
         record.id = fieldSetFlags()[0] ? this.id : (java.lang.Integer) defaultValue(fields()[0]);
-        record.Email = fieldSetFlags()[1] ? this.Email : (java.lang.CharSequence) defaultValue(fields()[1]);
+        record.email = fieldSetFlags()[1] ? this.email : (java.lang.CharSequence) defaultValue(fields()[1]);
         record.username = fieldSetFlags()[2] ? this.username : (java.lang.CharSequence) defaultValue(fields()[2]);
         return record;
       } catch (org.apache.avro.AvroMissingFieldException e) {
@@ -426,7 +426,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
   {
     out.writeInt(this.id);
 
-    out.writeString(this.Email);
+    out.writeString(this.email);
 
     out.writeString(this.username);
 
@@ -439,7 +439,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
     if (fieldOrder == null) {
       this.id = in.readInt();
 
-      this.Email = in.readString(this.Email instanceof Utf8 ? (Utf8)this.Email : null);
+      this.email = in.readString(this.email instanceof Utf8 ? (Utf8)this.email : null);
 
       this.username = in.readString(this.username instanceof Utf8 ? (Utf8)this.username : null);
 
@@ -451,7 +451,7 @@ public class BookingId extends org.apache.avro.specific.SpecificRecordBase imple
           break;
 
         case 1:
-          this.Email = in.readString(this.Email instanceof Utf8 ? (Utf8)this.Email : null);
+          this.email = in.readString(this.email instanceof Utf8 ? (Utf8)this.email : null);
           break;
 
         case 2:

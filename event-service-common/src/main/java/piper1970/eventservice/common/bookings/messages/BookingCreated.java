@@ -13,10 +13,10 @@ import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class BookingCreated extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = -2998944354065267303L;
+  private static final long serialVersionUID = -6750332983224235889L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingCreated\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"booking\",\"type\":{\"type\":\"record\",\"name\":\"BookingId\",\"namespace\":\"piper1970.eventservice.common.bookings.messages.types\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"Email\",\"type\":\"string\"},{\"name\":\"username\",\"type\":\"string\"}]}},{\"name\":\"eventId\",\"type\":\"int\"}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"BookingCreated\",\"namespace\":\"piper1970.eventservice.common.bookings.messages\",\"fields\":[{\"name\":\"booking\",\"type\":{\"type\":\"record\",\"name\":\"BookingId\",\"namespace\":\"piper1970.eventservice.common.bookings.messages.types\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"email\",\"type\":\"string\"},{\"name\":\"username\",\"type\":\"string\"}]}},{\"name\":\"eventId\",\"type\":\"int\"}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();

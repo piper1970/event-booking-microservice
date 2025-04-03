@@ -121,6 +121,68 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>io.confluent</groupId>
+				<artifactId>kafka-schema-registry-maven-plugin</artifactId>
+				<version>${kafka-avro-serializer.version}</version>
+				<configuration>
+					<schemaRegistryUrls>
+						<param>http://localhost:9091</param>
+					</schemaRegistryUrls>
+					<subjects>
+						<booking-id-type>${project.basedir}/src/main/avro/booking-id.avsc</booking-id-type>
+						<booking-cancelled-value>${project.basedir}/src/main/avro/booking-cancelled.avsc</booking-cancelled-value>
+						<booking-confirmed-value>${project.basedir}/src/main/avro/booking-confirmed.avsc</booking-confirmed-value>
+						<booking-created-value>${project.basedir}/src/main/avro/booking-created.avsc</booking-created-value>
+						<booking-event-unavailable-value>${project.basedir}/src/main/avro/booking-event-unavailable.avsc</booking-event-unavailable-value>
+						<bookings-cancelled-value>${project.basedir}/src/main/avro/bookings-cancelled.avsc</bookings-cancelled-value>
+						<bookings-updated-value>${project.basedir}/src/main/avro/bookings-updated.avsc</bookings-updated-value>
+						<event-cancelled-value>${project.basedir}/src/main/avro/event-cancelled.avsc</event-cancelled-value>
+						<event-changed-value>${project.basedir}/src/main/avro/event-changed.avsc</event-changed-value>
+					</subjects>
+					<references>
+						<booking-cancelled-value>
+							<reference>
+								<name>booking</name>
+								<subject>booking-id-type</subject>
+							</reference>
+						</booking-cancelled-value>
+						<booking-confirmed-value>
+							<reference>
+								<name>booking</name>
+								<subject>booking-id-type</subject>
+							</reference>
+						</booking-confirmed-value>
+						<booking-created-value>
+							<reference>
+								<name>booking</name>
+								<subject>booking-id-type</subject>
+							</reference>
+						</booking-created-value>
+						<bookings-cancelled-value>
+							<reference>
+								<name>bookings</name>
+								<subject>booking-id-type</subject>
+							</reference>
+						</bookings-cancelled-value>
+						<bookings-updated-value>
+							<reference>
+								<name>bookings</name>
+								<subject>booking-id-type</subject>
+							</reference>
+						</bookings-updated-value>
+						<booking-event-unavailable-value>
+							<reference>
+								<name>booking</name>
+								<subject>booking-id-type</subject>
+							</reference>
+						</booking-event-unavailable-value>
+					</references>
+				</configuration>
+				<goals>
+					<goal>register</goal>
+				</goals>
+			</plugin>
 		</plugins>
 	</build>
 
@@ -131,5 +193,13 @@
 			<url>https://packages.confluent.io/maven/</url>
 		</repository>
 	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>confluent</id>
+			<name>Confluent Maven Repository</name>
+			<url>https://packages.confluent.io/maven/</url>
+		</pluginRepository>
+	</pluginRepositories>
 
 </project>

@@ -40,8 +40,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
   static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
   static final String BOOKING_EVENT_UNAVAILABLE_SUBJECT = "RE: Booking event is no longer available";
-  static final String BOOKING_HAS_BEEN_CREATED_SUBJECT = "Booking has been created";
-  static final String BOOKING_HAS_BEEN_UPDATED_SUBJECT = "Booking has been updated";
+  static final String BOOKING_HAS_BEEN_CREATED_SUBJECT = "RE: Booking has been created";
+  static final String BOOKING_HAS_BEEN_UPDATED_SUBJECT = "RE: Booking has been updated";
 
   private final BookingConfirmationRepository bookingConfirmationRepository;
   private final MustacheFactory mustacheFactory;
@@ -85,6 +85,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   @Override
   @KafkaListener(topics = Topics.BOOKING_CREATED)
   public Mono<Void> consumeBookingCreatedMessage(BookingCreated message) {
+
+    log.debug("Consuming booking created message {}", message);
 
     var confirmToken = UUID.randomUUID();
     var confirmLink = confirmationUrl + "/" + confirmToken;
@@ -198,7 +200,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
           var formattedEmail = executeMustache(BookingCancelledMessage.template(), mustacheHandler);
 
-          sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_UPDATED_SUBJECT, formattedEmail);
+          sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, formattedEmail);
 
           logMailDelivery(bookingId.getEmail(), formattedEmail);
 
@@ -228,7 +230,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
           var formattedEmail = executeMustache(BookingUpdatedMessage.template(), mustacheHandler);
 
-          sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, formattedEmail);
+          sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_UPDATED_SUBJECT, formattedEmail);
 
           logMailDelivery(bookingId.getEmail(), formattedEmail);
         });

@@ -180,6 +180,8 @@ public class BookingConfirmationHandler {
       });
     } else {
 
+      // TODO: need to send message to booking-service that this has expired
+
       var expiredConfirmation = confirmation.toBuilder()
           .confirmationStatus(ConfirmationStatus.EXPIRED)
           .build();

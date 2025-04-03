@@ -5,7 +5,6 @@ api:
     notification-service: http://localhost:8084
 
 csrf:enabled: false
-
 cors:allowedOrigin: "*"
 
 oauth2:
@@ -59,28 +58,6 @@ spring:
           uri: ${api.uri.notification-service}
           predicates:
             - Path=/api/notifications/**,/api/notifications
-
-# logging
-logging:
-  level:
-    org:
-      springframework:
-        cloud:
-          config: OFF
-        web:
-          server:
-            adapter: OFF
-    org.springframework.web: DEBUG
-    org.springframework.boot: OFF
-    org.springframework.web.reactive.function.client: OFF
-    org.springframework.security: DEBUG
-    org.springframework.security.oauth2: TRACE
-    org.springframework.cloud.gateway.routes: TRACE
-    piper1970:
-      event_service_gateway: INFO
-    com:
-      netflix:
-        discovery: OFF
 
 # Configuration for /info endpoint
 info:application:
