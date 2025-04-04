@@ -3,7 +3,6 @@
 ## Prerequisites
 
 - JDK 21+
-- Maven
 - Docker and Docker Compose
 
 ## Building Maven Artifacts
