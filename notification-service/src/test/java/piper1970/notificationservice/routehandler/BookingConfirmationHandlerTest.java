@@ -1,7 +1,11 @@
 package piper1970.notificationservice.routehandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +21,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.server.ServerRequest;
+import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
+import piper1970.eventservice.common.notifications.messages.BookingExpired;
 import piper1970.notificationservice.domain.BookingConfirmation;
 import piper1970.notificationservice.domain.ConfirmationStatus;
 import piper1970.notificationservice.repository.BookingConfirmationRepository;
@@ -187,6 +193,8 @@ class BookingConfirmationHandlerTest {
         .confirmationStatus(ConfirmationStatus.EXPIRED)
         .build();
 
+    doNothing().when(mockPostingService).postBookingExpiredMessage(any(BookingExpired.class));
+
     when(mockRepository.findByConfirmationString(eq(testToken)))
         .thenReturn(
             Mono.just(originalConfirmation)
@@ -200,8 +208,11 @@ class BookingConfirmationHandlerTest {
     StepVerifier.create(testHandler.handleConfirmation(mockServerRequest))
         .expectSubscription()
         .thenAwait(notificationTimeoutDuration)
-        .assertNext(serverResponse -> assertThat(serverResponse.statusCode().value()).isEqualTo(
-            HttpStatus.BAD_REQUEST.value())).verifyComplete();
+        .assertNext(serverResponse -> {
+          assertThat(serverResponse.statusCode().value()).isEqualTo(
+              HttpStatus.BAD_REQUEST.value());
+          verify(mockPostingService, times(1)).postBookingExpiredMessage(any(BookingExpired.class));
+        }).verifyComplete();
   }
 
   @Test
@@ -256,6 +267,8 @@ class BookingConfirmationHandlerTest {
             Mono.just(originalConfirmation)
         );
 
+    doNothing().when(mockPostingService).postBookingConfirmedMessage(any(BookingConfirmed.class));
+
     when(mockRepository.save(eq(confirmedConfirmation)))
         .thenReturn(
             Mono.just(confirmedConfirmation)
@@ -264,8 +277,11 @@ class BookingConfirmationHandlerTest {
     StepVerifier.create(testHandler.handleConfirmation(mockServerRequest))
         .expectSubscription()
         .thenAwait(notificationTimeoutDuration)
-        .assertNext(serverResponse -> assertThat(serverResponse.statusCode().value()).isEqualTo(
-            HttpStatus.OK.value())).verifyComplete();
+        .assertNext(serverResponse -> {
+          assertThat(serverResponse.statusCode().value()).isEqualTo(
+              HttpStatus.OK.value());
+          verify(mockPostingService, times(1)).postBookingConfirmedMessage(any(BookingConfirmed.class));
+        }).verifyComplete();
 
   }
 

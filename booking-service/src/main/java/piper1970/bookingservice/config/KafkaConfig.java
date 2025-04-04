@@ -74,6 +74,11 @@ public class KafkaConfig {
   }
 
   @Bean
+  NewTopic createBookingExpiredTopic(TopicCreater topicCreater){
+    return topicCreater.create(Topics.BOOKING_EXPIRED);
+  }
+
+  @Bean
   NewTopic eventChangedTopic(TopicCreater topicCreater) {
     return topicCreater.create(Topics.EVENT_CHANGED);
   }

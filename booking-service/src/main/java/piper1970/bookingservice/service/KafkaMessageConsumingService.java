@@ -17,6 +17,7 @@ import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.events.messages.EventCompleted;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
+import piper1970.eventservice.common.notifications.messages.BookingExpired;
 import piper1970.eventservice.common.topics.Topics;
 import reactor.core.publisher.Mono;
 
@@ -39,6 +40,22 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
         })
         .doOnNext(updatedBooking ->
             log.info("Booking confirmed: {}", updatedBooking)
+        )
+        .then();
+  }
+
+  @Override
+  @KafkaListener(topics = Topics.BOOKING_EXPIRED)
+  public Mono<Void> consumeBookingExpiredMessage(BookingExpired message) {
+    return bookingRepository.findById(message.getBooking().getId())
+        .flatMap(booking -> {
+          var updatedBooking = booking.toBuilder()
+              .bookingStatus(BookingStatus.CANCELLED)
+              .build();
+          return bookingRepository.save(updatedBooking);
+        })
+        .doOnNext(updatedBooking ->
+            log.info("Booking cancelled due to expired confirmation: {}", updatedBooking)
         )
         .then();
   }

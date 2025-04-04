@@ -14,41 +14,55 @@ graph TB
     subgraph Databases
         EventDB[(Postgres - Event DB)]
         BookingDB[(Postgres - Booking DB)]
+        NotificationDB[(Postgres - Notification DB)]
     end
     
     subgraph Messaging
         Kafka[Kafka Message Broker]
         
         subgraph Kafka Topics
-            topic1[create-booking-request]
-            topic2[create-booking-response]
-            topic3[cancel-booking]
+            topic1[booking-created]
+            topic2[booking-confirmed]
+            topic3[booking-cancelled]
             topic4[event-changed]
-            topic5[booking-updates]
+            topic5[bookings-updated]
             topic6[event-cancelled]
-            topic7[booking-cancellations]
+            topic7[bookings-cancelled]
             topic8(booking-event-unavailable)
+            topic9(event-completed)
         end
     end
 
     Client --> Gateway
+
     Gateway --> EventService
     Gateway --> BookingService
-    
+    Gateway --> NotificationService
+
     Gateway --> Keycloak
+    EventService --> Keycloak
+    NotificationService --> Keycloak
     
     EventService --> EventDB
     BookingService --> BookingDB
+    NotificationService --> NotificationDB
     
     EventService --> Eureka
     BookingService --> Eureka
+    NotificationService --> Eureka
     Gateway --> Eureka
-    
-    BookingService --> EventService
-    
+    Config --> Eureka
+
+    Gateway --> Config
+    BookingService --> Config
+    EventService --> Config
+    NotificationService --> Config
+
     BookingService --> Kafka
     NotificationService --> Kafka
     EventService --> Kafka
+
+    BookingService --> EventService
 
     style Gateway fill:#f9f,stroke:#333
     style Eureka fill:#ff9,stroke:#333

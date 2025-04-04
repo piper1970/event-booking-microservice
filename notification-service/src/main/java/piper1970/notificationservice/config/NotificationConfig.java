@@ -154,6 +154,11 @@ public class NotificationConfig {
     return topicCreater.create(Topics.BOOKING_CONFIRMED);
   }
 
+  @Bean
+  NewTopic createBookingExpiredTopic(TopicCreater topicCreater){
+    return topicCreater.create(Topics.BOOKING_EXPIRED);
+  }
+
   //endregion Producer Topics
 
   //region Consumer Topics

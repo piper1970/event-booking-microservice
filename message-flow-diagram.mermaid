@@ -4,13 +4,11 @@ sequenceDiagram
     participant ES as Event Service
     participant NS as Notification Service
     participant Kafka
-
 %% Start Of Booking Section
     note over BS: Get All Bookings Scenario
     Client ->> BS: Member requests to get all member's bookings
     BS ->> BS: Gets all bookings
     BS ->> Client: Return list of all bookings owned by member
-
     note over BS: Get Booking By Id Scenario
     Client ->> BS: Member requests to get member's booking with given id
     BS ->> BS: Attempt to retrieve booking with given id
@@ -41,29 +39,33 @@ sequenceDiagram
         Client ->> NS: Confirm booking by going to confirmation link
         NS ->> NS: Remove confirmation link from system
         NS ->> Kafka: Publish to 'booking-confirmed'
+    else Customer confirmation comes too late
+        Client ->> NS: Attempt to confirm expired booking
+        NS ->> NS: Set confirmation status as expired
+        NS ->> Kafka: Publish to 'booking-expired'
     end
 
+    note over BS: Booking Confirmation Is Expired
+    Kafka ->> BS: Consume from 'booking-expired'
+    BS ->> BS: Set booking status to CANCELLED
+
     note over NS: New Booking Is Confirmed
-        Kafka ->> BS: Consume from 'booking-confirmed'
-        BS ->> BS: Set booking status to CONFIRMED
+    Kafka ->> BS: Consume from 'booking-confirmed'
+    BS ->> BS: Set booking status to CONFIRMED
+    Kafka ->> ES: Consume from 'booking-confirmed'
+    ES ->> ES: Determine if event has any available bookings left
 
-        Kafka ->> ES: Consume from 'booking-confirmed'
-        ES ->> ES: Determine if event has any available bookings left
-
-        alt Event has bookings left
-            ES ->> ES: Decrement available bookings for given event
-        else Event has no more available bookings
-            ES ->> Kafka: Publish to 'booking-event-unavailable'
-        end
+    alt Event has bookings left
+        ES ->> ES: Decrement available bookings for given event
+    else Event has no more available bookings
+        ES ->> Kafka: Publish to 'booking-event-unavailable'
+    end
 
     note over ES: No Bookings Available For Event
     Kafka ->> BS: Consume from 'booking-event-unavailable'
     BS ->> BS: Set booking status to CANCELLED
-
     Kafka ->> NS: Consume from 'booking-event-unavailable'
     NS ->> NS: Send 'booking-event-unavailable' email to member
-
-
     note over BS: Cancel Booking Scenario
     Client ->> BS: Member requests to cancel member's booking with given id
     BS ->> ES: Get event associated with booking to verify whether cancellation is possible
@@ -72,10 +74,8 @@ sequenceDiagram
         BS ->> BS: Update booking status to CANCELLED
         BS ->> Kafka: Publish to 'booking-cancelled'
         BS ->> Client: Return updated booking
-
         Kafka ->> ES: Consume From 'booking-cancelled'
         ES ->> ES: Increment available bookings for given event
-
         Kafka ->> NS: Consume From 'booking-cancelled'
         NS ->> NS: Send 'booking-cancelled' email to member
 
@@ -85,12 +85,10 @@ sequenceDiagram
 %% End Of Booking Section
 
 %% Start Of Events Section
-
     note over ES: Get All Events Scenario
     Client ->> ES: Request to get all events
     ES ->> ES: Get all events
     ES ->> Client: Return list of all events (may be empty)
-
     note over ES: Get Event By Id Scenario
     Client ->> ES: Get event with given id
     ES ->> ES: Attempt to get event with given id
@@ -105,20 +103,17 @@ sequenceDiagram
     Client ->> ES: Performer requests to create new event
     ES ->> ES: Create new event facilitated by performer
     ES ->> Client: Return new event
-
     note over ES: Event Update Scenario
     Client ->> ES: Performer requests to update performer's event with given id
-    ES->>ES: Verify whether given event with given id can be updated
+    ES ->> ES: Verify whether given event with given id can be updated
 
     alt Event can be updated
         ES ->> ES: Update event
         ES ->> Kafka: Publish to 'event-changed'
         ES ->> Client: Return updated event
-
         Kafka ->> BS: Consume from 'event-changed'
         BS ->> BS: Update all bookings associated with event
         BS ->> Kafka: Publish to 'bookings-updated'
-
         Kafka ->> NS: Consume from 'bookings-updated'
         NS ->> NS: Send 'bookings-updated' email to all booking members associated with event
 
@@ -134,11 +129,9 @@ sequenceDiagram
         ES ->> ES: Event is cancelled
         ES ->> Kafka: Publish to 'event-cancelled'
         ES ->> Client: Return updated, cancelled event
-
         Kafka ->> BS: Consume from 'event-cancelled'
         BS ->> BS: Set all bookings status's to CANCELLED
         BS ->> Kafka: Publish to 'bookings-cancelled'
-
         Kafka ->> NS: Consume from 'bookings-cancelled'
         NS ->> NS: Send 'booking-cancelled' email to all associated members
 

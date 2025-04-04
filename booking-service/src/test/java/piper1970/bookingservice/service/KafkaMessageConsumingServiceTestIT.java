@@ -40,6 +40,7 @@ import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
+import piper1970.eventservice.common.notifications.messages.BookingExpired;
 import piper1970.eventservice.common.topics.Topics;
 
 @Tags({
@@ -116,6 +117,35 @@ class KafkaMessageConsumingServiceTestIT{
           var status = bk.getBookingStatus();
           assertThat(status).isNotNull();
           assertThat(status).isEqualTo(BookingStatus.CONFIRMED);
+        }, () -> fail("Unable to find booking")));
+  }
+
+  @Test
+  @DisplayName("should trigger a database update from IN_PROGRESS to CANCELLED when a BookingExpired message is posted to kafka topic")
+  void consumeBookingExpiredMessage() {
+
+    var booking = Booking.builder()
+        .email("test_user@test.com")
+        .username("test_user")
+        .eventId(1)
+        .bookingStatus(BookingStatus.IN_PROGRESS)
+        .build();
+
+    bookingRepository.save(booking)
+        .doOnNext(bk -> {
+          var message = new BookingExpired();
+          message.setBooking(new BookingId(bk.getId(), bk.getEmail(), bk.getUsername()));
+          message.setEventId(bk.getEventId());
+          testProducer.send(new ProducerRecord<>(Topics.BOOKING_EXPIRED, bk.getId(), message));
+        }).block();
+
+    Awaitility.await().atMost(timeoutDuration).untilAsserted(() -> bookingRepository.findByUsername(booking.getUsername())
+        .single()
+        .blockOptional()
+        .ifPresentOrElse(bk -> {
+          var status = bk.getBookingStatus();
+          assertThat(status).isNotNull();
+          assertThat(status).isEqualTo(BookingStatus.CANCELLED);
         }, () -> fail("Unable to find booking")));
   }
 

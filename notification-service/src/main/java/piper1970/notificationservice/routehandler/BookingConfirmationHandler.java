@@ -21,6 +21,7 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
+import piper1970.eventservice.common.notifications.messages.BookingExpired;
 import piper1970.notificationservice.domain.BookingConfirmation;
 import piper1970.notificationservice.domain.ConfirmationStatus;
 import piper1970.notificationservice.exceptions.ConfirmationNotFoundException;
@@ -94,14 +95,19 @@ public class BookingConfirmationHandler {
   //region Avro Message Builder
 
   private BookingConfirmed buildBookingConfirmedMessage(BookingConfirmation confirmation) {
-    var message = new BookingConfirmed();
-    message.setEventId(confirmation.getEventId());
     var bookingId = new BookingId();
     bookingId.setId(confirmation.getBookingId());
     bookingId.setEmail(confirmation.getBookingEmail());
     bookingId.setUsername(confirmation.getBookingUser());
-    message.setBooking(bookingId);
-    return message;
+    return new BookingConfirmed(bookingId, confirmation.getEventId());
+  }
+
+  private BookingExpired buildBookingExpiredMessage(BookingConfirmation confirmation) {
+    var bookingId = new BookingId();
+    bookingId.setId(confirmation.getBookingId());
+    bookingId.setEmail(confirmation.getBookingEmail());
+    bookingId.setUsername(confirmation.getBookingUser());
+    return new BookingExpired(bookingId, confirmation.getEventId());
   }
 
   //endregion Avro Message Builder
@@ -180,8 +186,6 @@ public class BookingConfirmationHandler {
       });
     } else {
 
-      // TODO: need to send message to booking-service that this has expired
-
       var expiredConfirmation = confirmation.toBuilder()
           .confirmationStatus(ConfirmationStatus.EXPIRED)
           .build();
@@ -193,6 +197,10 @@ public class BookingConfirmationHandler {
 
       return bookingConfirmationRepository.save(expiredConfirmation)
           .timeout(notificationTimeoutDuration)
+          .doOnNext(bookingConfirmation -> {
+            var message = buildBookingExpiredMessage(bookingConfirmation);
+            messagePostingService.postBookingExpiredMessage(message);
+          })
           .flatMap(_ignored ->
               buildErrorResponse(HttpStatus.BAD_REQUEST, errorMessage, pd -> {
                 pd.setTitle("Booking confirmation expired");
@@ -201,14 +209,12 @@ public class BookingConfirmationHandler {
                   .map(msg -> ServerResponse.badRequest()
                       .contentType(MediaType.APPLICATION_JSON)
                       .bodyValue(msg)
-                  ).orElseGet(() -> {
-                    // fallback if JSON marshalling fails
-                    return ServerResponse.badRequest()
+                  ).orElseGet(() -> ServerResponse.badRequest()
                         .contentType(MediaType.TEXT_PLAIN)
-                        .bodyValue("Booking has been expired for event " + confirmation.getEventId());
-                  })
+                        .bodyValue("Booking has been expired for event " + confirmation.getEventId())
+                  )
           ).onErrorResume(TimeoutException.class, e -> {
-            log.error("Repository timed out during save of expired booking confirmation: [{}]. Manual adjustment may be necessary", e.getMessage(),
+            log.error("Repository timed out during save of expired booking: [{}]. Manual adjustment may be necessary", e.getMessage(),
                 e);
             return handleServiceUnavailableResponse();
           });
