@@ -28,6 +28,8 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
   private final BookingRepository bookingRepository;
 
+  // TODO: need to handle timeout behavior for calls to repository
+
   @Override
   @KafkaListener(topics = Topics.BOOKING_CONFIRMED)
   public Mono<Void> consumeBookingConfirmedMessage(BookingConfirmed message) {
@@ -83,7 +85,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   @SendTo(Topics.BOOKINGS_UPDATED)
   public Mono<BookingsUpdated> consumeEventChangedMessage(EventChanged message) {
     var eventId = message.getEventId();
-    return getBookingIds(eventId)
+    return getBookingIdsForConfirmedOrInProgress(eventId)
         .map(list -> {
           var buMsg = new BookingsUpdated();
           buMsg.setEventId(eventId);
@@ -99,7 +101,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   public Mono<BookingsCancelled> consumeEventCancelledMessage(EventCancelled message) {
     var eventId = message.getEventId();
 
-    return getBookingIds(eventId)
+    return getBookingIdsForConfirmedOrInProgress(eventId)
         .map(bookings -> {
           var buMsg = new BookingsCancelled();
           buMsg.setEventId(eventId);
@@ -112,13 +114,12 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   @Override
   @KafkaListener(topics = Topics.EVENT_COMPLETED)
   public Mono<Void> consumeEventCompletedMessage(EventCompleted message) {
-
-    // TODO: update all bookings for this event to completed
-
-    return Mono.empty();
+    return bookingRepository.completeConfirmedBookingsForEvent(message.getEventId())
+        .doOnNext(count -> log.info("{} bookings have been completed for event {}", count, message.getEventId()))
+        .then();
   }
 
-  private Mono<List<BookingId>> getBookingIds(Integer eventId) {
+  private Mono<List<BookingId>> getBookingIdsForConfirmedOrInProgress(Integer eventId) {
 
     // return only IN_PROGRESS or CONFIRMED bookings
     return bookingRepository.findByEventIdAndBookingStatusNotIn(eventId,

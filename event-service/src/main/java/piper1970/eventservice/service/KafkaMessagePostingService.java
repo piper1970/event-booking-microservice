@@ -39,6 +39,8 @@ public class KafkaMessagePostingService implements MessagePostingService {
 
   @Override
   public void postEventCompletedMessage(EventCompleted message) {
+    // TODO: need to figure out how to trigger this logic.
+    //  Possibly a Scheduled process, with a configurable timerange
     try{
       kafkaTemplate.send(Topics.EVENT_COMPLETED, message.getEventId(), message)
           .whenComplete(this::logPostResponse);
