@@ -5,7 +5,6 @@ import com.github.mustachejava.MustacheFactory;
 import com.google.common.io.Resources;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
@@ -14,7 +13,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.BiFunction;
+import java.util.concurrent.Callable;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,13 +30,15 @@ import piper1970.eventservice.common.topics.Topics;
 import piper1970.notificationservice.domain.BookingConfirmation;
 import piper1970.notificationservice.domain.ConfirmationStatus;
 import piper1970.notificationservice.repository.BookingConfirmationRepository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @Slf4j
 public class KafkaMessageConsumingService implements MessageConsumingService {
 
-  // TODO: consider executor-service w/virtual threads for calls to mailSender
+  // TODO: consider executor-service w/virtual threads for calls to mailSender/logger
 
   static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
   static final String BOOKING_EVENT_UNAVAILABLE_SUBJECT = "RE: Booking event is no longer available";
@@ -92,22 +94,19 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
     var confirmLink = confirmationUrl + "/" + confirmToken;
 
     var bookingId = Objects.requireNonNull(message.getBooking());
-    BookingCreatedMessage props = BookingCreatedMessage.of(
+    BookingCreatedMessage props = new BookingCreatedMessage(
         bookingId.getUsername().toString(), buildBookingLink(bookingId.getId()),
         buildEventLink(message.getEventId()),
         confirmLink
     );
 
-    BiFunction<Mustache, StringWriter, String> mustacheHandler = (mustache, writer) -> {
-      mustache.execute(writer, props);
-      return writer.toString();
-    };
-
-    var formattedEmail = executeMustache(BookingCreatedMessage.template(), mustacheHandler);
-
-    sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_CREATED_SUBJECT, formattedEmail);
-
-    logMailDelivery(bookingId.getEmail(), formattedEmail);
+    var template = BookingCreatedMessage.template();
+    var emailAddress = bookingId.getEmail();
+    var sendEmailMono = readerMono(template, props)
+        .doOnNext(email -> logMailDelivery(emailAddress, email))
+        .flatMap(msg ->
+            handleMailMono(emailAddress.toString(), BOOKING_HAS_BEEN_CREATED_SUBJECT, msg)
+        );
 
     var dbConfirmation = BookingConfirmation.builder()
         .bookingId(bookingId.getId())
@@ -129,7 +128,7 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
           return Mono.empty();
         })
         .doOnNext(confirmation -> log.info("Booking confirmation: {}", confirmation))
-        .then();
+        .then(sendEmailMono);
   }
 
   @Override
@@ -137,24 +136,16 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   public Mono<Void> consumeBookingEventUnavailableMessage(BookingEventUnavailable message) {
 
     var bookingId = Objects.requireNonNull(message.getBooking());
-    final BookingEventUnavailableMessage props = BookingEventUnavailableMessage.of(
+    final BookingEventUnavailableMessage props = new BookingEventUnavailableMessage(
         bookingId.getUsername().toString(),
         buildBookingLink(bookingId.getId()), buildEventLink(message.getEventId()));
 
-    BiFunction<Mustache, StringWriter, String> mustacheHandler = (mustache, writer) -> {
-      mustache.execute(writer, props);
-      return writer.toString();
-    };
-
-    var formattedEmail = executeMustache(BookingEventUnavailableMessage.template(),
-        mustacheHandler);
-
-    sendMail(bookingId.getEmail().toString(), BOOKING_EVENT_UNAVAILABLE_SUBJECT,
-        formattedEmail);
-
-    logMailDelivery(bookingId.getEmail(), formattedEmail);
-
-    return Mono.empty();
+    var template = BookingEventUnavailableMessage.template();
+    return readerMono(template, props)
+        .doOnNext(email -> logMailDelivery(bookingId.getEmail(), email))
+        .flatMap(msg ->
+            handleMailMono(bookingId.getEmail().toString(), BOOKING_EVENT_UNAVAILABLE_SUBJECT, msg)
+        );
   }
 
   @Override
@@ -162,50 +153,40 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   public Mono<Void> consumeBookingCancelledMessage(BookingCancelled message) {
 
     var bookingId = Objects.requireNonNull(message.getBooking());
-    final BookingCancelledMessage props = BookingCancelledMessage.of(
+    final BookingCancelledMessage props = new BookingCancelledMessage(
         bookingId.getUsername().toString(),
         buildBookingLink(bookingId.getId()),
         buildEventLink(message.getEventId())
     );
-
-    var mustacheHandler = buildMustacheCancellationHandler(props);
-
-    var formattedEmail = executeMustache(BookingCancelledMessage.template(), mustacheHandler);
-
-    sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT,
-        formattedEmail);
-
-    logMailDelivery(bookingId.getEmail(), formattedEmail);
-
-    return Mono.empty();
+    var template = BookingCancelledMessage.template();
+    return readerMono(template, props)
+        .doOnNext(email -> logMailDelivery(bookingId.getEmail(), email))
+        .flatMap(msg ->
+            handleMailMono(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, msg)
+        );
   }
 
   @Override
   @KafkaListener(topics = Topics.BOOKINGS_CANCELLED)
   public Mono<Void> consumeBookingsCancelledMessage(BookingsCancelled message) {
 
-    //TODO: find more efficient way to send bulk deletes
-    // to all the bookings
     var eventLink = buildEventLink(message.getEventId());
-    message.getBookings()
-        .forEach(bookingId -> {
-
-          final BookingCancelledMessage props = BookingCancelledMessage.of(
+    var props = message.getBookings().stream()
+        .map(bookingId -> {
+          var messages = new BookingCancelledMessage(
               bookingId.getUsername().toString(),
               buildBookingLink(bookingId.getId()),
               eventLink
           );
-
-          var mustacheHandler = buildMustacheCancellationHandler(props);
-
-          var formattedEmail = executeMustache(BookingCancelledMessage.template(), mustacheHandler);
-
-          sendMail(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, formattedEmail);
-
-          logMailDelivery(bookingId.getEmail(), formattedEmail);
-
+          return new PropsHolder(bookingId.getEmail().toString(), messages);
         });
-    return Mono.empty();
+    var template = BookingCancelledMessage.template();
+
+    return readerFlux(template, props)
+        .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(), tpl.body()))
+        .flatMap(tpl ->
+            handleMailFlux(tpl, BOOKING_CANCELLED_MESSAGE_SUBJECT)
+        ).then();
   }
 
   @Override
@@ -213,70 +194,112 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   public Mono<Void> consumeBookingsUpdatedMessage(BookingsUpdated message) {
 
     var eventLink = buildEventLink(message.getEventId());
-    message.getBookings()
-        .forEach(bookingId -> {
-
-          final BookingUpdatedMessage props = BookingUpdatedMessage.of(
+    var props = message.getBookings().stream()
+        .map(bookingId -> {
+          var messages = new BookingUpdatedMessage(
               buildBookingLink(bookingId.getId()),
               eventLink,
               bookingId.getUsername().toString(),
               message.getMessage().toString()
           );
-
-          BiFunction<Mustache, StringWriter, String> mustacheHandler = (mustache, writer) -> {
-            mustache.execute(writer, props);
-            return writer.toString();
-          };
-
-          var formattedEmail = executeMustache(BookingUpdatedMessage.template(), mustacheHandler);
-
-          sendMail(bookingId.getEmail().toString(), BOOKING_HAS_BEEN_UPDATED_SUBJECT, formattedEmail);
-
-          logMailDelivery(bookingId.getEmail(), formattedEmail);
+          return new PropsHolder(bookingId.getEmail().toString(), messages);
         });
 
-    return Mono.empty();
+    var template = BookingUpdatedMessage.template();
+    return readerFlux(template, props)
+        .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(), tpl.body()))
+        .flatMap(tpl ->
+            handleMailFlux(tpl, BOOKING_HAS_BEEN_UPDATED_SUBJECT)
+        ).then();
   }
 
   //endregion Kafka Consumers
 
   //region Helper Methods
 
+  /// Helper method to box-then-unbox from flux-mono-flux, to allow for using the fromRunnable
+  /// logic in deferring blocking sendMail logic
+  private Flux<Object> handleMailFlux(EmailTemplate tpl, String topic) {
+    return Flux.defer(() -> Mono.fromRunnable(() -> sendMail(tpl.subject().toString(), topic,
+        tpl.body()))
+        .flux())
+        .publishOn(Schedulers.boundedElastic());
+  }
+
+  private Mono<Void> handleMailMono(String email, String subject, String body) {
+    return Mono.fromRunnable(() -> sendMail(email, subject, body))
+        .publishOn(Schedulers.boundedElastic())
+        .then();
+  }
+
   private void logMailDelivery(CharSequence memberEmail, String formattedEmail) {
     log.info("Mail sent to {}:  {}", memberEmail, formattedEmail);
   }
 
-  //region Mustache Compilation
+  //region Mustache Logic
 
-  /// Functional helper method to compile and extract formatted message in resource-safe manner
-  private String executeMustache(String resource,
-      BiFunction<Mustache, StringWriter, String> mustacheHandler) {
-    var fullPath = mustacheLocation + "/" + resource;
-    try (var inputStream = Resources.getResource(fullPath).openStream();
-        Reader reader = new InputStreamReader(inputStream);
-        StringWriter writer = new StringWriter()
-    ) {
-      var mustache = mustacheFactory.compile(reader, resource);
-      return mustacheHandler.apply(mustache, writer);
-    } catch (IOException e) {
-      var message = "Unable to load template: " + resource;
-      throw new IllegalStateException(message, e);
-    }
+  /// Provides flux setup for proper auto-close behavior of Reader resource
+  /// Used by Flux.using() as the initial supplier parameter
+  private Flux<EmailTemplate> readerFlux(String template, Stream<PropsHolder> propHolders) {
+    return Flux.using(readerSupplier(template),
+        reader -> buildEmailsFromMustacheAsFlux(reader, template, propHolders)
+    );
   }
 
-  //endregion Mustache Compilation
+  /// Provides mono setup for proper auto-close behavior of Reader resource
+  private Mono<String> readerMono(String template, Object props) {
+    return Mono.using(readerSupplier(template),
+        reader -> buildEmailFromMustacheAsMono(reader, template, props)
+    );
+  }
+
+  /// Used as first supplier parameter by Mono.using() and Flux.using()
+  private Callable<Reader> readerSupplier(String resource) {
+    var fullPath = mustacheLocation + "/" + resource;
+    return () -> new InputStreamReader(Resources.getResource(fullPath).openStream());
+  }
+
+  private String buildEmailFromMustache(Mustache mustache, Object prop) {
+    StringWriter writer = new StringWriter();
+    mustache.execute(writer, prop);
+    return writer.toString();
+  }
+
+  /// Used as second parameter to Mono.using() to build Mustache templating logic from Reader resource
+  private Mono<String> buildEmailFromMustacheAsMono(Reader reader, String template, Object props) {
+    return Mono.fromCallable(() -> {
+      Mustache mustache = mustacheFactory.compile(reader, template);
+      return buildEmailFromMustache(mustache, props);
+    }).publishOn(Schedulers.boundedElastic());
+  }
+
+  /// Used as second parameter to Flux.using() to build Mustache templating logic from Reader resource
+  private Flux<EmailTemplate> buildEmailsFromMustacheAsFlux(Reader reader, String template,
+      Stream<PropsHolder> propsHolderStream) {
+    Mustache mustache = mustacheFactory.compile(reader, template);
+    return Flux.fromStream(propsHolderStream)
+        .map(propsHolder -> {
+              var msg = buildEmailFromMustache(mustache, propsHolder.props());
+              return new EmailTemplate(propsHolder.email(), msg);
+            }
+        ).publishOn(Schedulers.boundedElastic());
+  }
+
+  //endregion Mustache Logic
 
   //region Helper Records
+
+  private record EmailTemplate(Object subject, String body) {
+
+  }
+
+  private record PropsHolder(String email, Object props) {
+
+  }
 
   record BookingUpdatedMessage(String bookingLink, String eventLink,
                                String username,
                                String message) {
-
-    public static BookingUpdatedMessage of(String bookingLink, String eventLink,
-        String username,
-        String message) {
-      return new BookingUpdatedMessage(bookingLink, eventLink, username, message);
-    }
 
     public static String template() {
       return "booking-updated.mustache";
@@ -286,11 +309,6 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   record BookingCancelledMessage(String username, String bookingLink,
                                  String eventLink) {
 
-    public static BookingCancelledMessage of(String username, String bookingLink,
-        String eventLink) {
-      return new BookingCancelledMessage(username, bookingLink, eventLink);
-    }
-
     public static String template() {
       return "booking-cancelled.mustache";
     }
@@ -299,23 +317,12 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
   record BookingCreatedMessage(String username, String bookingLink,
                                String eventLink, String confirmationLink) {
 
-    public static BookingCreatedMessage of(String username, String bookingLink, String eventLink,
-        String confirmationLink) {
-      return new BookingCreatedMessage(username, bookingLink, eventLink, confirmationLink);
-    }
-
     public static String template() {
       return "booking-created.mustache";
     }
   }
 
   record BookingEventUnavailableMessage(String username, String bookingLink, String eventLink) {
-
-
-    public static BookingEventUnavailableMessage of(String username, String bookingLink,
-        String eventLink) {
-      return new BookingEventUnavailableMessage(username, bookingLink, eventLink);
-    }
 
     static String template() {
       return "booking-event-unavailable.mustache";
@@ -347,14 +354,6 @@ public class KafkaMessageConsumingService implements MessageConsumingService {
 
   private String buildEventLink(Integer eventId) {
     return eventsApiAddress + "/" + eventId;
-  }
-
-  private BiFunction<Mustache, StringWriter, String> buildMustacheCancellationHandler(
-      BookingCancelledMessage props) {
-    return (mustache, writer) -> {
-      mustache.execute(writer, props);
-      return writer.toString();
-    };
   }
 
   //endregion Helper Methods

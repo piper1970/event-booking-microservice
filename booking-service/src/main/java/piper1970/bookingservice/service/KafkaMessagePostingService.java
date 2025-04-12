@@ -38,7 +38,6 @@ public class KafkaMessagePostingService implements MessagePostingService {
     }catch(Exception e){
       log.error("Unknown error occurred while posting BookingCancelled message to kafka: {}", e.getMessage(), e);
     }
-
   }
 
   @Override

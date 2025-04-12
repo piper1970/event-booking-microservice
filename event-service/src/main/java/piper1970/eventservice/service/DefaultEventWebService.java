@@ -123,9 +123,9 @@ public class DefaultEventWebService implements EventWebService {
         .switchIfEmpty(Mono.error(new EventNotFoundException(
             "Event [%d} run by [%s]not found".formatted(id, facilitator))))
         .filter(this::safeToCancel)
-        .switchIfEmpty(Mono.defer(() -> Mono.error(new EventCancellationException(
+        .switchIfEmpty(Mono.error(new EventCancellationException(
             "Cannot cancel event [%d] if the event already in progress or completed"
-                .formatted(id)))))
+                .formatted(id))))
         .flatMap(this::cancelAndSave)
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->

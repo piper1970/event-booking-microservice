@@ -50,11 +50,11 @@ public class BookingConfirmationHandler {
 
       return bookingConfirmationRepository.findByConfirmationString(confimationUUID)
           .timeout(notificationTimeoutDuration)
-          .switchIfEmpty(Mono.defer(() -> {
+          .switchIfEmpty(Mono.fromCallable(() -> {
             var message = "Booking confirmation string [%s] not found".formatted(
                 confirmationString);
             log.warn(message);
-            return Mono.error(new ConfirmationNotFoundException(message));
+            throw new ConfirmationNotFoundException(message);
           }))
           .flatMap(confirmation -> handleConfirmationLogic(confirmation, confirmationString))
           .onErrorResume(ConfirmationNotFoundException.class, e ->

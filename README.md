@@ -47,6 +47,7 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 - **Postgres**: Database-per-microservice design
 - **Webflux**: Reactive web architecture utilizing Project Reactor
 - **R2DBMS**: Reactive database access
+- **TestContainers**: Usage of docker containers during integration tests
 - **Resilience4J**: Circuit breaking and fault tolerance
 - **Prometheus/Grafana**: Monitoring and Visualization
 
