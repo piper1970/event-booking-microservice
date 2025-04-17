@@ -9,7 +9,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +25,8 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.KafkaListenerErrorHandler;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
@@ -32,6 +37,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import piper1970.eventservice.common.kafka.EventBookingListenerErrorHandler;
 import piper1970.eventservice.common.kafka.TopicCreater;
 import piper1970.eventservice.common.topics.Topics;
 import piper1970.notificationservice.repository.BookingConfirmationRepository;
@@ -57,7 +63,8 @@ public class NotificationConfig {
       @Value("${kafka.replication.factor}") Integer replicationFactor,
       @Value("${kafka.partition.count}") Integer partitionCount,
       @Value("${kafka.retention.days}") Integer retentionDays,
-      @Value("${notification-repository.timout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds) {
+      @Value("${notification-repository.timout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds
+      ) {
     this.bookingConfirmationRepository = bookingConfirmationRepository;
     this.objectMapper = objectMapper;
     this.replicationFactor = replicationFactor;
@@ -192,7 +199,7 @@ public class NotificationConfig {
 
   //endregion Kafka Topic Creation
 
-  //region KafkaTemplate Setup
+  //region KafkaTemplate Producer
 
   @Bean
   ProducerFactory<Integer, Object> producerFactory(KafkaProperties kafkaProperties) {
@@ -205,9 +212,9 @@ public class NotificationConfig {
     return new KafkaTemplate<>(producerFactory);
   }
 
-  //endregion KafkaTemplate Setup
+  //endregion KafkaTemplate Producer
 
-  //region Kafka Consumers Setup
+  //region Kafka Consumer
 
   @Bean
   public ConsumerFactory<Integer, Object> consumerFactory(KafkaProperties kafkaProperties) {
@@ -222,12 +229,27 @@ public class NotificationConfig {
     ConcurrentKafkaListenerContainerFactory<Integer, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory);
     factory.setConcurrency(partitionCount * 5); // 5 consumer topics X # of partitions
-    // factory.getContainerProperties().setPollTimeout(X)
-//    factory.getContainerProperties().setListenerTaskExecutor(new VirtualThreadTaskExecutor());
     return factory;
   }
 
-  //endregion Kafka Consumers Setup
+  @Bean
+  public KafkaListenerErrorHandler kafkaListenerErrorHandler(
+      DeadLetterPublishingRecoverer deadLetterPublishingRecoverer
+  ) {
+    return new EventBookingListenerErrorHandler(deadLetterPublishingRecoverer);
+  }
+
+  @Bean
+  public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<Integer, Object> kafkaTemplate) {
+    BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> retryFunction = (cr, e) -> new TopicPartition(
+        cr.topic() + "-ns-dlt", cr.partition()
+    );
+    var dlt = new DeadLetterPublishingRecoverer(kafkaTemplate, retryFunction);
+    dlt.setLogRecoveryRecord(true);
+    return dlt;
+  }
+
+  //endregion Kafka Consumer
 
   //endregion Kafka Setup
 

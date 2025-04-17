@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import piper1970.eventservice.common.validation.annotations.CustomFuture;
 import piper1970.eventservice.common.validation.annotations.NullOrNotBlank;
 
@@ -16,6 +17,7 @@ import piper1970.eventservice.common.validation.annotations.NullOrNotBlank;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString
 public class EventUpdateRequest {
 
   @NullOrNotBlank(message = "[title] field cannot be empty, but may be omitted")

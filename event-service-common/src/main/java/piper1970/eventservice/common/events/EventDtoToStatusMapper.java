@@ -26,6 +26,10 @@ public class EventDtoToStatusMapper implements Function<EventDto, EventStatus> {
       return null;
     }
 
+    if(event.isCancelled()){
+      return EventStatus.CANCELLED;
+    }
+
     var eventDateTime = event.getEventDateTime();
 
     if (eventDateTime == null) {

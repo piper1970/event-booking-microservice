@@ -54,6 +54,8 @@ public class DefaultEventWebService implements EventWebService {
 
   @Override
   public Flux<EventDto> getEvents() {
+    log.debug("Get events called");
+
     return eventRepository.findAll()
         .map(eventMapper::toDto)
         // handle timeout of fetch-all by throwing EventTimeoutException
@@ -66,6 +68,8 @@ public class DefaultEventWebService implements EventWebService {
 
   @Override
   public Mono<EventDto> getEvent(@NonNull Integer id) {
+    log.debug("Get event with id [{}] called", id);
+
     return eventRepository.findById(id)
         .map(eventMapper::toDto)
         // handle timeout of fetch by throwing EventTimeoutException
@@ -78,8 +82,9 @@ public class DefaultEventWebService implements EventWebService {
 
   @Override
   public Mono<EventDto> createEvent(@NonNull EventCreateRequest createRequest) {
-    var event = eventMapper.toEntity(createRequest);
+    log.debug("Create event called [{}]", createRequest);
 
+    var event = eventMapper.toEntity(createRequest);
     return eventRepository.save(event)
         .map(eventMapper::toDto)
         // handle timeout of save by throwing EventTimeoutException
@@ -87,13 +92,16 @@ public class DefaultEventWebService implements EventWebService {
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
                 provideTimeoutErrorMessage("attempting to create event"), ex)))
-        .doOnNext(dto -> log.debug("Event {} has been created", dto.getId()));
+        .doOnNext(dto -> log.debug("Event [{}] has been created", dto));
   }
 
   @Transactional
   @Override
   public Mono<EventDto> updateEvent(@NonNull Integer id,
       @NonNull EventUpdateRequest updateRequest) {
+
+    log.debug("Update event with id [{}] called [{}]", id, updateRequest);
+
     return eventRepository.findById(id)
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -104,7 +112,7 @@ public class DefaultEventWebService implements EventWebService {
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
         .map(eventMapper::toDto)
         .doOnNext(updatedEvent -> {
-          log.debug("Event [{}] has been updated", updatedEvent.getId());
+          log.debug("Event [{}] has been updated", updatedEvent);
           var message = createEventChangedMessage(updatedEvent);
           messagePostingService.postEventChangedMessage(message);
         });
@@ -113,6 +121,7 @@ public class DefaultEventWebService implements EventWebService {
   @Transactional
   @Override
   public Mono<EventDto> cancelEvent(Integer id, String facilitator) {
+    log.debug("Cancel event [{}] called by [{}]", id, facilitator);
 
     return eventRepository.findByIdAndFacilitator(id, facilitator)
         .timeout(eventsTimeoutDuration)

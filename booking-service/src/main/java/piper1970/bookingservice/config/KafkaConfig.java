@@ -2,7 +2,10 @@ package piper1970.bookingservice.config;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.function.BiFunction;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +19,9 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.KafkaListenerErrorHandler;
+import piper1970.eventservice.common.kafka.EventBookingListenerErrorHandler;
 import piper1970.eventservice.common.kafka.TopicCreater;
 import piper1970.eventservice.common.topics.Topics;
 
@@ -102,7 +108,7 @@ public class KafkaConfig {
 
   //endregion Topic Creation
 
-  //region KafkaTemplate Creation
+  //region Kafka Producer
 
   @Bean
   ProducerFactory<Integer,Object> producerFactory(KafkaProperties kafkaProperties) {
@@ -115,9 +121,9 @@ public class KafkaConfig {
     return new KafkaTemplate<>(producerFactory);
   }
 
-  //endregion KafkaTemplate Creation
+  //endregion Kafka Producer
 
-  //region Kafka Listener
+  //region Kafka Consumer
 
   @Bean
   public ConsumerFactory<Integer, Object> consumerFactory(KafkaProperties kafkaProperties) {
@@ -127,24 +133,31 @@ public class KafkaConfig {
 
   @Bean
   public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, Object>> kafkaListenerContainerFactory(
-      ConsumerFactory<Integer, Object> consumerFactory,
-      KafkaTemplate<Integer, Object> kafkaTemplate
+      ConsumerFactory<Integer, Object> consumerFactory
   ){
-
-    // TODO: determine if default poll-timeout (5_000 ms) is sufficient
-    //  if not, then call `factory.getContainerProperties().setPollTimeout(8_000L), or whatever value in milliseconds is needed
-
     ConcurrentKafkaListenerContainerFactory<Integer, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory);
     factory.setConcurrency(partitionCount * 5); // 5 consumer topics X # of partitions
-    // factory.getContainerProperties().setPollTimeout(X)
-//    factory.getContainerProperties().setListenerTaskExecutor(new VirtualThreadTaskExecutor());
-    factory.setReplyTemplate(kafkaTemplate);
     return factory;
   }
 
-  //endregion Kafka Listener
+  @Bean
+  public KafkaListenerErrorHandler kafkaListenerErrorHandler(
+      DeadLetterPublishingRecoverer deadLetterPublishingRecoverer
+  ) {
+    return new EventBookingListenerErrorHandler(deadLetterPublishingRecoverer);
+  }
 
+  @Bean
+  public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<Integer, Object> kafkaTemplate) {
+    BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> retryFunction = (cr, e) -> new TopicPartition(
+        cr.topic() + "-bs-dlt", cr.partition()
+    );
+    var dlt = new DeadLetterPublishingRecoverer(kafkaTemplate, retryFunction);
+    dlt.setLogRecoveryRecord(true);
+    return dlt;
+  }
 
+  //endregion Kafka Consumer
 
 }

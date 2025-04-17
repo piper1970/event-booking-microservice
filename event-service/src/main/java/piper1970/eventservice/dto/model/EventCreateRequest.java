@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.With;
 import piper1970.eventservice.common.validation.annotations.CustomFuture;
 import piper1970.eventservice.common.validation.annotations.NullOrNotBlank;
@@ -20,6 +21,7 @@ import piper1970.eventservice.common.validation.annotations.NullOrNotBlank;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString
 @With
 public class EventCreateRequest {
 

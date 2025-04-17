@@ -54,6 +54,8 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Flux<BookingDto> findAllBookings() {
+    log.debug("Finding all bookings called");
+
     return bookingRepository.findAll()
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -65,6 +67,8 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Flux<BookingDto> findBookingsByUsername(String username) {
+    log.debug("Find bookings called by username [{}]", username);
+
     return bookingRepository.findByUsername(username)
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -76,6 +80,8 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> findBookingById(Integer id) {
+    log.debug("Find booking called for id [{}]", id);
+
     return bookingRepository.findById(id)
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -87,6 +93,8 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> findBookingByIdAndUsername(Integer id, String username) {
+    log.debug("Find booking called for id [{}] by user [{}]", id, username);
+
     return bookingRepository.findByIdAndUsername(id, username)
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
@@ -100,6 +108,7 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> createBooking(BookingCreateRequest createRequest, String token) {
+    log.debug("Create booking [{}] called with token [{}]", createRequest, token);
 
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
         .switchIfEmpty(Mono.error(
@@ -116,6 +125,7 @@ public class DefaultBookingWebService implements BookingWebService {
                   .email(createRequest.getEmail())
                   .bookingStatus(BookingStatus.IN_PROGRESS)
                   .build();
+              log.debug("Saving [{}] to repository", booking);
               return bookingRepository.save(booking)
                   .timeout(bookingTimeoutDuration)
                   .onErrorResume(TimeoutException.class, ex ->
@@ -125,8 +135,7 @@ public class DefaultBookingWebService implements BookingWebService {
         )
         .map(bookingMapper::entityToDto)
         .doOnNext(dto -> {
-          log.debug("Booking [{}] has been created for [{}]", dto.getId(),
-              dto.getUsername());
+          log.debug("Sending BookingCreatedMessage from [{}] to kafka", dto);
           var bookingCreatedMessage = createBookingCreatedMessage(dto);
           messagePostingService.postBookingCreatedMessage(bookingCreatedMessage);
         });
@@ -134,6 +143,8 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> cancelBooking(Integer id, String username, String token) {
+    log.debug("Cancel booking has been called from [{}] on booking [{}] with token [{}]", username, id, token);
+
     return bookingRepository.findByIdAndUsername(id, username)
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->

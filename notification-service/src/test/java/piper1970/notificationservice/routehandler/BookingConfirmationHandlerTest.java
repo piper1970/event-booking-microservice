@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -94,10 +95,13 @@ class BookingConfirmationHandlerTest {
   /// "confirmation-expires and update succeeds" -> BAD_REQUEST
   /// "confirmation-succeeds, but update times out" -> SERVICE_UNAVAILABLE
   /// "confirmation succeeds, and updated succeeds" -> OK
+  /// "re-click on succeeded confirmation link -> NOT_FOUND
+  /// "re-click on expired confirmation -> NOT_FOUND
 
   // @formatter:on
 
   //region Tests
+
   @Test
   @DisplayName("should return BAD_REQUEST when the token string is not a valid UUID")
   void handleConfirmation__confirmation_token_not_uuid() {
@@ -283,6 +287,54 @@ class BookingConfirmationHandlerTest {
           verify(mockPostingService, times(1)).postBookingConfirmedMessage(any(BookingConfirmed.class));
         }).verifyComplete();
 
+  }
+
+  @Test
+  @DisplayName("should return NOT_FOUND when confirmed token link re-clicked")
+  void handleConfirmation__reclick_on_confirmed_link__not_found() {
+    setupMockServerRequest(testToken.toString());
+
+    var clickedConfirmation = testBookingConfirmation.toBuilder()
+        .confirmationDateTime(LocalDateTime.now(clock).minusMinutes(10))
+        .durationInMinutes(70)
+        .confirmationStatus(ConfirmationStatus.CONFIRMED)
+        .build();
+
+    when(mockRepository.findByConfirmationString(eq(testToken)))
+        .thenReturn(
+            Mono.just(clickedConfirmation)
+        );
+
+    StepVerifier.create(testHandler.handleConfirmation(mockServerRequest))
+        .assertNext(serverResponse -> {
+          assertThat(serverResponse.statusCode().value()).isEqualTo(
+              HttpStatus.NOT_FOUND.value());
+          verify(mockPostingService, never()).postBookingConfirmedMessage(any(BookingConfirmed.class));
+        }).verifyComplete();
+  }
+
+  @Test
+  @DisplayName("should return NOT_FOUND when expired token link re-clicked")
+  void handleConfirmation__reclick_on_expired_link__not_found() {
+    setupMockServerRequest(testToken.toString());
+
+    var clickedConfirmation = testBookingConfirmation.toBuilder()
+        .confirmationDateTime(LocalDateTime.now(clock).minusMinutes(10))
+        .durationInMinutes(70)
+        .confirmationStatus(ConfirmationStatus.EXPIRED)
+        .build();
+
+    when(mockRepository.findByConfirmationString(eq(testToken)))
+        .thenReturn(
+            Mono.just(clickedConfirmation)
+        );
+
+    StepVerifier.create(testHandler.handleConfirmation(mockServerRequest))
+        .assertNext(serverResponse -> {
+          assertThat(serverResponse.statusCode().value()).isEqualTo(
+              HttpStatus.NOT_FOUND.value());
+          verify(mockPostingService, never()).postBookingConfirmedMessage(any(BookingConfirmed.class));
+        }).verifyComplete();
   }
 
   //endregion Tests

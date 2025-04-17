@@ -44,12 +44,15 @@ public class BookingConfirmationHandler {
   public Mono<ServerResponse> handleConfirmation(ServerRequest request) {
 
     var confirmationString = request.pathVariable("confirmationString");
+    log.debug("HandleConfirmation request received with token [{}]", confirmationString);
 
     try {
       var confimationUUID = UUID.fromString(confirmationString);
 
       return bookingConfirmationRepository.findByConfirmationString(confimationUUID)
           .timeout(notificationTimeoutDuration)
+          // avoid double-clicking on confirm token
+          .filter(confirmation -> confirmation.getConfirmationStatus() == ConfirmationStatus.AWAITING_CONFIRMATION)
           .switchIfEmpty(Mono.fromCallable(() -> {
             var message = "Booking confirmation string [%s] not found".formatted(
                 confirmationString);
@@ -163,6 +166,7 @@ public class BookingConfirmationHandler {
           .timeout(notificationTimeoutDuration)
           .doOnNext(bookingConfirmation -> {
             // post to confirmation to kafka channel
+            log.debug("Booking confirmation [{}] successfully saved. Relaying success to BOOKING_CONFIRMED topic", bookingConfirmation);
             var message = buildBookingConfirmedMessage(bookingConfirmation);
             messagePostingService.postBookingConfirmedMessage(message);
           })
@@ -198,6 +202,7 @@ public class BookingConfirmationHandler {
       return bookingConfirmationRepository.save(expiredConfirmation)
           .timeout(notificationTimeoutDuration)
           .doOnNext(bookingConfirmation -> {
+            log.debug("Expired booking saved [{}]. Relaying failure to BOOKING_EXPIRED topic", bookingConfirmation);
             var message = buildBookingExpiredMessage(bookingConfirmation);
             messagePostingService.postBookingExpiredMessage(message);
           })
