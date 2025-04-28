@@ -1,0 +1,105 @@
+package piper1970.notificationservice.kafka.listener;
+
+import java.time.Duration;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+import piper1970.eventservice.common.bookings.messages.BookingsCancelled;
+import piper1970.eventservice.common.bookings.messages.types.BookingId;
+import piper1970.eventservice.common.kafka.topics.Topics;
+import piper1970.notificationservice.kafka.listener.options.BaseListenerOptions;
+import reactor.core.Disposable;
+import reactor.core.publisher.Mono;
+import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
+
+@Component
+@Slf4j
+public class BookingsCancelledListener extends AbstractListener {
+
+  private static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
+  private Disposable subscription;
+
+  public BookingsCancelledListener(BaseListenerOptions options) {
+    super(options);
+  }
+
+  @Override
+  protected String getTopic() {
+    return Topics.BOOKINGS_CANCELLED;
+  }
+
+  @Override
+  protected Disposable getSubscription() {
+    return subscription;
+  }
+
+  @Override
+  protected Logger getLogger() {
+    return log;
+  }
+
+  @EventListener(ApplicationReadyEvent.class)
+  public void initializeReceiverFlux() {
+    subscription = buildFluxRequest()
+        .subscribe(rec -> rec.receiverOffset().acknowledge());
+  }
+
+  record BookingCancelledMessage(String username, String bookingLink,
+                                 String eventLink) {
+
+    public static String template() {
+      return "booking-cancelled.mustache";
+    }
+  }
+
+  @Override
+  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
+    if(record.value() instanceof BookingsCancelled message) {
+      var eventLink = buildEventLink(message.getEventId());
+
+      if (log.isDebugEnabled()) {
+        var bookingIds = Objects.requireNonNull(message.getBookings())
+            .stream()
+            .map(BookingId::getId)
+            .map(Object::toString)
+            .collect(Collectors.joining(","));
+        log.debug("Consuming from BOOKINGS_CANCELLED topic for event [{}] and bookingIds [{}]",
+            message.getEventId(),
+            bookingIds);
+      }
+
+      var props = message.getBookings().stream()
+          .map(bookingId -> {
+            var messages = new BookingCancelledMessage(
+                bookingId.getUsername().toString(),
+                buildBookingLink(bookingId.getId()),
+                eventLink
+            );
+            return new PropsHolder(bookingId.getEmail().toString(), messages);
+          });
+      var template = BookingCancelledMessage.template();
+
+      return readerFlux(template, props)
+          .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(), tpl.body()))
+          .doOnError(t -> log.error("Error while reading from flux", t))
+          .flatMap(tpl ->
+              handleMailFlux(tpl, BOOKING_CANCELLED_MESSAGE_SUBJECT)
+          ).retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
+              .jitter(0.7D)
+          ).then(Mono.just(record))
+          .onErrorResume(error -> {
+            log.error("BOOKINGS_CANCELLED message handling failed. Sending to DLT", error);
+            return handleDLTLogic(record);
+          });
+
+    }else{
+      log.error("Unable to unmarshal BookingsCancelled message. Sending to DLT for further processing");
+      return handleDLTLogic(record);
+    }
+  }
+}

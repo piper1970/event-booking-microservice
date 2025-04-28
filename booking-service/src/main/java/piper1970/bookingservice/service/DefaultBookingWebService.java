@@ -23,6 +23,7 @@ import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @Slf4j
@@ -57,6 +58,7 @@ public class DefaultBookingWebService implements BookingWebService {
     log.debug("Finding all bookings called");
 
     return bookingRepository.findAll()
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new BookingTimeoutException(
@@ -70,6 +72,7 @@ public class DefaultBookingWebService implements BookingWebService {
     log.debug("Find bookings called by username [{}]", username);
 
     return bookingRepository.findByUsername(username)
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new BookingTimeoutException(
@@ -83,6 +86,7 @@ public class DefaultBookingWebService implements BookingWebService {
     log.debug("Find booking called for id [{}]", id);
 
     return bookingRepository.findById(id)
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new BookingTimeoutException(
@@ -96,6 +100,7 @@ public class DefaultBookingWebService implements BookingWebService {
     log.debug("Find booking called for id [{}] by user [{}]", id, username);
 
     return bookingRepository.findByIdAndUsername(id, username)
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new BookingTimeoutException(
@@ -111,6 +116,7 @@ public class DefaultBookingWebService implements BookingWebService {
     log.debug("Create booking [{}] called with token [{}]", createRequest, token);
 
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
+        .subscribeOn(Schedulers.boundedElastic())
         .switchIfEmpty(Mono.error(
             new EventNotFoundException(createEventNotFountMessage(createRequest.getEventId()))))
         .filter(dto ->
@@ -127,6 +133,7 @@ public class DefaultBookingWebService implements BookingWebService {
                   .build();
               log.debug("Saving [{}] to repository", booking);
               return bookingRepository.save(booking)
+                  .subscribeOn(Schedulers.boundedElastic())
                   .timeout(bookingTimeoutDuration)
                   .onErrorResume(TimeoutException.class, ex ->
                       Mono.error(new BookingTimeoutException(
@@ -134,18 +141,22 @@ public class DefaultBookingWebService implements BookingWebService {
             }
         )
         .map(bookingMapper::entityToDto)
-        .doOnNext(dto -> {
-          log.debug("Sending BookingCreatedMessage from [{}] to kafka", dto);
+        .doOnNext(dto -> log.debug("Sending BookingCreatedMessage from [{}] to kafka", dto))
+        .flatMap(dto -> {
           var bookingCreatedMessage = createBookingCreatedMessage(dto);
-          messagePostingService.postBookingCreatedMessage(bookingCreatedMessage);
+          return messagePostingService.postBookingCreatedMessage(bookingCreatedMessage)
+              .subscribeOn(Schedulers.boundedElastic())
+              .then(Mono.just(dto));
         });
   }
 
   @Override
   public Mono<BookingDto> cancelBooking(Integer id, String username, String token) {
-    log.debug("Cancel booking has been called from [{}] on booking [{}] with token [{}]", username, id, token);
+    log.debug("Cancel booking has been called from [{}] on booking [{}] with token [{}]", username,
+        id, token);
 
     return bookingRepository.findByIdAndUsername(id, username)
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(bookingTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new BookingTimeoutException(
@@ -181,11 +192,14 @@ public class DefaultBookingWebService implements BookingWebService {
               String.format("Booking [%s] can no longer be cancelled for the event",
                   booking.getId()));
         }))
-        .doOnNext(bookingDto -> {
-          logBookingCancellation(booking.getId());
-          var bookingCancelledMessage = createBookingCancelledMessage(bookingDto);
-          messagePostingService.postBookingCancelledMessage(bookingCancelledMessage);
-        });
+        .doOnNext(bookingDto -> logBookingCancellation(booking.getId()))
+        .flatMap(bookingDto -> {
+              var bookingCancelledMessage = createBookingCancelledMessage(bookingDto);
+              return messagePostingService.postBookingCancelledMessage(bookingCancelledMessage)
+                  .subscribeOn(Schedulers.boundedElastic())
+                  .then(Mono.just(bookingDto));
+            }
+        );
   }
 
   private BookingCreated createBookingCreatedMessage(BookingDto booking) {

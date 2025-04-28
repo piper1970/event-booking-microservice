@@ -17,6 +17,7 @@ import piper1970.eventservice.common.exceptions.EventForbiddenException;
 import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @Slf4j
@@ -49,11 +50,8 @@ public class DefaultEventRequestService implements EventRequestService {
             Mono.error(new EventRequestServiceUnavailableException("Event Request Service Temporarily Unavailable. Please try back later")))
         .onStatus(HttpStatusCode::is4xxClientError, this::handle400Response)
         .bodyToMono(EventDto.class)
-        .doOnNext(eventDto -> {
-          log.debug("Event [{}] has been retrieved", eventId);
-        }).doOnError(throwable -> {
-          log.error("Event [{}] could not be retrieved", eventId, throwable);
-        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .doOnNext(eventDto -> log.debug("Event [{}] has been retrieved", eventId)).doOnError(throwable -> log.error("Event [{}] could not be retrieved", eventId, throwable))
         .timeout(eventTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventRequestServiceTimeoutException(

@@ -8,9 +8,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static piper1970.notificationservice.service.KafkaMessageConsumingService.BOOKING_CANCELLED_MESSAGE_SUBJECT;
-import static piper1970.notificationservice.service.KafkaMessageConsumingService.BOOKING_EVENT_UNAVAILABLE_SUBJECT;
-import static piper1970.notificationservice.service.KafkaMessageConsumingService.BOOKING_HAS_BEEN_CREATED_SUBJECT;
+import static piper1970.notificationservice.kafka.listener.BookingCancelledListener.BOOKING_CANCELLED_MESSAGE_SUBJECT;
+import static piper1970.notificationservice.kafka.listener.BookingCreatedListener.BOOKING_HAS_BEEN_CREATED_SUBJECT;
+import static piper1970.notificationservice.kafka.listener.BookingEventUnavailableListener.BOOKING_EVENT_UNAVAILABLE_SUBJECT;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
@@ -51,7 +51,7 @@ import piper1970.eventservice.common.bookings.messages.BookingsCancelled;
 import piper1970.eventservice.common.bookings.messages.BookingsUpdated;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
-import piper1970.eventservice.common.topics.Topics;
+import piper1970.eventservice.common.kafka.topics.Topics;
 import piper1970.notificationservice.domain.ConfirmationStatus;
 import piper1970.notificationservice.repository.BookingConfirmationRepository;
 

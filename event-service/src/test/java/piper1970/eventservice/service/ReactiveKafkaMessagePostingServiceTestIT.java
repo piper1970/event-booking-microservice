@@ -27,7 +27,7 @@ import org.springframework.test.context.ActiveProfiles;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.events.messages.EventCompleted;
-import piper1970.eventservice.common.topics.Topics;
+import piper1970.eventservice.common.kafka.topics.Topics;
 
 @Tags({
     @Tag("integration-test"),
@@ -38,14 +38,14 @@ import piper1970.eventservice.common.topics.Topics;
 @EmbeddedKafka(partitions = 1)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ActiveProfiles({"test", "integration_kafka"})
-class KafkaMessagePostingServiceTestIT{
+class ReactiveKafkaMessagePostingServiceTestIT {
 
   //region Properties Used
 
   private final Duration timeoutDuration = Duration.ofSeconds(4);
 
   @Autowired
-  private KafkaMessagePostingService kafkaMessagePostingService;
+  private ReactiveKafkaMessagePostingService reactiveKafkaMessagePostingService;
 
   @Autowired
   private ConsumerFactory<Integer, Object> consumerFactory;
@@ -80,7 +80,8 @@ class KafkaMessagePostingServiceTestIT{
     message.setEventId(1);
     message.setMessage("Test event cancelled message");
 
-    kafkaMessagePostingService.postEventCancelledMessage(message);
+    reactiveKafkaMessagePostingService.postEventCancelledMessage(message)
+        .block(timeoutDuration);
 
     var consumed = KafkaTestUtils.getSingleRecord(testConsumer, Topics.EVENT_CANCELLED,
         timeoutDuration);
@@ -97,7 +98,8 @@ class KafkaMessagePostingServiceTestIT{
     message.setEventId(1);
     message.setMessage("Test event changed message");
 
-    kafkaMessagePostingService.postEventChangedMessage(message);
+    reactiveKafkaMessagePostingService.postEventChangedMessage(message)
+        .block(timeoutDuration);
 
     var consumed = KafkaTestUtils.getSingleRecord(testConsumer, Topics.EVENT_CHANGED,
         timeoutDuration);
@@ -114,7 +116,8 @@ class KafkaMessagePostingServiceTestIT{
     message.setEventId(1);
     message.setMessage("Test event completed message");
 
-    kafkaMessagePostingService.postEventCompletedMessage(message);
+    reactiveKafkaMessagePostingService.postEventCompletedMessage(message)
+        .block(timeoutDuration);
 
     var consumed = KafkaTestUtils.getSingleRecord(testConsumer, Topics.EVENT_COMPLETED,
         timeoutDuration);

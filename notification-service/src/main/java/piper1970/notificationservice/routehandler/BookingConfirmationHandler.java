@@ -164,11 +164,12 @@ public class BookingConfirmationHandler {
 
       return bookingConfirmationRepository.save(updatedConfirmation)
           .timeout(notificationTimeoutDuration)
-          .doOnNext(bookingConfirmation -> {
+          .flatMap(bookingConfirmation -> {
             // post to confirmation to kafka channel
             log.debug("Booking confirmation [{}] successfully saved. Relaying success to BOOKING_CONFIRMED topic", bookingConfirmation);
             var message = buildBookingConfirmedMessage(bookingConfirmation);
-            messagePostingService.postBookingConfirmedMessage(message);
+            return messagePostingService.postBookingConfirmedMessage(message)
+                .then(Mono.just(bookingConfirmation));
           })
           .flatMap(savedConfirmation ->
               buildBookingConfirmedJson(confirmation)
@@ -201,10 +202,11 @@ public class BookingConfirmationHandler {
 
       return bookingConfirmationRepository.save(expiredConfirmation)
           .timeout(notificationTimeoutDuration)
-          .doOnNext(bookingConfirmation -> {
+          .flatMap(bookingConfirmation -> {
             log.debug("Expired booking saved [{}]. Relaying failure to BOOKING_EXPIRED topic", bookingConfirmation);
             var message = buildBookingExpiredMessage(bookingConfirmation);
-            messagePostingService.postBookingExpiredMessage(message);
+            return messagePostingService.postBookingExpiredMessage(message)
+                .then(Mono.just(bookingConfirmation));
           })
           .flatMap(_ignored ->
               buildErrorResponse(HttpStatus.BAD_REQUEST, errorMessage, pd -> {

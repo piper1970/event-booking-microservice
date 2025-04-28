@@ -42,14 +42,12 @@ class BookingRepositoryTests {
                 );
             """);
 
-    statements.forEach(stmt -> {
-      databaseClient.sql(stmt)
-          .fetch()
-          .rowsUpdated()
-          .as(StepVerifier::create)
-          .expectNextCount(1)
-          .verifyComplete();
-    });
+    statements.forEach(stmt -> databaseClient.sql(stmt)
+        .fetch()
+        .rowsUpdated()
+        .as(StepVerifier::create)
+        .expectNextCount(1)
+        .verifyComplete());
   }
 
   @Test

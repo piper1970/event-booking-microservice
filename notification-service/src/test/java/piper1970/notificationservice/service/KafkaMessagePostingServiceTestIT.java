@@ -26,7 +26,7 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.context.ActiveProfiles;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
-import piper1970.eventservice.common.topics.Topics;
+import piper1970.eventservice.common.kafka.topics.Topics;
 
 @Tags({
     @Tag("integration-test"),
@@ -44,7 +44,7 @@ class KafkaMessagePostingServiceTestIT{
   private final Duration timeoutDuration = Duration.ofSeconds(6);
 
   @Autowired
-  KafkaMessagePostingService kafkaMessagePostingService;
+  MessagePostingService kafkaMessagePostingService;
 
   @Autowired
   private ConsumerFactory<Integer, Object> consumerFactory;
@@ -77,7 +77,8 @@ class KafkaMessagePostingServiceTestIT{
     var bookingId = new BookingId(1, "test_user@test.com", "test_user");
     var message = new BookingConfirmed(bookingId, 1);
 
-    kafkaMessagePostingService.postBookingConfirmedMessage(message);
+    kafkaMessagePostingService.postBookingConfirmedMessage(message)
+        .subscribe();
 
     var consumed = KafkaTestUtils.getSingleRecord(testConsumer, Topics.BOOKING_CONFIRMED,
         timeoutDuration);

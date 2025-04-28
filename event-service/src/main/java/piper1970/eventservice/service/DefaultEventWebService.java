@@ -25,6 +25,7 @@ import piper1970.eventservice.exceptions.EventUpdateException;
 import piper1970.eventservice.repository.EventRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @Slf4j
@@ -57,6 +58,7 @@ public class DefaultEventWebService implements EventWebService {
     log.debug("Get events called");
 
     return eventRepository.findAll()
+        .subscribeOn(Schedulers.boundedElastic())
         .map(eventMapper::toDto)
         // handle timeout of fetch-all by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
@@ -71,6 +73,7 @@ public class DefaultEventWebService implements EventWebService {
     log.debug("Get event with id [{}] called", id);
 
     return eventRepository.findById(id)
+        .subscribeOn(Schedulers.boundedElastic())
         .map(eventMapper::toDto)
         // handle timeout of fetch by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
@@ -86,6 +89,7 @@ public class DefaultEventWebService implements EventWebService {
 
     var event = eventMapper.toEntity(createRequest);
     return eventRepository.save(event)
+        .subscribeOn(Schedulers.boundedElastic())
         .map(eventMapper::toDto)
         // handle timeout of save by throwing EventTimeoutException
         .timeout(eventsTimeoutDuration)
@@ -95,6 +99,7 @@ public class DefaultEventWebService implements EventWebService {
         .doOnNext(dto -> log.debug("Event [{}] has been created", dto));
   }
 
+  // TODO: fix transactional annotation logic
   @Transactional
   @Override
   public Mono<EventDto> updateEvent(@NonNull Integer id,
@@ -103,6 +108,7 @@ public class DefaultEventWebService implements EventWebService {
     log.debug("Update event with id [{}] called [{}]", id, updateRequest);
 
     return eventRepository.findById(id)
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
@@ -112,18 +118,23 @@ public class DefaultEventWebService implements EventWebService {
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
         .map(eventMapper::toDto)
         .doOnNext(updatedEvent -> {
-          log.debug("Event [{}] has been updated", updatedEvent);
+          log.debug("Event [{}] has been updated in database", updatedEvent);
+        }).flatMap(updatedEvent -> {
           var message = createEventChangedMessage(updatedEvent);
-          messagePostingService.postEventChangedMessage(message);
+          return messagePostingService.postEventChangedMessage(message)
+              .subscribeOn(Schedulers.boundedElastic())
+              .then(Mono.just(updatedEvent));
         });
   }
 
+  // TODO: fix transactional annotation logic
   @Transactional
   @Override
   public Mono<EventDto> cancelEvent(Integer id, String facilitator) {
     log.debug("Cancel event [{}] called by [{}]", id, facilitator);
 
     return eventRepository.findByIdAndFacilitator(id, facilitator)
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(
@@ -143,9 +154,12 @@ public class DefaultEventWebService implements EventWebService {
                 ex)))
         .map(eventMapper::toDto)
         .doOnNext(dto -> {
-          log.debug("Event [{}] has been cancelled", dto.getId());
-          var message = createEventCancelledMessage(dto);
-          messagePostingService.postEventCancelledMessage(message);
+          log.debug("Event [{}] has been cancelled in the database", dto.getId());
+        }).flatMap(updatedEvent -> {
+          var message = createEventCancelledMessage(updatedEvent);
+          return messagePostingService.postEventCancelledMessage(message)
+              .subscribeOn(Schedulers.boundedElastic())
+              .then(Mono.just(updatedEvent));
         });
   }
 
@@ -171,7 +185,8 @@ public class DefaultEventWebService implements EventWebService {
       return Mono.just(event);
     }
     var cancelledEvent = event.toBuilder().cancelled(true).build();
-    return eventRepository.save(cancelledEvent);
+    return eventRepository.save(cancelledEvent)
+        .subscribeOn(Schedulers.boundedElastic());
   }
 
   /// Handles logic for merging update with current request Updates can only happen if the event has
@@ -207,6 +222,7 @@ public class DefaultEventWebService implements EventWebService {
       return Mono.error(exception);
     }
     return eventRepository.save(event)
+        .subscribeOn(Schedulers.boundedElastic())
         .timeout(eventsTimeoutDuration)
         .onErrorResume(TimeoutException.class, ex ->
             Mono.error(new EventTimeoutException(

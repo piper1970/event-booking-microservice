@@ -1,4 +1,4 @@
-package piper1970.eventservice.common.topics;
+package piper1970.eventservice.common.kafka.topics;
 
 public class Topics {
   public static final String BOOKING_CREATED = "booking-created";

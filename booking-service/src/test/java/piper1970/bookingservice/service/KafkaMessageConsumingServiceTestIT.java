@@ -41,7 +41,7 @@ import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
 import piper1970.eventservice.common.notifications.messages.BookingExpired;
-import piper1970.eventservice.common.topics.Topics;
+import piper1970.eventservice.common.kafka.topics.Topics;
 
 @Tags({
     @Tag("integration-test"),

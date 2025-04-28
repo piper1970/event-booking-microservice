@@ -14,9 +14,6 @@ public class BookingDto {
   private Integer eventId;
   private String username;
   private String email;
-
-//  @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
-//  private LocalDateTime eventDateTime;
   private String bookingStatus;
 
 }

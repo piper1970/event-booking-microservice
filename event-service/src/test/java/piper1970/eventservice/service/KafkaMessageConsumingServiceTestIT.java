@@ -33,7 +33,7 @@ import piper1970.eventservice.common.bookings.messages.BookingCancelled;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
 import piper1970.eventservice.common.notifications.messages.BookingConfirmed;
-import piper1970.eventservice.common.topics.Topics;
+import piper1970.eventservice.common.kafka.topics.Topics;
 import piper1970.eventservice.domain.Event;
 import piper1970.eventservice.repository.EventRepository;
 

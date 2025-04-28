@@ -74,7 +74,7 @@ class DefaultEventRequestServiceTests {
 
   @Test
   @DisplayName("requestEvent should return EventRequestServiceUnavailableException if call to webClient returns status code 500 (Internal Server Error)")
-  void requestEvent_webClientReturns500() throws InterruptedException {
+  void requestEvent_webClientReturns500(){
     var bToken = "Bearer " + token;
 
     mockWebServer.stubFor(get("/api/events/" + eventId)

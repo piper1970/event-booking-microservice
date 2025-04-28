@@ -3,7 +3,6 @@ package piper1970.notificationservice.routehandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -197,7 +196,8 @@ class BookingConfirmationHandlerTest {
         .confirmationStatus(ConfirmationStatus.EXPIRED)
         .build();
 
-    doNothing().when(mockPostingService).postBookingExpiredMessage(any(BookingExpired.class));
+    when(mockPostingService.postBookingExpiredMessage(any(BookingExpired.class))
+            .thenReturn(Mono.empty()));
 
     when(mockRepository.findByConfirmationString(eq(testToken)))
         .thenReturn(
@@ -271,7 +271,8 @@ class BookingConfirmationHandlerTest {
             Mono.just(originalConfirmation)
         );
 
-    doNothing().when(mockPostingService).postBookingConfirmedMessage(any(BookingConfirmed.class));
+    when(mockPostingService.postBookingExpiredMessage(any(BookingExpired.class))
+        .thenReturn(Mono.empty()));
 
     when(mockRepository.save(eq(confirmedConfirmation)))
         .thenReturn(
