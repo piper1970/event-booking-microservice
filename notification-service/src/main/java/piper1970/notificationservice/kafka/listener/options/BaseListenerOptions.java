@@ -19,4 +19,6 @@ public class BaseListenerOptions {
   String fromAddress;
   String bookingsApiAddress;
   String eventsApiAddress;
+  Long mailSendTimeoutMillis;
+  Long mailDelayMillis;
 }

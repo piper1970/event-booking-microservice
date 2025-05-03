@@ -39,7 +39,7 @@ import piper1970.notificationservice.service.MessagePostingService;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.sender.SenderOptions;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableKafka
 @EnableWebFluxSecurity
 public class NotificationConfig {
@@ -57,7 +57,7 @@ public class NotificationConfig {
       @Value("${kafka.replication.factor}") Integer replicationFactor,
       @Value("${kafka.partition.count}") Integer partitionCount,
       @Value("${kafka.retention.days}") Integer retentionDays,
-      @Value("${notification-repository.timout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds
+      @Value("${notification-repository.timeout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds
       ) {
     this.bookingConfirmationRepository = bookingConfirmationRepository;
     this.objectMapper = objectMapper;
@@ -199,7 +199,7 @@ public class NotificationConfig {
 
   @Bean
   DeadLetterTopicProducer deadLetterTopicProducer(ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      @Value("${kafka.dlt.suffix : -ns-dlt}") String deadLetterTopicSuffix) {
+      @Value("${kafka.dlt.suffix:-ns-dlt}") String deadLetterTopicSuffix) {
     return new DeadLetterTopicProducer(reactiveKafkaProducerTemplate, deadLetterTopicSuffix);
   }
 
@@ -215,7 +215,9 @@ public class NotificationConfig {
       @Value("${mustache.location:templates}") String mustacheLocation,
       @Value("${mail.message.from}") String fromAddress,
       @Value("${events.api.address: http://localhost:8080/api/events}") String eventsApiAddress,
-      @Value("${bookings.api.address: http://localhost:8080/api/bookings}") String bookingsApiAddress
+      @Value("${bookings.api.address: http://localhost:8080/api/bookings}") String bookingsApiAddress,
+      @Value("${mail.send.timeout.milliseconds:10000}") Long mailSendTimeoutMillis,
+      @Value("${mail.delay.milliseconds:500}") Long mailDelayMilliseconds
       ) {
     return BaseListenerOptions.builder()
         .bookingsApiAddress(bookingsApiAddress)
@@ -226,6 +228,8 @@ public class NotificationConfig {
         .mustacheFactory(mustacheFactory)
         .mustacheLocation(mustacheLocation)
         .mailSender(mailSender)
+        .mailSendTimeoutMillis(mailSendTimeoutMillis)
+        .mailDelayMillis(mailDelayMilliseconds)
         .build();
   }
 
@@ -236,7 +240,7 @@ public class NotificationConfig {
   }
 
   @Bean
-  public ReactiveKafkaReceiverFactory reactiveKafkaConsumerFactory(ReceiverOptions<Integer, Object> receiverOptions) {
+  public ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory(ReceiverOptions<Integer, Object> receiverOptions) {
     var topics = List.of(Topics.BOOKING_CREATED, Topics.BOOKING_EVENT_UNAVAILABLE, Topics.BOOKING_CANCELLED,
         Topics.BOOKINGS_UPDATED, Topics.BOOKINGS_CANCELLED);
     return new ReactiveKafkaReceiverFactory(receiverOptions, topics);

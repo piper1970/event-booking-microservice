@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestClassOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
 import org.springframework.r2dbc.core.DatabaseClient;
@@ -15,6 +18,8 @@ import reactor.test.StepVerifier;
 
 @DataR2dbcTest
 @DisplayName("Booking repository")
+@TestClassOrder(OrderAnnotation.class)
+@Order(4)
 class BookingRepositoryTests {
 
   @Autowired

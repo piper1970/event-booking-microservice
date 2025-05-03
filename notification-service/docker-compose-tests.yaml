@@ -63,3 +63,8 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry-notifications-test
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka-notifications-test:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: curl --output /dev/null --silent --head --fail http://schema-registry-notifications-test:8081/subjects
+      interval: 30s
+      timeout: 10s
+      retries: 3

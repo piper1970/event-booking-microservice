@@ -1,6 +1,7 @@
 package piper1970.notificationservice.kafka.listener;
 
-import java.time.Duration;
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +16,6 @@ import piper1970.notificationservice.kafka.listener.options.BaseListenerOptions;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -44,6 +44,7 @@ public class BookingsCancelledListener extends AbstractListener {
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rec -> rec.receiverOffset().acknowledge());
@@ -59,6 +60,7 @@ public class BookingsCancelledListener extends AbstractListener {
 
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
+    log.debug("BookingsCancelledListener::handleIndividualRequest started");
     if(record.value() instanceof BookingsCancelled message) {
       var eventLink = buildEventLink(message.getEventId());
 
@@ -89,8 +91,7 @@ public class BookingsCancelledListener extends AbstractListener {
           .doOnError(t -> log.error("Error while reading from flux", t))
           .flatMap(tpl ->
               handleMailFlux(tpl, BOOKING_CANCELLED_MESSAGE_SUBJECT)
-          ).retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
-              .jitter(0.7D)
+                  .retryWhen(DEFAULT_RETRY)
           ).then(Mono.just(record))
           .onErrorResume(error -> {
             log.error("BOOKINGS_CANCELLED message handling failed. Sending to DLT", error);
@@ -98,7 +99,7 @@ public class BookingsCancelledListener extends AbstractListener {
           });
 
     }else{
-      log.error("Unable to unmarshal BookingsCancelled message. Sending to DLT for further processing");
+      log.error("Unable to deserialize BookingsCancelled message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

@@ -27,6 +27,7 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
       log.debug("Posting EVENT_CANCELLED message [{}]", eventId);
       return reactiveKafkaProducerTemplate.send(Topics.EVENT_CANCELLED, eventId, message)
           .subscribeOn(Schedulers.boundedElastic())
+          .log()
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .doOnError(throwable -> log.error("Error sending EVENT_CANCELLED message: {}", throwable.getMessage(), throwable))
           .then();
@@ -43,6 +44,7 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
       log.debug("Posting EVENT_CHANGED message [{}]", eventId);
       return reactiveKafkaProducerTemplate.send(Topics.EVENT_CHANGED, eventId, message)
           .subscribeOn(Schedulers.boundedElastic())
+          .log()
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .doOnError(throwable -> log.error("Error sending EVENT_CHANGED message: {}", throwable.getMessage(), throwable))
           .then();
@@ -61,6 +63,7 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
       log.debug("Posting EVENT_COMPLETED message [{}]", eventId);
       return reactiveKafkaProducerTemplate.send(Topics.EVENT_COMPLETED, eventId, message)
           .subscribeOn(Schedulers.boundedElastic())
+          .log()
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .doOnError(throwable -> log.error("Error sending EVENT_COMPLETED message: {}", throwable.getMessage(), throwable))
           .then();

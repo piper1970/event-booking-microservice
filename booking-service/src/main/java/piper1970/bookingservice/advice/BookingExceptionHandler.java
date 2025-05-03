@@ -21,6 +21,7 @@ import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableExcepti
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.exceptions.EventForbiddenException;
 import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
+import piper1970.eventservice.common.exceptions.KafkaPostingException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
 
 @ControllerAdvice
@@ -95,7 +96,7 @@ public class BookingExceptionHandler {
   public ProblemDetail handleException(BookingTimeoutException exc){
     log.error("Booking repository action timed out [{}]", exc.getMessage(), exc);
 
-    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+    return buildProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, exc.getMessage(), pd -> {
       pd.setTitle("Booking-Repository-Temporarily-Unavailable");
       pd.setType(URI.create("http://booking-service/problem/booking-repository-temporarily-unavailable"));
     });
@@ -105,7 +106,7 @@ public class BookingExceptionHandler {
   public ProblemDetail handleException(EventRequestServiceTimeoutException exc){
     log.error("event-request-service timed out [{}]", exc.getMessage(), exc);
 
-    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+    return buildProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, exc.getMessage(), pd -> {
       pd.setTitle("Event-Request-Service-Call-Exceeded-Allotted-Time");
       pd.setType(URI.create("http://booking-service/problem/event-request-service-call-exceeded-allotted-time"));
     });
@@ -115,7 +116,7 @@ public class BookingExceptionHandler {
   public ProblemDetail handleException(EventRequestServiceUnavailableException exc){
     log.error("event-request-service temporarily unavailable [{}]", exc.getMessage(), exc);
 
-    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+    return buildProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, exc.getMessage(), pd -> {
       pd.setTitle("Unable-To-Contact-Event-Service");
       pd.setType(URI.create("http://booking-service/problem/unable-to-contact-event-service"));
     });
@@ -156,6 +157,16 @@ public class BookingExceptionHandler {
     return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
       pd.setTitle("Unknown-Cause-Exception");
       pd.setType(URI.create("http://booking-service/problem/unknown-cause-exception"));
+    });
+  }
+
+  @ExceptionHandler(KafkaPostingException.class)
+  public ProblemDetail handleException(KafkaPostingException exc) {
+    log.warn("Booking posting failed. [{}]", exc.getMessage(), exc);
+
+    return buildProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, exc.getMessage(), pd -> {
+      pd.setTitle("Booking message posting failed");
+      pd.setType(URI.create("http://booking-service/problem/booking-message-posting-failed"));
     });
   }
 

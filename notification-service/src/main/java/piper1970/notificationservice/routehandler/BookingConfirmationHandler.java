@@ -1,5 +1,7 @@
 package piper1970.notificationservice.routehandler;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -10,7 +12,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,9 +26,12 @@ import piper1970.eventservice.common.notifications.messages.BookingExpired;
 import piper1970.notificationservice.domain.BookingConfirmation;
 import piper1970.notificationservice.domain.ConfirmationStatus;
 import piper1970.notificationservice.exceptions.ConfirmationNotFoundException;
+import piper1970.notificationservice.exceptions.ConfirmationTimedOutException;
 import piper1970.notificationservice.repository.BookingConfirmationRepository;
 import piper1970.notificationservice.service.MessagePostingService;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -51,8 +55,13 @@ public class BookingConfirmationHandler {
 
       return bookingConfirmationRepository.findByConfirmationString(confimationUUID)
           .timeout(notificationTimeoutDuration)
+          .retryWhen(DEFAULT_RETRY)
+          .onErrorResume(
+              ex -> handleConfirmationRepositoryTimeout(ex,
+                  "finding booking confirmation for token [%s]".formatted(confimationUUID)))
           // avoid double-clicking on confirm token
-          .filter(confirmation -> confirmation.getConfirmationStatus() == ConfirmationStatus.AWAITING_CONFIRMATION)
+          .filter(confirmation -> confirmation.getConfirmationStatus()
+              == ConfirmationStatus.AWAITING_CONFIRMATION)
           .switchIfEmpty(Mono.fromCallable(() -> {
             var message = "Booking confirmation string [%s] not found".formatted(
                 confirmationString);
@@ -63,14 +72,15 @@ public class BookingConfirmationHandler {
           .onErrorResume(ConfirmationNotFoundException.class, e ->
               buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), pd -> {
                 pd.setTitle("Booking confirmation not found");
-                pd.setType(URI.create("http://notification-service/booking-confirmation-not-found"));
+                pd.setType(
+                    URI.create("http://notification-service/booking-confirmation-not-found"));
               }).map(body ->
                       ServerResponse.status(HttpStatus.NOT_FOUND)
                           .contentType(MediaType.APPLICATION_JSON)
                           .bodyValue(body))
                   .orElseGet(() -> ServerResponse.notFound().build()))
-          .onErrorResume(TimeoutException.class, e -> {
-            log.warn("Repository timed out during find of confirmation string {}: {}",
+          .onErrorResume(ConfirmationTimedOutException.class, e -> {
+            log.warn("Repository timed out during processing of confirmation with token [{}]: {}",
                 confirmationString, e.getMessage(),
                 e);
             return handleServiceUnavailableResponse();
@@ -163,13 +173,22 @@ public class BookingConfirmationHandler {
           .build();
 
       return bookingConfirmationRepository.save(updatedConfirmation)
+          .subscribeOn(Schedulers.boundedElastic())
+          .log()
           .timeout(notificationTimeoutDuration)
-          .flatMap(bookingConfirmation -> {
+          .retryWhen(DEFAULT_RETRY)
+          .onErrorResume(
+              ex -> handleConfirmationRepositoryTimeout(ex,
+                  "saving confirmed booking confirmation for token [%s]".formatted(
+                      confirmationString)))
+          .flatMap(savedConfirmation -> {
             // post to confirmation to kafka channel
-            log.debug("Booking confirmation [{}] successfully saved. Relaying success to BOOKING_CONFIRMED topic", bookingConfirmation);
-            var message = buildBookingConfirmedMessage(bookingConfirmation);
+            log.debug(
+                "Booking confirmation [{}] successfully saved. Relaying success to BOOKING_CONFIRMED topic",
+                savedConfirmation);
+            var message = buildBookingConfirmedMessage(savedConfirmation);
             return messagePostingService.postBookingConfirmedMessage(message)
-                .then(Mono.just(bookingConfirmation));
+                .then(Mono.just(savedConfirmation));
           })
           .flatMap(savedConfirmation ->
               buildBookingConfirmedJson(confirmation)
@@ -183,12 +202,7 @@ public class BookingConfirmationHandler {
                           .contentType(MediaType.TEXT_PLAIN)
                           .bodyValue(
                               "Booking has been confirmed for event " + confirmation.getEventId())
-                  ))
-      .onErrorResume(TimeoutException.class, e -> {
-        log.error("Repository timed out during save of confirmed booking confirmation: [{}]. Manual adjustment may be necessary", e.getMessage(),
-            e);
-        return handleServiceUnavailableResponse();
-      });
+                  ));
     } else {
 
       var expiredConfirmation = confirmation.toBuilder()
@@ -201,9 +215,17 @@ public class BookingConfirmationHandler {
       log.warn(errorMessage);
 
       return bookingConfirmationRepository.save(expiredConfirmation)
+          .subscribeOn(Schedulers.boundedElastic())
+          .log()
           .timeout(notificationTimeoutDuration)
+          .retryWhen(DEFAULT_RETRY)
+          .onErrorResume(
+              ex -> handleConfirmationRepositoryTimeout(ex,
+                  "saving expired booking confirmation for token [%s]".formatted(
+                      confirmationString)))
           .flatMap(bookingConfirmation -> {
-            log.debug("Expired booking saved [{}]. Relaying failure to BOOKING_EXPIRED topic", bookingConfirmation);
+            log.debug("Expired booking saved [{}]. Relaying failure to BOOKING_EXPIRED topic",
+                bookingConfirmation);
             var message = buildBookingExpiredMessage(bookingConfirmation);
             return messagePostingService.postBookingExpiredMessage(message)
                 .then(Mono.just(bookingConfirmation));
@@ -217,14 +239,10 @@ public class BookingConfirmationHandler {
                       .contentType(MediaType.APPLICATION_JSON)
                       .bodyValue(msg)
                   ).orElseGet(() -> ServerResponse.badRequest()
-                        .contentType(MediaType.TEXT_PLAIN)
-                        .bodyValue("Booking has been expired for event " + confirmation.getEventId())
+                      .contentType(MediaType.TEXT_PLAIN)
+                      .bodyValue("Booking has been expired for event " + confirmation.getEventId())
                   )
-          ).onErrorResume(TimeoutException.class, e -> {
-            log.error("Repository timed out during save of expired booking: [{}]. Manual adjustment may be necessary", e.getMessage(),
-                e);
-            return handleServiceUnavailableResponse();
-          });
+          );
     }
   }
 
@@ -238,7 +256,7 @@ public class BookingConfirmationHandler {
 
   //endregion Confirmation Logic
 
-  private Mono<ServerResponse> handleServiceUnavailableResponse(){
+  private Mono<ServerResponse> handleServiceUnavailableResponse() {
     var message = "Service Unavailable. Please try again later.";
     return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, message, pd -> {
       pd.setTitle("Service Unavailable");
@@ -251,6 +269,24 @@ public class BookingConfirmationHandler {
         .orElseGet(() -> ServerResponse.status(HttpStatus.SERVICE_UNAVAILABLE)
             .contentType(MediaType.TEXT_PLAIN)
             .bodyValue(message));
+  }
+
+  private Mono<BookingConfirmation> handleConfirmationRepositoryTimeout(Throwable ex,
+      String subMessage) {
+    String message;
+    if (Exceptions.isRetryExhausted(ex)) {
+      message = "attempting to fetch confirmation for token [%s]. Exhausted retries".formatted(
+          subMessage);
+    } else {
+      message = "attempting to fetch confirmation for token [%s].".formatted(subMessage);
+    }
+    return Mono.error(new ConfirmationTimedOutException(
+        provideTimeoutErrorMessage(message), ex));
+  }
+
+  private String provideTimeoutErrorMessage(String subMessage) {
+    return String.format("Booking Confirmation timed out [over %d milliseconds] %s",
+        notificationTimeoutDuration.toMillis(), subMessage);
   }
 
   //endregion Helper Methods

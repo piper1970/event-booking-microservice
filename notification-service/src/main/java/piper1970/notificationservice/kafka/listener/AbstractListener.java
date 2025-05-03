@@ -7,6 +7,7 @@ import jakarta.mail.internet.MimeMessage;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -29,6 +30,8 @@ public abstract class AbstractListener extends DiscoverableListener {
   protected final String fromAddress;
   protected final String bookingsApiAddress;
   protected final String eventsApiAddress;
+  private final Duration mailSendTimeoutDuration;
+  private final Duration mailDelayDuration;
 
   public AbstractListener(BaseListenerOptions options) {
     super(options.getReactiveKafkaReceiverFactory(), options.getDeadLetterTopicProducer());
@@ -38,6 +41,8 @@ public abstract class AbstractListener extends DiscoverableListener {
     this.fromAddress = options.getFromAddress();
     this.bookingsApiAddress = options.getBookingsApiAddress();
     this.eventsApiAddress = options.getEventsApiAddress();
+    mailSendTimeoutDuration = Duration.ofMillis(options.getMailSendTimeoutMillis());
+    mailDelayDuration = Duration.ofMillis(options.getMailDelayMillis());
   }
 
   abstract protected Logger getLogger();
@@ -46,15 +51,17 @@ public abstract class AbstractListener extends DiscoverableListener {
   /// the initial supplier parameter
   protected Flux<EmailTemplate> readerFlux(String template, Stream<PropsHolder> propHolders) {
     return Flux.using(readerSupplier(template),
-        reader -> buildEmailsFromMustacheAsFlux(reader, template, propHolders)
-    );
+            reader -> buildEmailsFromMustacheAsFlux(reader, template, propHolders)
+        ).subscribeOn(Schedulers.boundedElastic())
+        .log();
   }
 
   /// Provides mono setup for proper auto-close behavior of Reader resource
   protected Mono<String> readerMono(String template, Object props) {
     return Mono.using(readerSupplier(template),
-        reader -> buildEmailFromMustacheAsMono(reader, template, props)
-    );
+            reader -> buildEmailFromMustacheAsMono(reader, template, props)
+        ).subscribeOn(Schedulers.boundedElastic())
+        .log();
   }
 
   protected void logMailDelivery(CharSequence memberEmail, String formattedEmail) {
@@ -63,7 +70,9 @@ public abstract class AbstractListener extends DiscoverableListener {
 
   protected Mono<Void> handleMailMono(String email, String subject, String body) {
     return Mono.fromCallable(() -> sendMail(email, subject, body))
-        .subscribeOn(Schedulers.boundedElastic());
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
+        .timeout(mailSendTimeoutDuration);
   }
 
   /// Helper method to box-then-unbox from flux-mono-flux, to allow for using the fromRunnable logic
@@ -72,14 +81,19 @@ public abstract class AbstractListener extends DiscoverableListener {
     return Flux.defer(() -> Mono.fromCallable(() -> sendMail(tpl.subject().toString(), topic,
                 tpl.body())
             )
+            .delayElement(mailDelayDuration, Schedulers.boundedElastic()) // prevent DDOS-like behavior
+            .timeout(mailSendTimeoutDuration)
+            .log()
             .flux())
         .subscribeOn(Schedulers.boundedElastic());
   }
 
   protected record EmailTemplate(Object subject, String body) {
+
   }
 
   protected record PropsHolder(String email, Object props) {
+
   }
 
   protected String buildBookingLink(Integer bookingId) {
@@ -96,6 +110,7 @@ public abstract class AbstractListener extends DiscoverableListener {
     Mustache mustache = mustacheFactory.compile(reader, template);
     return Flux.fromStream(propsHolderStream)
         .subscribeOn(Schedulers.parallel())
+        .log()
         .map(propsHolder -> {
               var msg = buildEmailFromMustache(mustache, propsHolder.props());
               return new EmailTemplate(propsHolder.email(), msg);
@@ -113,9 +128,10 @@ public abstract class AbstractListener extends DiscoverableListener {
   /// resource
   private Mono<String> buildEmailFromMustacheAsMono(Reader reader, String template, Object props) {
     return Mono.fromCallable(() -> {
-      Mustache mustache = mustacheFactory.compile(reader, template);
-      return buildEmailFromMustache(mustache, props);
-    }).subscribeOn(Schedulers.parallel());
+          Mustache mustache = mustacheFactory.compile(reader, template);
+          return buildEmailFromMustache(mustache, props);
+        }).subscribeOn(Schedulers.parallel())
+        .log();
   }
 
   private String buildEmailFromMustache(Mustache mustache, Object prop) {

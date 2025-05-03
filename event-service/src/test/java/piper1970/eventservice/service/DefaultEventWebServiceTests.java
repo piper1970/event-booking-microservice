@@ -12,13 +12,20 @@ import java.time.ZoneId;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.lang.Nullable;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import piper1970.eventservice.common.events.dto.EventDto;
+import piper1970.eventservice.common.events.messages.EventCancelled;
+import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.domain.Event;
 import piper1970.eventservice.dto.mapper.EventMapper;
@@ -34,12 +41,17 @@ import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Event Web Service")
+@TestClassOrder(OrderAnnotation.class)
+@Order(2)
 class DefaultEventWebServiceTests {
 
   private DefaultEventWebService webService;
 
   @Mock
   private EventRepository eventRepository;
+
+  @Mock
+  private TransactionalOperator transactionalOperator;
 
   @Mock
   private MessagePostingService messagePostingService;
@@ -62,7 +74,9 @@ class DefaultEventWebServiceTests {
 
     webService = new DefaultEventWebService(eventRepository,
         messagePostingService,
-        eventMapper, clock,
+        eventMapper,
+        transactionalOperator,
+        clock,
         eventRepositoryTimeoutInMilliseconds);
   }
 
@@ -85,7 +99,7 @@ class DefaultEventWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.getEvents())
         .expectSubscription()
-        .thenAwait(eventDuration)
+        .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
   }
 
@@ -143,7 +157,7 @@ class DefaultEventWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.getEvent(eventId))
         .expectSubscription()
-        .thenAwait(eventDuration)
+        .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
   }
 
@@ -210,7 +224,7 @@ class DefaultEventWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.createEvent(cre))
         .expectSubscription()
-        .thenAwait(eventDuration)
+        .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
   }
 
@@ -239,9 +253,11 @@ class DefaultEventWebServiceTests {
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent)
         .delayElement(eventDuration));
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.withVirtualTime(() -> webService.updateEvent(eventId, eventUpdateRequest))
         .expectSubscription()
-        .thenAwait(eventDuration)
+        .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
   }
 
@@ -255,6 +271,8 @@ class DefaultEventWebServiceTests {
         new UpdateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 90));
 
     when(eventRepository.findById(eventId)).thenReturn(Mono.empty());
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
         .verifyError(EventNotFoundException.class);
@@ -274,6 +292,8 @@ class DefaultEventWebServiceTests {
 
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent));
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
         .verifyError(EventUpdateException.class);
   }
@@ -283,6 +303,8 @@ class DefaultEventWebServiceTests {
   void updateEvent_timeout_on_save() {
 
     setupMockClocks();
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
 
@@ -303,7 +325,7 @@ class DefaultEventWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.updateEvent(eventId, eventUpdateRequest))
         .expectSubscription()
-        .thenAwait(eventDuration)
+        .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
   }
 
@@ -341,6 +363,11 @@ class DefaultEventWebServiceTests {
     when(eventRepository.save(any(Event.class))).thenReturn(Mono.just(updatedEvent)
     );
 
+    when(messagePostingService.postEventChangedMessage(any(EventChanged.class)))
+        .thenReturn(Mono.empty());
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
         .expectNext(updatedEventDto)
         .verifyComplete();
@@ -368,9 +395,11 @@ class DefaultEventWebServiceTests {
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(event)
         .delayElement(eventDuration));
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.withVirtualTime(() -> webService.cancelEvent(eventId, facilitator))
         .expectSubscription()
-        .thenAwait(eventDuration)
+        .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
   }
 
@@ -379,6 +408,8 @@ class DefaultEventWebServiceTests {
   void cancelEvent_cannot_find_event() {
 
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.empty());
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelEvent(eventId, facilitator))
         .verifyError(EventNotFoundException.class);
@@ -393,6 +424,8 @@ class DefaultEventWebServiceTests {
     originalEvent.setEventDateTime(LocalDateTime.now(clock).minusMinutes(1));
 
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelEvent(eventId, facilitator))
         .verifyError(EventCancellationException.class);
@@ -412,9 +445,11 @@ class DefaultEventWebServiceTests {
     when(eventRepository.save(any(Event.class))).thenAnswer(args -> Mono.just((Event)args.getArgument(0)
     ).delayElement(eventDuration));
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.withVirtualTime(() -> webService.cancelEvent(eventId, facilitator))
         .expectSubscription()
-        .thenAwait(eventDuration)
+        .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
   }
 
@@ -431,6 +466,11 @@ class DefaultEventWebServiceTests {
 
     when(eventRepository.save(any(Event.class))).thenAnswer(args -> Mono.just((Event)args.getArgument(0)
     ));
+
+    when(messagePostingService.postEventCancelledMessage(any(EventCancelled.class)))
+        .thenReturn(Mono.empty());
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelEvent(eventId, facilitator))
         .assertNext(event -> assertTrue(event.isCancelled()))

@@ -110,7 +110,7 @@ public class KafkaConfig {
 
   @Bean
   DeadLetterTopicProducer deadLetterTopicProducer(ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      @Value("${kafka.dlt.suffix : -bs-dlt}") String deadLetterTopicSuffix) {
+      @Value("${kafka.dlt.suffix:-bs-dlt}") String deadLetterTopicSuffix) {
     return new DeadLetterTopicProducer(reactiveKafkaProducerTemplate, deadLetterTopicSuffix);
   }
 

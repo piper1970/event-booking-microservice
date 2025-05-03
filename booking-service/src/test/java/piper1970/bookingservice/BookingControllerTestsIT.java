@@ -1,4 +1,4 @@
-package piper1970.bookingservice.controller;
+package piper1970.bookingservice;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,6 +62,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.testcontainers.containers.ComposeContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
@@ -91,7 +91,6 @@ import reactor.core.publisher.Mono;
         baseUrlProperties = "keystore-service.url")
 })
 @Tag("integration-test")
-@Slf4j
 public class BookingControllerTestsIT {
 
   //region Setup Properties
@@ -144,6 +143,7 @@ public class BookingControllerTestsIT {
   @AfterAll
   static void tearDown() {
     composeContainer.stop();
+    composeContainer.close();
   }
 
   @BeforeEach
@@ -686,6 +686,7 @@ public class BookingControllerTestsIT {
         file
     )
         .withLocalCompose(true)
+        .waitingFor("schema-registry-bookings-test", Wait.forHealthcheck())
         .withExposedService("postgres-bookings-test", 5432)
         .withExposedService("kafka-bookings-test", 9092);
   }
@@ -725,7 +726,6 @@ public class BookingControllerTestsIT {
     @Bean
     @Primary
     public WebClient.Builder webClientBuilder() {
-
       return WebClient.builder()
           .baseUrl(apiUri);
     }

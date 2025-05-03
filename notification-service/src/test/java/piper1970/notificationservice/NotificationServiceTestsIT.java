@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +34,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.testcontainers.containers.ComposeContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import piper1970.notificationservice.domain.BookingConfirmation;
@@ -46,7 +46,6 @@ import reactor.core.publisher.Mono;
 @ActiveProfiles({"test", "integration_test_containers"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Slf4j
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Tag("integration-test")
 public class NotificationServiceTestsIT {
@@ -86,6 +85,7 @@ public class NotificationServiceTestsIT {
   @AfterAll
   static void afterAll() {
     composeContainer.stop();
+    composeContainer.close();
   }
 
   @BeforeEach
@@ -178,6 +178,7 @@ public class NotificationServiceTestsIT {
         file
     )
         .withLocalCompose(true)
+        .waitingFor("schema-registry-notifications-test", Wait.forHealthcheck())
         .withExposedService("postgres-notifications-test", 5432)
         .withExposedService("kafka-notifications-test", 9092);
   }

@@ -26,6 +26,7 @@
     <rest-assured.version>5.5.1</rest-assured.version>
     <wiremock.version>3.8.1</wiremock.version>
     <reactive-kafka.version>1.3.23</reactive-kafka.version>
+    <testcontainers.version>1.21.0</testcontainers.version>
   </properties>
 
   <dependencies>

@@ -30,7 +30,6 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
           .log()
           .subscribeOn(Schedulers.boundedElastic())
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
-          .doOnError(throwable -> log.error("Error sending BOOKING_CREATED message: {}", throwable.getMessage(), throwable))
           .then();
     }catch(Exception e){
       log.error("Unknown error occurred while posting BookingCreated message to kafka: {}", e.getMessage(), e);
@@ -47,7 +46,6 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
           .log()
           .subscribeOn(Schedulers.boundedElastic())
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
-          .doOnError(throwable -> log.error("Error sending BOOKING_CANCELLED message: {}", throwable.getMessage(), throwable))
           .then();
     }catch(Exception e){
       log.error("Unknown error occurred while posting BookingCancelled message to kafka: {}", e.getMessage(), e);
@@ -64,7 +62,6 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
           .log()
           .subscribeOn(Schedulers.boundedElastic())
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
-          .doOnError(throwable -> log.error("Error sending BOOKINGS_UPDATED message: {}", throwable.getMessage(), throwable))
           .then();
     }catch(Exception e){
       log.error("Unknown error occurred while posting BookingsUpdated message to kafka: {}", e.getMessage(), e);

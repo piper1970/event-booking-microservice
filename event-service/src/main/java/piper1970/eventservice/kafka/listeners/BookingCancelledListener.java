@@ -1,9 +1,13 @@
 package piper1970.eventservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import piper1970.eventservice.common.bookings.messages.BookingCancelled;
 import piper1970.eventservice.common.kafka.reactive.DeadLetterTopicProducer;
@@ -16,23 +20,26 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
 public class BookingCancelledListener extends DiscoverableListener{
 
   private final EventRepository eventRepository;
+  private final Duration timeoutDuration;
   private Disposable subscription;
 
   public BookingCancelledListener(ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       EventRepository eventRepository,
-      DeadLetterTopicProducer deadLetterTopicProducer) {
+      DeadLetterTopicProducer deadLetterTopicProducer,
+      @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.eventRepository = eventRepository;
+    timeoutDuration = Duration.ofMillis(timeoutInMilliseconds);
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rec -> rec.receiverOffset().acknowledge());
@@ -57,27 +64,31 @@ public class BookingCancelledListener extends DiscoverableListener{
    */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record){
+    log.debug("BookingCancelledListener::handleIndividualRequest started");
     if(record.value() instanceof BookingCancelled message) {
       return eventRepository.findById(message.getEventId())
           .subscribeOn(Schedulers.boundedElastic())
-          // TODO: handle timeout logic
+          .log()
+          .timeout(timeoutDuration)
+          .retryWhen(DEFAULT_RETRY)
           .flatMap(event -> eventRepository.save(event.withAvailableBookings(event.getAvailableBookings() + 1))
               .subscribeOn(Schedulers.boundedElastic())
+              .log()
+              .timeout(timeoutDuration)
+              .retryWhen(DEFAULT_RETRY)
+              .doOnNext((Event evt) -> log.info(
+                      "Event [{}] availabilities increased to [{}] due to booking cancellation",
+                      evt.getId(), evt.getAvailableBookings()))
+              .doOnError(err -> log.error("Event [{}] for cancelled booking not properly updated", message.getEventId(), err))
+              .map(_evt -> record)
           )
-          .doOnNext((Event evt) -> log.info(
-              "Event [{}] availabilities increased to [{}] due to booking cancellation",
-              evt.getId(), evt.getAvailableBookings()))
-          .doOnError(err -> log.error("Event [{}] for cancelled booking not properly updated", message.getEventId(), err))
-          .retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
-              .jitter(0.7D))
-          .map(_evt -> record)
           .onErrorResume(err -> {
             log.error("BOOKING_CANCELLED message not handled after max attempts. Sending to DLQ",
                 err);
             return handleDLTLogic(record);
           });
     }else{
-      log.error("Unable to unmarshal message. Sending to DLT for further processing");
+      log.error("Unable to deserialize message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

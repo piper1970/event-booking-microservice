@@ -8,7 +8,7 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverRecord;
 
-public abstract class DiscoverableListener implements DisposableBean {
+public abstract class DiscoverableListener implements DisposableBean, AutoCloseable {
 
   private final ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory;
   private final DeadLetterTopicProducer deadLetterTopicProducer;
@@ -19,6 +19,7 @@ public abstract class DiscoverableListener implements DisposableBean {
     this.deadLetterTopicProducer = deadLetterTopicProducer;
   }
 
+  public abstract void initializeReceiverFlux();
   protected abstract String getTopic();
   protected abstract Disposable getSubscription();
   protected abstract Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record);
@@ -38,13 +39,19 @@ public abstract class DiscoverableListener implements DisposableBean {
   }
 
   private KafkaReceiver<Integer, Object> createReceiver() {
-    return reactiveKafkaReceiverFactory.getReceiver(getTopic());
+    return reactiveKafkaReceiverFactory
+        .getReceiver(getTopic());
   }
 
   protected Mono<ReceiverRecord<Integer, Object>> handleDLTLogic(ReceiverRecord<Integer, Object> record){
     return deadLetterTopicProducer.process(record)
         .subscribeOn(Schedulers.boundedElastic())
         .then(Mono.just(record));
+  }
+
+  @Override
+  public void close(){
+    destroy();
   }
 
 

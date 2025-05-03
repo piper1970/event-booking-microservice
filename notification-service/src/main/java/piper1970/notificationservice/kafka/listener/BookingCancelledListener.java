@@ -1,6 +1,7 @@
 package piper1970.notificationservice.kafka.listener;
 
-import java.time.Duration;
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -13,16 +14,16 @@ import piper1970.notificationservice.kafka.listener.options.BaseListenerOptions;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
 public class BookingCancelledListener extends AbstractListener {
-
+  
   public static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
   private Disposable subscription;
 
-  public BookingCancelledListener(BaseListenerOptions options) {
+  public BookingCancelledListener(BaseListenerOptions options
+      ) {
     super(options);
   }
 
@@ -42,6 +43,7 @@ public class BookingCancelledListener extends AbstractListener {
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rec -> rec.receiverOffset().acknowledge());
@@ -57,6 +59,7 @@ public class BookingCancelledListener extends AbstractListener {
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
     if(record.value() instanceof BookingCancelled message) {
+      log.debug("BookingCancelledListener::handleIndividualRequest started");
       var bookingId = Objects.requireNonNull(message.getBooking());
       log.debug("Consuming from BOOKING_CANCELLED topic for id [{}]", bookingId);
       final BookingCancelledMessage props = new BookingCancelledMessage(
@@ -69,16 +72,14 @@ public class BookingCancelledListener extends AbstractListener {
           .doOnNext(email -> logMailDelivery(bookingId.getEmail(), email))
           .flatMap(msg ->
               handleMailMono(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, msg)
-                  .retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
-                      .jitter(0.7D))
+                  .retryWhen(DEFAULT_RETRY)
                   .then(Mono.just(record))
           ).onErrorResume(error -> {
             log.error("BOOKING_CANCELLED handling failed [{}]. Sending to DLT", bookingId, error);
             return handleDLTLogic(record);
           });
-
     }else{
-      log.error("Unable to unmarshal BookingCancelled message. Sending to DLT for further processing");
+      log.error("Unable to deserialize BookingCancelled message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

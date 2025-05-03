@@ -91,7 +91,7 @@ public class KafkaConfig {
 
   @Bean
   DeadLetterTopicProducer deadLetterTopicProducer(ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      @Value("${kafka.dlt.suffix : -es-dlt}") String deadLetterTopicSuffix) {
+      @Value("${kafka.dlt.suffix:-es-dlt}") String deadLetterTopicSuffix) {
     return new DeadLetterTopicProducer(reactiveKafkaProducerTemplate, deadLetterTopicSuffix);
   }
 
@@ -105,7 +105,7 @@ public class KafkaConfig {
   }
 
   @Bean
-  public ReactiveKafkaReceiverFactory reactiveKafkaConsumerFluxFactory(ReceiverOptions<Integer, Object> receiverOptions) {
+  public ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory(ReceiverOptions<Integer, Object> receiverOptions) {
     var topics = List.of(Topics.BOOKING_CONFIRMED, Topics.BOOKING_CANCELLED);
     return new ReactiveKafkaReceiverFactory(receiverOptions, topics);
   }

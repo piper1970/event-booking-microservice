@@ -1,8 +1,11 @@
 package piper1970.bookingservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -17,24 +20,27 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
 public class EventCompletedListener extends DiscoverableListener {
 
   private final BookingRepository bookingRepository;
+  private final Duration timeoutDuration;
   private Disposable subscription;
 
   public EventCompletedListener(
       ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       DeadLetterTopicProducer deadLetterTopicProducer,
-      BookingRepository bookingRepository) {
+      BookingRepository bookingRepository,
+      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.bookingRepository = bookingRepository;
+    timeoutDuration = Duration.ofMillis(timeoutMillis);
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rcv -> rcv.receiverOffset().acknowledge());
@@ -53,6 +59,7 @@ public class EventCompletedListener extends DiscoverableListener {
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+    log.debug("EventCompletedListener::handleIndividualRequest started");
     if (record.value() instanceof EventCompleted message) {
       var eventId = message.getEventId();
       log.debug(
@@ -64,20 +71,27 @@ public class EventCompletedListener extends DiscoverableListener {
           ))
           .subscribeOn(Schedulers.boundedElastic())
           .log()
+          .timeout(timeoutDuration)
+          .retryWhen(DEFAULT_RETRY)
           .map(booking -> booking.withBookingStatus(BookingStatus.COMPLETED))
           .collectList()
-          .flatMapMany(bookingRepository::saveAll)
-          .retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
-              .jitter(0.7D))
+          .flatMapMany(bookingList ->
+              bookingRepository.saveAll(bookingList)
+                  .subscribeOn(Schedulers.boundedElastic())
+                  .log()
+                  .timeout(timeoutDuration)
+                  .retryWhen(DEFAULT_RETRY)
+          )
           .count()
           .doOnNext(count -> log.info("{} Bookings completed for event {}", count, eventId))
-          .doOnError(err -> log.error("EVENT_COMPLETED message not handled properly: [{}]",
-              err.getMessage(), err))
           .map(cnt -> record)
-          .onErrorResume(err -> handleDLTLogic(record));
+          .onErrorResume(err -> {
+            log.error("Unable to send EventCompleted message after max attempts. Sending to DLT", err);
+            return handleDLTLogic(record);
+          });
     } else {
       log.error(
-          "Unable to unmarshal EventCompleted message. Sending to DLT for further processing");
+          "Unable to deserialize EventCompleted message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

@@ -1,4 +1,4 @@
-package piper1970.eventservice.controller;
+package piper1970.eventservice;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +60,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.testcontainers.containers.ComposeContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
@@ -80,7 +80,6 @@ import reactor.core.publisher.Mono;
 @ActiveProfiles({"test", "integration_test_containers"})
 @Testcontainers
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Slf4j
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EnableWireMock({
     @ConfigureWireMock(
@@ -142,6 +141,7 @@ public class EventControllerTestsIT {
   @AfterAll
   static void tearDown() {
     composeContainer.stop();
+    composeContainer.close();
   }
 
   @BeforeEach
@@ -886,6 +886,7 @@ public class EventControllerTestsIT {
         file
     )
         .withLocalCompose(true)
+        .waitingFor("schema-registry-events-test", Wait.forHealthcheck())
         .withExposedService("postgres-events-test", 5432)
         .withExposedService("kafka-events-test", 9092);
   }

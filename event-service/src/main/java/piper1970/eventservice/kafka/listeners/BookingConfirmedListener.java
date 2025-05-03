@@ -1,10 +1,14 @@
 package piper1970.eventservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
 import piper1970.eventservice.common.kafka.reactive.DeadLetterTopicProducer;
@@ -17,7 +21,6 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -25,18 +28,22 @@ public class BookingConfirmedListener extends DiscoverableListener{
 
   private final EventRepository eventRepository;
   private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  private final Duration timeoutDuration;
   private Disposable subscription;
 
   public BookingConfirmedListener(ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       EventRepository eventRepository,
       ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      DeadLetterTopicProducer deadLetterTopicProducer) {
+      DeadLetterTopicProducer deadLetterTopicProducer,
+      @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.eventRepository = eventRepository;
     this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
+    timeoutDuration = Duration.ofMillis(timeoutInMilliseconds);
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rcv -> rcv.receiverOffset().acknowledge());
@@ -63,19 +70,25 @@ public class BookingConfirmedListener extends DiscoverableListener{
    */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record){
+    log.debug("BookingConfirmedListener::handleIndividualRequest started");
     if(record.value() instanceof BookingConfirmed message) {
       var eventId = message.getEventId();
       log.debug("Consuming from BOOKING_CONFIRMED topic [{}]", eventId);
       return eventRepository.findById(eventId)
           .subscribeOn(Schedulers.boundedElastic())
           .log()
-          // TODO: handle timeout logic
+          .timeout(timeoutDuration)
+          .retryWhen(DEFAULT_RETRY)
           .filter(event -> event.getAvailableBookings() > 0)
           .switchIfEmpty(Mono.defer(() -> {
             log.warn("Event [{}] has no available bookings left. Sending message to BOOKING_EVENT_UNAVAILABLE topic", eventId);
             var buMsg = new BookingEventUnavailable(message.getBooking(), eventId);
             return reactiveKafkaProducerTemplate.send(Topics.BOOKING_EVENT_UNAVAILABLE, eventId, buMsg)
+                .log()
+                .timeout(timeoutDuration)
+                .retryWhen(DEFAULT_RETRY)
                 .onErrorResume(err -> {
+                  // error only logged...
                   log.error("Unable to send message to BOOKING_EVENT_UNAVAILABLE topic. Manual intervention necessary", err);
                   return Mono.empty();
                 }).then(Mono.empty());
@@ -83,10 +96,9 @@ public class BookingConfirmedListener extends DiscoverableListener{
           .flatMap(event -> eventRepository.save(event.withAvailableBookings(event.getAvailableBookings() - 1))
               .subscribeOn(Schedulers.boundedElastic())
               .log()
+              .timeout(timeoutDuration)
+              .retryWhen(DEFAULT_RETRY)
               .map(evt -> record)
-              // TODO: add timeout logic
-              .retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
-                  .jitter(0.7D))
               .onErrorResume(err -> {
                 log.error("BOOKING_CONFIRMED message not handled after max attempts. Sending to DLT",
                     err);
@@ -94,7 +106,7 @@ public class BookingConfirmedListener extends DiscoverableListener{
               })
           );
     }else{
-      log.error("Unable to unmarshal message. Sending to DLT for further processing");
+      log.error("Unable to deserialize message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

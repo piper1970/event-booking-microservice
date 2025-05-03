@@ -1,7 +1,10 @@
 package piper1970.bookingservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -16,24 +19,27 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
 public class BookingConfirmedListener extends DiscoverableListener {
 
   private final BookingRepository bookingRepository;
+  private final Duration timeoutDuration;
   private Disposable subscription;
 
   public BookingConfirmedListener(
       ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       DeadLetterTopicProducer deadLetterTopicProducer,
-      BookingRepository bookingRepository) {
+      BookingRepository bookingRepository,
+      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.bookingRepository = bookingRepository;
+    timeoutDuration = Duration.ofMillis(timeoutMillis);
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rec -> rec.receiverOffset().acknowledge());
@@ -52,28 +58,31 @@ public class BookingConfirmedListener extends DiscoverableListener {
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
-    // TODO: need timeout logic
+    log.debug("BookingConfirmedListener::handleIndividualRequest started");
     if (record.value() instanceof BookingConfirmed message) {
       return bookingRepository.findById(message.getBooking().getId())
           .subscribeOn(Schedulers.boundedElastic())
+          .log()
+          .timeout(timeoutDuration)
+          .retryWhen(DEFAULT_RETRY)
           .filter(booking -> BookingStatus.IN_PROGRESS == booking.getBookingStatus())
           .flatMap(
               booking -> bookingRepository.save(booking.withBookingStatus(BookingStatus.CONFIRMED))
-          ).doOnNext(updatedBooking -> log.info("Booking confirmed: {}", updatedBooking))
-          .doOnError(
-              throwable -> log.error("Booking confirmation failure: {}", throwable.getMessage(),
-                  throwable))
-          .retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
-              .jitter(0.7D))
-          .map(_evt -> record)
+                  .subscribeOn(Schedulers.boundedElastic())
+                  .log()
+                  .timeout(timeoutDuration)
+                  .retryWhen(DEFAULT_RETRY)
+                  .doOnNext(updatedBooking -> log.info("Confirmed booking saved: [{}]", updatedBooking))
+                  .map(updatedBooking -> record)
+          )
           .onErrorResume(err -> {
-            log.error("BOOKING_CONFIRMED message not handled after max attempts. Sending to DLQ",
+            log.error("BookingConfirmed message not handled after max attempts. Sending to DLT",
                 err);
             return handleDLTLogic(record);
           });
     } else {
       log.error(
-          "Unable to unmarshal BookingConfirmed message. Sending to DLT for further processing");
+          "Unable to deserialize BookingConfirmed message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

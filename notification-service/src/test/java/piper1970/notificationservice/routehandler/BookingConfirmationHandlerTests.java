@@ -14,8 +14,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,7 +35,9 @@ import reactor.test.StepVerifier;
 
 @DisplayName("Booking Confirmation Handler")
 @ExtendWith(MockitoExtension.class)
-class BookingConfirmationHandlerTest {
+@TestClassOrder(OrderAnnotation.class)
+@Order(2)
+class BookingConfirmationHandlerTests {
 
 
   //region Properties Used
@@ -71,12 +76,10 @@ class BookingConfirmationHandlerTest {
   @BeforeEach
   void setUp() {
 
-    ObjectMapper objectMapper = new ObjectMapper();
-
     testHandler = new BookingConfirmationHandler(
         mockRepository,
         mockPostingService,
-        objectMapper,
+        new ObjectMapper(),
         clock,
         notificationTimeoutDuration
     );
@@ -128,7 +131,7 @@ class BookingConfirmationHandlerTest {
     StepVerifier.withVirtualTime(
             () -> testHandler.handleConfirmation(mockServerRequest))
         .expectSubscription()
-        .thenAwait(notificationTimeoutDuration)
+        .thenAwait(notificationTimeoutDuration.multipliedBy(10))
         .assertNext(serverResponse -> assertThat(serverResponse.statusCode().value()).isEqualTo(
             HttpStatus.SERVICE_UNAVAILABLE.value())).verifyComplete();
 
@@ -177,7 +180,7 @@ class BookingConfirmationHandlerTest {
     StepVerifier.withVirtualTime(
             () -> testHandler.handleConfirmation(mockServerRequest))
         .expectSubscription()
-        .thenAwait(notificationTimeoutDuration)
+        .thenAwait(notificationTimeoutDuration.multipliedBy(10))
         .assertNext(serverResponse -> assertThat(serverResponse.statusCode().value()).isEqualTo(
             HttpStatus.SERVICE_UNAVAILABLE.value())).verifyComplete();
   }
@@ -196,8 +199,8 @@ class BookingConfirmationHandlerTest {
         .confirmationStatus(ConfirmationStatus.EXPIRED)
         .build();
 
-    when(mockPostingService.postBookingExpiredMessage(any(BookingExpired.class))
-            .thenReturn(Mono.empty()));
+    when(mockPostingService.postBookingExpiredMessage(any(BookingExpired.class)))
+            .thenReturn(Mono.empty());
 
     when(mockRepository.findByConfirmationString(eq(testToken)))
         .thenReturn(
@@ -247,7 +250,7 @@ class BookingConfirmationHandlerTest {
     StepVerifier.withVirtualTime(
             () -> testHandler.handleConfirmation(mockServerRequest))
         .expectSubscription()
-        .thenAwait(notificationTimeoutDuration)
+        .thenAwait(notificationTimeoutDuration.multipliedBy(10))
         .assertNext(serverResponse -> assertThat(serverResponse.statusCode().value()).isEqualTo(
             HttpStatus.SERVICE_UNAVAILABLE.value())).verifyComplete();
   }
@@ -271,8 +274,8 @@ class BookingConfirmationHandlerTest {
             Mono.just(originalConfirmation)
         );
 
-    when(mockPostingService.postBookingExpiredMessage(any(BookingExpired.class))
-        .thenReturn(Mono.empty()));
+    when(mockPostingService.postBookingConfirmedMessage(any(BookingConfirmed.class)))
+        .thenReturn(Mono.empty());
 
     when(mockRepository.save(eq(confirmedConfirmation)))
         .thenReturn(

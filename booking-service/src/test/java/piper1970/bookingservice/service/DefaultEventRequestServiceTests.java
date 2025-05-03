@@ -15,8 +15,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.Builder;
@@ -29,6 +32,8 @@ import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.test.StepVerifier;
 
 @DisplayName("EventRequestServiceTest")
+@TestClassOrder(OrderAnnotation.class)
+@Order(2)
 class DefaultEventRequestServiceTests {
 
   private DefaultEventRequestService requestService;

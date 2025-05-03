@@ -1,7 +1,11 @@
 package piper1970.bookingservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
+import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
@@ -29,19 +33,23 @@ public class EventChangedListener extends DiscoverableListener {
   public static final String SERVICE_NAME = "booking-service";
   private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
   private final BookingRepository bookingRepository;
+  private final Duration timeoutDuration;
   private Disposable subscription;
 
   public EventChangedListener(
       ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       DeadLetterTopicProducer deadLetterTopicProducer,
       ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      BookingRepository bookingRepository) {
+      BookingRepository bookingRepository,
+      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
     this.bookingRepository = bookingRepository;
+    timeoutDuration = Duration.ofMillis(timeoutMillis);
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rcv -> rcv.receiverOffset().acknowledge());
@@ -60,6 +68,7 @@ public class EventChangedListener extends DiscoverableListener {
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+    log.debug("EventChangedListener::handleIndividualRequest started");
     if(record.value() instanceof EventChanged message) {
       var eventId = message.getEventId();
       log.debug(
@@ -70,6 +79,8 @@ public class EventChangedListener extends DiscoverableListener {
           BookingStatus.COMPLETED))
           .subscribeOn(Schedulers.boundedElastic())
           .log()
+          .timeout(timeoutDuration)
+          .retryWhen(DEFAULT_RETRY)
           .map(this::toBookingId)
           .collectList()
           .doOnNext(bookings -> log.debug("[{}] bookings updated for event [{}]", bookings.size(), eventId))
@@ -80,14 +91,19 @@ public class EventChangedListener extends DiscoverableListener {
             buMsg.setBookings(bookings);
             return reactiveKafkaProducerTemplate.send(Topics.EVENT_CHANGED, buMsg)
                 .subscribeOn(Schedulers.boundedElastic())
+                .log()
+                .timeout(timeoutDuration)
+                .retryWhen(DEFAULT_RETRY)
                 .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
-                .doOnError(err -> log.error("Unable to send message to EVENT_CHANGED topic. Manual intervention necessary", err))
-                .then(Mono.just(record));
+                .map(updatedBooking -> record);
           })
-          .onErrorResume(err -> handleDLTLogic(record));
+          .onErrorResume(err -> {
+            log.error("Unable to send EventChanged message after max attempts. Sending to DLT", err);
+            return handleDLTLogic(record);
+          });
 
     }else{
-      log.error("Unable to unmarshal EventChanged message. Sending to DLT for further processing");
+      log.error("Unable to deserialize EventChanged message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

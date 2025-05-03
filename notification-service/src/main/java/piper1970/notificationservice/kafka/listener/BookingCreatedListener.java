@@ -1,5 +1,7 @@
 package piper1970.notificationservice.kafka.listener;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -22,7 +24,6 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -42,7 +43,7 @@ public class BookingCreatedListener extends AbstractListener {
       BookingConfirmationRepository bookingConfirmationRepository,
       TransactionalOperator transactionalOperator,
       Clock clock,
-      @Value("${notification-repository.timout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds,
+      @Value("${notification-repository.timeout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds,
       @Value("${confirmation.url:http://localhost:8084/api/notifications/confirm}") String confirmationUrl,
       @Value("${confirmation.duration.minutes:30}") Integer confirmationInMinutes
       ) {
@@ -71,6 +72,7 @@ public class BookingCreatedListener extends AbstractListener {
   }
 
   @EventListener(ApplicationReadyEvent.class)
+  @Override
   public void initializeReceiverFlux() {
     subscription = buildFluxRequest()
         .subscribe(rec -> rec.receiverOffset().acknowledge());
@@ -86,9 +88,8 @@ public class BookingCreatedListener extends AbstractListener {
 
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
-
+    log.debug("BookingCreatedListener::handleIndividualRequest started");
     if(record.value() instanceof BookingCreated message) {
-      // TODO: migrate logic from KafkaMessageConsumingService
       var confirmToken = UUID.randomUUID();
       var confirmLink = confirmationUrl + "/" + confirmToken;
       log.debug("Consuming from BOOKING_CREATED topic. Confirm link created [{}]", confirmLink);
@@ -103,8 +104,6 @@ public class BookingCreatedListener extends AbstractListener {
       var template = BookingCreatedMessage.template();
       var emailAddress = bookingId.getEmail();
       var sendEmailMono = readerMono(template, props)
-          .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .doOnNext(email -> logMailDelivery(emailAddress, email))
           .flatMap(msg ->
               handleMailMono(emailAddress.toString(), BOOKING_HAS_BEEN_CREATED_SUBJECT, msg)
@@ -125,24 +124,17 @@ public class BookingCreatedListener extends AbstractListener {
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(notificationTimeoutDuration)
-          .onErrorResume(e -> {
-            log.error(
-                "Save of booking confirmation for confirmation string [{}] failed due to timeout. Manual adjustment of record may be necessary",
-                confirmToken, e);
-            return Mono.empty();
-          })
           .doOnNext(confirmation -> log.info("Booking confirmation saved [{}]", confirmation))
           .then(sendEmailMono)
           .as(transactionalOperator::transactional)
-          .retryWhen(Retry.backoff(3L, Duration.ofMillis(500L))
-              .jitter(0.7D))
+          .retryWhen(DEFAULT_RETRY)
           .then(Mono.just(record))
           .onErrorResume(error -> {
-            log.error("BOOKING_CREATED message handling failed. Sending to DLT", error);
+            log.error("BOOKING_CREATED message handling failed. Transaction rolled back and message sent to DLT", error);
             return handleDLTLogic(record);
           });
     }else{
-      log.error("Unable to unmarshal BookingCreated message. Sending to DLT for further processing");
+      log.error("Unable to deserialize BookingCreated message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }
