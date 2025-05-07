@@ -11,6 +11,7 @@ import lombok.With;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
@@ -26,6 +27,10 @@ public class Booking {
   @Id
   @EqualsAndHashCode.Exclude
   private Integer id;
+
+  @Version
+  private Integer version;
+
   private Integer eventId;
   private String username;
   private String email;

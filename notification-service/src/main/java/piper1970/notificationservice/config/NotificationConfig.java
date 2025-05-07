@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
@@ -42,6 +44,8 @@ import reactor.kafka.sender.SenderOptions;
 @Configuration(proxyBeanMethods = false)
 @EnableKafka
 @EnableWebFluxSecurity
+@EnableScheduling
+@EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
 public class NotificationConfig {
 
   private final BookingConfirmationRepository bookingConfirmationRepository;
@@ -249,5 +253,14 @@ public class NotificationConfig {
   //endregion Kafka Consumer
 
   //endregion Kafka Setup
+
+  //region Scheduling
+
+//  @Bean
+//  public LockProvider lockProvider(ConnectionFactory connectionFactory) {
+//    return new R2dbcLockProvider(connectionFactory);
+//  }
+
+  //endregion Scheduling
 
 }

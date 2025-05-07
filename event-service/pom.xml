@@ -128,6 +128,18 @@
       <scope>runtime</scope>
     </dependency>
 
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-spring</artifactId>
+      <version>${shedlock-spring.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-provider-r2dbc</artifactId>
+      <version>${shedlock-spring.version}</version>
+    </dependency>
+
     <!--  Test Dependencies  -->
 
     <dependency>
