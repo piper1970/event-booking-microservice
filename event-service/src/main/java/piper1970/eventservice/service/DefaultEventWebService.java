@@ -1,20 +1,23 @@
 package piper1970.eventservice.service;
 
+
+import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
+import piper1970.eventservice.common.exceptions.KafkaPostingException;
 import piper1970.eventservice.domain.Event;
 import piper1970.eventservice.dto.mapper.EventMapper;
 import piper1970.eventservice.dto.model.EventCreateRequest;
@@ -23,8 +26,10 @@ import piper1970.eventservice.exceptions.EventCancellationException;
 import piper1970.eventservice.exceptions.EventTimeoutException;
 import piper1970.eventservice.exceptions.EventUpdateException;
 import piper1970.eventservice.repository.EventRepository;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @Slf4j
@@ -36,17 +41,20 @@ public class DefaultEventWebService implements EventWebService {
   private final Clock clock;
   private final Integer eventRepositoryTimeoutInMilliseconds;
   private final Duration eventsTimeoutDuration;
+  private final TransactionalOperator transactionalOperator;
 
   public DefaultEventWebService(
       @NonNull EventRepository eventRepository,
       @NonNull MessagePostingService messagePostingService,
       @NonNull EventMapper eventMapper,
+      TransactionalOperator transactionalOperator,
       Clock clock,
       @NonNull @Value("${event-repository.timout.milliseconds}") Integer eventRepositoryTimeoutInMilliseconds) {
 
     this.eventRepository = eventRepository;
     this.messagePostingService = messagePostingService;
     this.eventMapper = eventMapper;
+    this.transactionalOperator = transactionalOperator;
     this.clock = clock;
     this.eventRepositoryTimeoutInMilliseconds = eventRepositoryTimeoutInMilliseconds;
     this.eventsTimeoutDuration = Duration.ofMinutes(eventRepositoryTimeoutInMilliseconds);
@@ -57,12 +65,12 @@ public class DefaultEventWebService implements EventWebService {
     log.debug("Get events called");
 
     return eventRepository.findAll()
-        .map(eventMapper::toDto)
-        // handle timeout of fetch-all by throwing EventTimeoutException
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
         .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to get all events"), ex)))
+        .retryWhen(DEFAULT_RETRY)
+        .onErrorResume(ex -> handleRepositoryFluxTimeout(ex,  "attempting to get all events"))
+        .map(eventMapper::toDto)
         .doOnNext(this::logEventRetrieval);
   }
 
@@ -71,12 +79,12 @@ public class DefaultEventWebService implements EventWebService {
     log.debug("Get event with id [{}] called", id);
 
     return eventRepository.findById(id)
-        .map(eventMapper::toDto)
-        // handle timeout of fetch by throwing EventTimeoutException
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
         .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to get event [%d]".formatted(id)), ex)))
+        .retryWhen(DEFAULT_RETRY)
+        .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to get event"))
+        .map(eventMapper::toDto)
         .doOnNext(this::logEventRetrieval);
   }
 
@@ -86,16 +94,15 @@ public class DefaultEventWebService implements EventWebService {
 
     var event = eventMapper.toEntity(createRequest);
     return eventRepository.save(event)
-        .map(eventMapper::toDto)
-        // handle timeout of save by throwing EventTimeoutException
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
         .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to create event"), ex)))
+        .retryWhen(DEFAULT_RETRY)
+        .onErrorResume(ex -> handleRepositoryTimeout(ex, 0, "attempting to save event"))
+        .map(eventMapper::toDto)
         .doOnNext(dto -> log.debug("Event [{}] has been created", dto));
   }
 
-  @Transactional
   @Override
   public Mono<EventDto> updateEvent(@NonNull Integer id,
       @NonNull EventUpdateRequest updateRequest) {
@@ -103,32 +110,38 @@ public class DefaultEventWebService implements EventWebService {
     log.debug("Update event with id [{}] called [{}]", id, updateRequest);
 
     return eventRepository.findById(id)
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
         .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage(
-                    "attempting to find event %d for updating".formatted(id)), ex)))
+        .retryWhen(DEFAULT_RETRY)
+        .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found".formatted(id))))
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
-        .map(eventMapper::toDto)
-        .doOnNext(updatedEvent -> {
-          log.debug("Event [{}] has been updated", updatedEvent);
-          var message = createEventChangedMessage(updatedEvent);
-          messagePostingService.postEventChangedMessage(message);
-        });
+        .flatMap(updatedEvent -> {
+          var dto = eventMapper.toDto(updatedEvent);
+          var message = createEventChangedMessage(dto);
+          return messagePostingService.postEventChangedMessage(message)
+              .log()
+              .subscribeOn(Schedulers.boundedElastic())
+              .timeout(eventsTimeoutDuration)
+              .retryWhen(DEFAULT_RETRY)
+              .onErrorResume(ex -> handlePostingTimeout(ex, dto.getId(), "EVENT_CHANGED"))
+              .then(Mono.just(dto));
+        })
+        .as(transactionalOperator::transactional);
   }
 
-  @Transactional
+
   @Override
   public Mono<EventDto> cancelEvent(Integer id, String facilitator) {
     log.debug("Cancel event [{}] called by [{}]", id, facilitator);
 
     return eventRepository.findByIdAndFacilitator(id, facilitator)
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
         .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage(
-                    "attempting to find event [%d] for deletion".formatted(id)), ex)))
+        .retryWhen(DEFAULT_RETRY)
+        .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException(
             "Event [%d} run by [%s]not found".formatted(id, facilitator))))
         .filter(this::safeToCancel)
@@ -136,17 +149,19 @@ public class DefaultEventWebService implements EventWebService {
             "Cannot cancel event [%d] if the event already in progress or completed"
                 .formatted(id))))
         .flatMap(this::cancelAndSave)
-        .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to save cancelled event [%d]".formatted(id)),
-                ex)))
-        .map(eventMapper::toDto)
-        .doOnNext(dto -> {
-          log.debug("Event [{}] has been cancelled", dto.getId());
+        .flatMap(updatedEvent -> {
+          var dto = eventMapper.toDto(updatedEvent);
           var message = createEventCancelledMessage(dto);
-          messagePostingService.postEventCancelledMessage(message);
-        });
+          return messagePostingService.postEventCancelledMessage(message)
+              .subscribeOn(Schedulers.boundedElastic())
+              .log()
+              .timeout(eventsTimeoutDuration)
+              .retryWhen(DEFAULT_RETRY)
+              .onErrorResume(ex -> handlePostingTimeout(ex, dto.getId(), "EVENT_CANCELLED"))
+              .then(Mono.just(dto));
+        })
+        .as(transactionalOperator::transactional);
+
   }
 
   private EventChanged createEventChangedMessage(EventDto updatedEvent) {
@@ -171,7 +186,14 @@ public class DefaultEventWebService implements EventWebService {
       return Mono.just(event);
     }
     var cancelledEvent = event.toBuilder().cancelled(true).build();
-    return eventRepository.save(cancelledEvent);
+    return eventRepository.save(cancelledEvent)
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
+        .timeout(eventsTimeoutDuration)
+        .retryWhen(DEFAULT_RETRY)
+        .doOnNext(
+            savedEvent -> log.debug("Event [{}] has been cancelled in the database", savedEvent.getId()))
+        .onErrorResume(ex -> handleRepositoryTimeout(ex, event.getId(), "save cancelled event"));
   }
 
   /// Handles logic for merging update with current request Updates can only happen if the event has
@@ -207,11 +229,12 @@ public class DefaultEventWebService implements EventWebService {
       return Mono.error(exception);
     }
     return eventRepository.save(event)
+        .subscribeOn(Schedulers.boundedElastic())
+        .log()
         .timeout(eventsTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventTimeoutException(
-                provideTimeoutErrorMessage("attempting to update event [%d]".formatted(event.getId())), ex)));
-
+        .retryWhen(DEFAULT_RETRY)
+        .doOnNext(dto -> log.debug("Event [{}] has been updated in the database", dto.getId()))
+        .onErrorResume(ex -> handleRepositoryTimeout(ex, event.getId(), "update event "));
   }
 
   private boolean safeToCancel(Event event) {
@@ -219,6 +242,41 @@ public class DefaultEventWebService implements EventWebService {
     LocalDateTime cutoffTime = event.getEventDateTime()
         .truncatedTo(ChronoUnit.MINUTES);
     return now.isBefore(cutoffTime);
+  }
+
+  private Mono<Event> handleRepositoryTimeout(Throwable ex, Integer eventId, String subMessage) {
+    if(Exceptions.isRetryExhausted(ex)){
+      return Mono.error(new EventTimeoutException(
+          provideTimeoutErrorMessage("attempting to %s [%d]. Exhausted all retries".formatted(subMessage, eventId)), ex.getCause()));
+    }
+    return Mono.error(new EventTimeoutException(
+        provideTimeoutErrorMessage("attempting to %s [%d]".formatted(subMessage, eventId)), ex));
+  }
+
+  @SuppressWarnings("all")
+  private Flux<Event> handleRepositoryFluxTimeout(Throwable ex, String subMessage) {
+    if (Exceptions.isRetryExhausted(ex)) {
+      return Flux.error(new EventTimeoutException(
+          provideTimeoutErrorMessage(
+              "attempting to %s . Exhausted all retries".formatted(subMessage)),
+          ex.getCause()));
+    }
+    return Flux.error(new EventTimeoutException(
+        provideTimeoutErrorMessage("attempting to %s".formatted(subMessage)), ex));
+  }
+
+  private Mono<Void> handlePostingTimeout(Throwable ex, Integer eventId, String subMessage) {
+    if(Exceptions.isRetryExhausted(ex)){
+      return Mono.error(new KafkaPostingException(
+          providePostingTimeoutErrorMessage("attempting to post %s message for event [%d]. Exhausted all retries".formatted(subMessage, eventId)), ex.getCause()));
+    }
+    return Mono.error(new KafkaPostingException(
+        providePostingTimeoutErrorMessage("attempting to post %s message for event [%d]".formatted(subMessage, eventId)), ex));
+  }
+
+  private String providePostingTimeoutErrorMessage(String subMessage) {
+    return String.format("Message posting for event timed out [over %d milliseconds] %s",
+        eventsTimeoutDuration.toMillis(), subMessage);
   }
 
   private String provideTimeoutErrorMessage(String subMessage) {

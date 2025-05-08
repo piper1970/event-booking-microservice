@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestClassOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
 import org.springframework.r2dbc.core.DatabaseClient;
@@ -14,7 +17,9 @@ import piper1970.bookingservice.domain.BookingStatus;
 import reactor.test.StepVerifier;
 
 @DataR2dbcTest
-@DisplayName("Booking repository")
+@DisplayName("Booking Repository")
+@TestClassOrder(OrderAnnotation.class)
+@Order(4)
 class BookingRepositoryTests {
 
   @Autowired
@@ -33,23 +38,20 @@ class BookingRepositoryTests {
             CREATE TABLE event_service.bookings
                 (
                     id                int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                    event_id          int     NOT NULL,
+                    version           int,
+                    event_id          int NOT NULL,
                     username          varchar(60) NOT NULL,
                     email             varchar(255) NOT NULL,
-                    booking_status    varchar(30) NOT NULL,
-                    created_date_time timestamp,
-                    updated_date_time timestamp
+                    booking_status    varchar(30) NOT NULL
                 );
             """);
 
-    statements.forEach(stmt -> {
-      databaseClient.sql(stmt)
-          .fetch()
-          .rowsUpdated()
-          .as(StepVerifier::create)
-          .expectNextCount(1)
-          .verifyComplete();
-    });
+    statements.forEach(stmt -> databaseClient.sql(stmt)
+        .fetch()
+        .rowsUpdated()
+        .as(StepVerifier::create)
+        .expectNextCount(1)
+        .verifyComplete());
   }
 
   @Test

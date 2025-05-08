@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.4.4</version>
+    <version>3.4.5</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -25,6 +25,9 @@
     <lombok.mapstruct.binding.version>0.2.0</lombok.mapstruct.binding.version>
     <rest-assured.version>5.5.1</rest-assured.version>
     <wiremock.version>3.8.1</wiremock.version>
+    <reactive-kafka.version>1.3.23</reactive-kafka.version>
+    <testcontainers.version>1.21.0</testcontainers.version>
+    <shedlock-spring.version>6.6.0</shedlock-spring.version>
   </properties>
 
   <dependencies>
@@ -132,7 +135,7 @@
   <profiles>
     <profile>
       <id>macos-arm</id>
-      <!--		Needed for use with MacOS arm Architecture. -->
+      <!--		Needed for use with macOS arm Architecture. -->
       <dependencies>
         <dependency>
           <groupId>io.netty</groupId>

@@ -12,12 +12,17 @@ import java.time.ZoneId;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.lang.Nullable;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import piper1970.bookingservice.domain.Booking;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.dto.mapper.BookingMapper;
@@ -28,6 +33,8 @@ import piper1970.bookingservice.exceptions.BookingCreationException;
 import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
+import piper1970.eventservice.common.bookings.messages.BookingCancelled;
+import piper1970.eventservice.common.bookings.messages.BookingCreated;
 import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
@@ -37,6 +44,8 @@ import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Booking Web Service")
+@TestClassOrder(OrderAnnotation.class)
+@Order(3)
 class DefaultBookingWebServiceTests {
 
   // service to test
@@ -53,6 +62,8 @@ class DefaultBookingWebServiceTests {
   EventDtoToStatusMapper eventDtoToStatusMapper;
   @Mock
   BookingMapper bookingMapper;
+  @Mock
+  TransactionalOperator transactionalOperator;
   @Mock
   Clock clock;
 
@@ -77,6 +88,7 @@ class DefaultBookingWebServiceTests {
         eventRequestService,
         messagePostingService,
         eventDtoToStatusMapper,
+        transactionalOperator,
         timeoutValue
     );
   }
@@ -123,7 +135,7 @@ class DefaultBookingWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.findAllBookings())
         .expectSubscription()
-        .thenAwait(timeoutDuration)
+        .thenAwait(timeoutDuration.multipliedBy(10))
         .verifyError(BookingTimeoutException.class);
   }
 
@@ -169,7 +181,7 @@ class DefaultBookingWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.findBookingsByUsername(username))
         .expectSubscription()
-        .thenAwait(timeoutDuration)
+        .thenAwait(timeoutDuration.multipliedBy(10))
         .verifyError(BookingTimeoutException.class);
   }
 
@@ -213,7 +225,7 @@ class DefaultBookingWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.findBookingById(bookingId))
         .expectSubscription()
-        .thenAwait(timeoutDuration)
+        .thenAwait(timeoutDuration.multipliedBy(10))
         .verifyError(BookingTimeoutException.class);
 
   }
@@ -262,7 +274,7 @@ class DefaultBookingWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.findBookingByIdAndUsername(bookingId, username))
         .expectSubscription()
-        .thenAwait(timeoutDuration)
+        .thenAwait(timeoutDuration.multipliedBy(10))
         .verifyError(BookingTimeoutException.class);
   }
 
@@ -286,6 +298,8 @@ class DefaultBookingWebServiceTests {
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.error(new RuntimeException(errorMessage)));
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.create(webService.createBooking(cbr, token))
         .verifyError(RuntimeException.class);
   }
@@ -305,6 +319,8 @@ class DefaultBookingWebServiceTests {
 
     when(eventDtoToStatusMapper.apply(eventDto)).thenReturn(EventStatus.IN_PROGRESS);
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.create(webService.createBooking(cbr, token))
         .verifyError(BookingCreationException.class);
   }
@@ -323,6 +339,8 @@ class DefaultBookingWebServiceTests {
         .thenReturn(Mono.just(eventDto));
 
     when(eventDtoToStatusMapper.apply(eventDto)).thenReturn(EventStatus.COMPLETED);
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.createBooking(cbr, token))
         .verifyError(BookingCreationException.class);
@@ -349,9 +367,11 @@ class DefaultBookingWebServiceTests {
         .delayElement(timeoutDuration)
     );
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.withVirtualTime(() -> webService.createBooking(cbr, token))
         .expectSubscription()
-        .thenAwait(timeoutDuration)
+        .thenAwait(timeoutDuration.multipliedBy(10))
         .verifyError(BookingTimeoutException.class);
   }
 
@@ -375,6 +395,11 @@ class DefaultBookingWebServiceTests {
     when(eventDtoToStatusMapper.apply(eventDto)).thenReturn(EventStatus.AWAITING);
 
     when(bookingRepository.save(any(Booking.class))).thenReturn(Mono.just(booking));
+
+    when(messagePostingService.postBookingCreatedMessage(any(BookingCreated.class)))
+        .thenReturn(Mono.empty());
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     mockBookingMapper();
 
@@ -402,6 +427,8 @@ class DefaultBookingWebServiceTests {
     when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.empty());
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.create(webService.cancelBooking(bookingId, username, token))
         .verifyError(BookingNotFoundException.class);
   }
@@ -416,9 +443,11 @@ class DefaultBookingWebServiceTests {
         .thenReturn(Mono.just(booking)
             .delayElement(timeoutDuration));
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.withVirtualTime(() -> webService.cancelBooking(bookingId, username, token))
         .expectSubscription()
-        .thenAwait(timeoutDuration)
+        .thenAwait(timeoutDuration.multipliedBy(10))
         .verifyError(BookingTimeoutException.class);
   }
 
@@ -440,6 +469,8 @@ class DefaultBookingWebServiceTests {
 
     when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.IN_PROGRESS);
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     StepVerifier.create(webService.cancelBooking(bookingId, username, token))
         .verifyError(BookingCancellationException.class);
   }
@@ -455,6 +486,8 @@ class DefaultBookingWebServiceTests {
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.error(new RuntimeException(errorMessage)));
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelBooking(bookingId, username, token))
         .verifyError(RuntimeException.class);
@@ -478,6 +511,8 @@ class DefaultBookingWebServiceTests {
 
     when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.AWAITING);
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
     var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
     when(bookingRepository.save(cancelledBooking))
     .thenReturn(Mono.just(cancelledBooking)
@@ -485,7 +520,7 @@ class DefaultBookingWebServiceTests {
 
     StepVerifier.withVirtualTime(() -> webService.cancelBooking(bookingId, username, token))
         .expectSubscription()
-        .thenAwait(timeoutDuration)
+        .thenAwait(timeoutDuration.multipliedBy(10))
         .verifyError(BookingTimeoutException.class);
   }
 
@@ -512,6 +547,11 @@ class DefaultBookingWebServiceTests {
     var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
     when(bookingRepository.save(cancelledBooking))
     .thenReturn(Mono.just(cancelledBooking));
+
+    when(messagePostingService.postBookingCancelledMessage(any(BookingCancelled.class)))
+        .thenReturn(Mono.empty());
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelBooking(bookingId, username, token))
         .expectNextCount(1)

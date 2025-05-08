@@ -1,27 +1,21 @@
 package piper1970.eventservice.config;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.TopicPartition;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
-import org.springframework.kafka.listener.KafkaListenerErrorHandler;
-import piper1970.eventservice.common.kafka.EventBookingListenerErrorHandler;
+import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import piper1970.eventservice.common.kafka.TopicCreater;
-import piper1970.eventservice.common.topics.Topics;
+import piper1970.eventservice.common.kafka.reactive.DeadLetterTopicProducer;
+import piper1970.eventservice.common.kafka.reactive.ReactiveKafkaReceiverFactory;
+import piper1970.eventservice.common.kafka.topics.Topics;
+import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.sender.SenderOptions;
 
 @Configuration
 @EnableKafka
@@ -89,14 +83,16 @@ public class KafkaConfig {
   //region Kafka Producer
 
   @Bean
-  ProducerFactory<Integer, Object> producerFactory(KafkaProperties kafkaProperties) {
+  ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate(KafkaProperties kafkaProperties) {
     Map<String, Object> propertiesMap = kafkaProperties.buildProducerProperties();
-    return new DefaultKafkaProducerFactory<>(propertiesMap);
+    var senderOptions = SenderOptions.<Integer, Object>create(propertiesMap);
+    return new ReactiveKafkaProducerTemplate<>(senderOptions);
   }
 
   @Bean
-  KafkaTemplate<Integer, Object> kafkaTemplate(ProducerFactory<Integer, Object> producerFactory) {
-    return new KafkaTemplate<>(producerFactory);
+  DeadLetterTopicProducer deadLetterTopicProducer(ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
+      @Value("${kafka.dlt.suffix:-es-dlt}") String deadLetterTopicSuffix) {
+    return new DeadLetterTopicProducer(reactiveKafkaProducerTemplate, deadLetterTopicSuffix);
   }
 
   //endregion Kafka Producer
@@ -104,36 +100,14 @@ public class KafkaConfig {
   //region Kafka Consumer
 
   @Bean
-  public ConsumerFactory<Integer, Object> consumerFactory(KafkaProperties kafkaProperties) {
-    Map<String, Object> propertiesMap = kafkaProperties.buildConsumerProperties();
-    return new DefaultKafkaConsumerFactory<>(propertiesMap);
+  public ReceiverOptions<Integer, Object> receiverOptions(KafkaProperties kafkaProperties) {
+    return ReceiverOptions.create(kafkaProperties.buildConsumerProperties());
   }
 
   @Bean
-  public ConcurrentKafkaListenerContainerFactory<Integer, Object> kafkaListenerContainerFactory(
-      ConsumerFactory<Integer, Object> consumerFactory
-  ){
-    ConcurrentKafkaListenerContainerFactory<Integer, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
-    factory.setConsumerFactory(consumerFactory);
-    factory.setConcurrency(partitionCount * 2); // 2 consumer topics X # of partitions
-    return factory;
-  }
-
-  @Bean
-  public KafkaListenerErrorHandler kafkaListenerErrorHandler(
-      DeadLetterPublishingRecoverer deadLetterPublishingRecoverer
-  ) {
-    return new EventBookingListenerErrorHandler(deadLetterPublishingRecoverer);
-  }
-
-  @Bean
-  public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<Integer, Object> kafkaTemplate) {
-    BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> retryFunction = (cr, e) -> new TopicPartition(
-        cr.topic() + "-es-dlt", cr.partition()
-    );
-    var dlt = new DeadLetterPublishingRecoverer(kafkaTemplate, retryFunction);
-    dlt.setLogRecoveryRecord(true);
-    return dlt;
+  public ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory(ReceiverOptions<Integer, Object> receiverOptions) {
+    var topics = List.of(Topics.BOOKING_CONFIRMED, Topics.BOOKING_CANCELLED);
+    return new ReactiveKafkaReceiverFactory(receiverOptions, topics);
   }
 
   //endregion Kafka Consumer

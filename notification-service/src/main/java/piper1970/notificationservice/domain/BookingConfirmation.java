@@ -11,6 +11,7 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.With;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
@@ -25,7 +26,12 @@ import org.springframework.data.relational.core.mapping.Table;
 public class BookingConfirmation {
 
   @Id
+  @EqualsAndHashCode.Exclude
   private Integer id;
+
+  @Version
+  @EqualsAndHashCode.Exclude
+  private Integer version;
 
   private Integer bookingId;
   private Integer eventId;
@@ -34,7 +40,6 @@ public class BookingConfirmation {
   private String bookingEmail;
   private LocalDateTime confirmationDateTime;
   private Integer durationInMinutes;
-
   private ConfirmationStatus confirmationStatus;
 
 }

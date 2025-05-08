@@ -8,9 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.With;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
@@ -27,6 +26,10 @@ public class Event {
   @EqualsAndHashCode.Exclude
   private Integer id;
 
+  @Version
+  @EqualsAndHashCode.Exclude
+  private Integer version;
+
   private String facilitator;
   private String title;
   private String description;
@@ -35,10 +38,4 @@ public class Event {
   private Integer durationInMinutes;
   private Integer availableBookings;
   private boolean cancelled;
-
-  @CreatedDate
-  private LocalDateTime createdDateTime;
-
-  @LastModifiedDate
-  private LocalDateTime updatedDateTime;
 }

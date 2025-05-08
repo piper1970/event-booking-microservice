@@ -12,7 +12,10 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -26,6 +29,8 @@ import piper1970.eventservice.common.validation.validators.CustomFutureValidator
 import piper1970.eventservice.common.validation.validators.context.ValidationContextProvider;
 
 @ExtendWith(SpringExtension.class)
+@TestClassOrder(OrderAnnotation.class)
+@Order(5)
 public class BookingValidationTests {
 
   private static final Clock clock = Clock.systemDefaultZone();

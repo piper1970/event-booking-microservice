@@ -1,0 +1,88 @@
+package piper1970.bookingservice.service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
+import org.springframework.stereotype.Service;
+import piper1970.eventservice.common.bookings.messages.BookingCancelled;
+import piper1970.eventservice.common.bookings.messages.BookingCreated;
+import piper1970.eventservice.common.bookings.messages.BookingsCancelled;
+import piper1970.eventservice.common.bookings.messages.BookingsUpdated;
+import piper1970.eventservice.common.kafka.KafkaHelper;
+import piper1970.eventservice.common.kafka.topics.Topics;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ReactiveKafkaMessagePostingService implements MessagePostingService {
+
+  private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  private static final String SERVICE_NAME = "booking-service";
+
+  @Override
+  public Mono<Void> postBookingCreatedMessage(BookingCreated message) {
+    try{
+      var key = message.getBooking().getId();
+      log.debug("Posting BOOKING_CREATED message [{}]", key);
+      return reactiveKafkaProducerTemplate.send(Topics.BOOKING_CREATED, key, message)
+          .log()
+          .subscribeOn(Schedulers.boundedElastic())
+          .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+          .then();
+    }catch(Exception e){
+      log.error("Unknown error occurred while posting BookingCreated message to kafka: {}", e.getMessage(), e);
+      return Mono.error(e);
+    }
+  }
+
+  @Override
+  public Mono<Void> postBookingCancelledMessage(BookingCancelled message) {
+    try{
+      var key = message.getBooking().getId();
+      log.debug("Posting BOOKING_CANCELLED message [{}]", key);
+      return reactiveKafkaProducerTemplate.send(Topics.BOOKING_CANCELLED, key, message)
+          .log()
+          .subscribeOn(Schedulers.boundedElastic())
+          .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+          .then();
+    }catch(Exception e){
+      log.error("Unknown error occurred while posting BookingCancelled message to kafka: {}", e.getMessage(), e);
+      return Mono.error(e);
+    }
+  }
+
+  @Override
+  public Mono<Void> postBookingsUpdatedMessage(BookingsUpdated message) {
+    try{
+      var key = message.getEventId();
+      log.debug("Posting BOOKINGS_UPDATED message [{}]", key);
+      return reactiveKafkaProducerTemplate.send(Topics.BOOKINGS_UPDATED, key, message)
+          .log()
+          .subscribeOn(Schedulers.boundedElastic())
+          .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+          .then();
+    }catch(Exception e){
+      log.error("Unknown error occurred while posting BookingsUpdated message to kafka: {}", e.getMessage(), e);
+      return Mono.error(e);
+    }
+  }
+
+  @Override
+  public Mono<Void> postBookingsCancelledMessage(BookingsCancelled message) {
+    try{
+      var key = message.getEventId();
+      log.debug("Posting BOOKINGS_CANCELLED message [{}]", key);
+      return reactiveKafkaProducerTemplate.send(Topics.BOOKINGS_CANCELLED, key, message)
+          .log()
+          .subscribeOn(Schedulers.boundedElastic())
+          .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+          .doOnError(throwable -> log.error("Error sending BOOKINGS_CANCELLED message: {}", throwable.getMessage(), throwable))
+          .then();
+    }catch(Exception e){
+      log.error("Unknown error occurred while posting BookingsCancelled message to kafka: {}", e.getMessage(), e);
+      return Mono.error(e);
+    }
+  }
+}
