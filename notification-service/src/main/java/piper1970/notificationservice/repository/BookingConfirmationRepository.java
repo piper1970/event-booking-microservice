@@ -17,5 +17,6 @@ public interface BookingConfirmationRepository extends
 
   Flux<BookingConfirmation> findByConfirmationStatus(ConfirmationStatus confirmationStatus);
 
-  Flux<BookingConfirmation> findByConfirmationDateTimeBefore(LocalDateTime bookingDate);
+  Mono<Integer> deleteByConfirmationDateTimeBefore(LocalDateTime deletionDateTime);
+
 }

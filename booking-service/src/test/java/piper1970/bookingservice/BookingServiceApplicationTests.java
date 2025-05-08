@@ -431,8 +431,6 @@ class BookingServiceApplicationTests {
       + "EventChanged message is posted to the EVENT_CHANGED kafka topic")
   void consumeEventChangedMessage() {
 
-    // FIXME: needs to capture more than one response from receiver
-
     var booking1 = Booking.builder() // will need updating
         .email("test_user@test.com")
         .username("test_user")

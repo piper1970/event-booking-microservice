@@ -17,7 +17,7 @@ import piper1970.bookingservice.domain.BookingStatus;
 import reactor.test.StepVerifier;
 
 @DataR2dbcTest
-@DisplayName("Booking repository")
+@DisplayName("Booking Repository")
 @TestClassOrder(OrderAnnotation.class)
 @Order(4)
 class BookingRepositoryTests {
@@ -38,12 +38,11 @@ class BookingRepositoryTests {
             CREATE TABLE event_service.bookings
                 (
                     id                int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                    event_id          int     NOT NULL,
+                    version           int,
+                    event_id          int NOT NULL,
                     username          varchar(60) NOT NULL,
                     email             varchar(255) NOT NULL,
-                    booking_status    varchar(30) NOT NULL,
-                    created_date_time timestamp,
-                    updated_date_time timestamp
+                    booking_status    varchar(30) NOT NULL
                 );
             """);
 

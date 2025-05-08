@@ -10,9 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.With;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -28,9 +26,11 @@ import org.springframework.data.relational.core.mapping.Table;
 public class BookingConfirmation {
 
   @Id
+  @EqualsAndHashCode.Exclude
   private Integer id;
 
-  @Version // TODO: find out how R2DBC handles version mismatch??? what errors to expect???
+  @Version
+  @EqualsAndHashCode.Exclude
   private Integer version;
 
   private Integer bookingId;
@@ -38,15 +38,8 @@ public class BookingConfirmation {
   private UUID confirmationString;
   private String bookingUser;
   private String bookingEmail;
-  private LocalDateTime confirmationDateTime; // TODO: is this needed, if createdDateTime works???
+  private LocalDateTime confirmationDateTime;
   private Integer durationInMinutes;
-
   private ConfirmationStatus confirmationStatus;
-
-  @CreatedDate
-  private LocalDateTime createdDateTime;
-
-  @LastModifiedDate
-  private LocalDateTime updatedDateTime;
 
 }

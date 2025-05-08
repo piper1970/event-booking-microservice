@@ -89,7 +89,7 @@ public class EventChangedListener extends DiscoverableListener {
             buMsg.setEventId(eventId);
             buMsg.setMessage(message.getMessage());
             buMsg.setBookings(bookings);
-            return reactiveKafkaProducerTemplate.send(Topics.EVENT_CHANGED, buMsg)
+            return reactiveKafkaProducerTemplate.send(Topics.BOOKINGS_UPDATED, buMsg)
                 .subscribeOn(Schedulers.boundedElastic())
                 .log()
                 .timeout(timeoutDuration)
