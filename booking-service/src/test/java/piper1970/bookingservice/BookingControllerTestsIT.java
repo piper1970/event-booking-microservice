@@ -74,6 +74,7 @@ import piper1970.bookingservice.dto.model.BookingCreateRequest;
 import piper1970.bookingservice.dto.model.BookingDto;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.events.dto.EventDto;
+import piper1970.eventservice.common.events.status.EventStatus;
 import reactor.core.publisher.Mono;
 
 @DisplayName("Booking Service Integration Test")
@@ -626,6 +627,20 @@ public class BookingControllerTestsIT {
       String token
   )
       throws JsonProcessingException {
+
+    // determine event-status based off of current time and event dat time
+    var now = LocalDateTime.now(clock);
+    var end = eventDateTime.plusMinutes(60);
+
+    EventStatus status;
+    if(now.isBefore(eventDateTime)) {
+      status = EventStatus.AWAITING;
+    }else if(now.isAfter(end)) {
+      status = EventStatus.COMPLETED;
+    }else{
+      status = EventStatus.IN_PROGRESS;
+    }
+
     var event = EventDto.builder()
         .id(eventId)
         .availableBookings(availableBookingsForEvent)
@@ -635,6 +650,7 @@ public class BookingControllerTestsIT {
         .eventDateTime(eventDateTime)
         .durationInMinutes(60)
         .location("Test location")
+        .eventStatus(status)
         .build();
 
     String path = "/api/events/" + eventId;

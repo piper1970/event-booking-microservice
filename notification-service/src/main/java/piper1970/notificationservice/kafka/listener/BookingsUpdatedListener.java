@@ -1,11 +1,10 @@
 package piper1970.notificationservice.kafka.listener;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -16,16 +15,20 @@ import piper1970.notificationservice.kafka.listener.options.BaseListenerOptions;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
 public class BookingsUpdatedListener extends AbstractListener {
 
   private static final String BOOKING_HAS_BEEN_UPDATED_SUBJECT = "RE: Booking has been updated";
+  private final Retry defaultMailerRetry;
   private Disposable subscription;
 
-  public BookingsUpdatedListener(BaseListenerOptions options) {
+  public BookingsUpdatedListener(BaseListenerOptions options,
+      @Qualifier("mailer") Retry defaultMailerRetry) {
     super(options);
+    this.defaultMailerRetry = defaultMailerRetry;
   }
 
   @Override
@@ -95,7 +98,7 @@ public class BookingsUpdatedListener extends AbstractListener {
           .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(), tpl.body()))
           .flatMap(tpl ->
               handleMailFlux(tpl, BOOKING_HAS_BEEN_UPDATED_SUBJECT)
-                  .retryWhen(DEFAULT_RETRY)
+                  .retryWhen(defaultMailerRetry)
           ).then(Mono.just(record))
           .onErrorResume(error -> {
             log.error("BOOKINGS_UPDATED message handling failed. Sending to DLT", error);

@@ -1,9 +1,8 @@
 package piper1970.bookingservice.service;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -20,8 +19,6 @@ import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.bookings.messages.BookingCancelled;
 import piper1970.eventservice.common.bookings.messages.BookingCreated;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
-import piper1970.eventservice.common.events.EventDtoToStatusMapper;
-import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.exceptions.KafkaPostingException;
@@ -29,6 +26,7 @@ import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
 
 @Service
 @Slf4j
@@ -39,26 +37,29 @@ public class DefaultBookingWebService implements BookingWebService {
   private final EventRequestService eventRequestService;
   private final MessagePostingService messagePostingService;
   private final TransactionalOperator transactionalOperator;
-  private final EventDtoToStatusMapper eventDtoToStatusMapper;
   private final Long bookingRepositoryTimeoutInMilliseconds;
   private final Duration bookingTimeoutDuration;
+  private final Retry defaultRepositoryRetry;
+  private final Retry defaultKafkaRetry;
 
   public DefaultBookingWebService(
       BookingMapper bookingMapper,
       BookingRepository bookingRepository,
       EventRequestService eventRequestService,
       MessagePostingService messagePostingService,
-      EventDtoToStatusMapper eventDtoToStatusMapper,
       TransactionalOperator transactionalOperator,
-      @Value("${booking-repository.timout.milliseconds}") Long bookingRepositoryTimeoutInMilliseconds) {
+      @Value("${booking-repository.timout.milliseconds}") Long bookingRepositoryTimeoutInMilliseconds,
+      @Qualifier("repository") Retry defaultRepositoryRetry,
+      @Qualifier("kafka") Retry defaultKafkaRetry) {
     this.bookingMapper = bookingMapper;
     this.bookingRepository = bookingRepository;
     this.eventRequestService = eventRequestService;
     this.messagePostingService = messagePostingService;
     this.transactionalOperator = transactionalOperator;
-    this.eventDtoToStatusMapper = eventDtoToStatusMapper;
     this.bookingRepositoryTimeoutInMilliseconds = bookingRepositoryTimeoutInMilliseconds;
     bookingTimeoutDuration = Duration.ofMillis(bookingRepositoryTimeoutInMilliseconds);
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
+    this.defaultKafkaRetry = defaultKafkaRetry;
   }
 
   @Override
@@ -69,7 +70,7 @@ public class DefaultBookingWebService implements BookingWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(bookingTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryFluxTimeout(ex, "finding all bookings"))
         .map(bookingMapper::entityToDto)
         .doOnNext(this::logBookingRetrieval);
@@ -83,7 +84,7 @@ public class DefaultBookingWebService implements BookingWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(bookingTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryFluxTimeout(ex,
             "finding all bookings by username [%s]".formatted(username)))
         .map(bookingMapper::entityToDto)
@@ -98,7 +99,7 @@ public class DefaultBookingWebService implements BookingWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(bookingTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(
             ex -> handleRepositoryTimeout(ex, "finding booking for id [%d]".formatted(id)))
         .map(bookingMapper::entityToDto)
@@ -113,7 +114,7 @@ public class DefaultBookingWebService implements BookingWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(bookingTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex,
             "finding booking for id [%d] and username [%s]".formatted(id, username)))
         .switchIfEmpty(Mono.error(new BookingNotFoundException(
@@ -127,16 +128,11 @@ public class DefaultBookingWebService implements BookingWebService {
     log.debug("Create booking [{}] called with token [{}]", createRequest, token);
 
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
-        .subscribeOn(Schedulers.boundedElastic())
-        .log()
-        .timeout(bookingTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
-        .onErrorResume(ex -> handleEventServiceTimeout(ex, createRequest.getEventId()))
         .switchIfEmpty(Mono.error(
             new EventNotFoundException(createEventNotFountMessage(createRequest.getEventId()))))
         .filter(dto ->
             dto.getAvailableBookings() >= 1
-                && EventStatus.AWAITING == eventDtoToStatusMapper.apply(dto))
+                && EventStatus.AWAITING == dto.getEventStatus())
         .switchIfEmpty(Mono.error(new BookingCreationException(
             "Unable to create booking for event that has already started")))
         .flatMap(dto -> {
@@ -151,7 +147,7 @@ public class DefaultBookingWebService implements BookingWebService {
                   .log()
                   .subscribeOn(Schedulers.boundedElastic())
                   .timeout(bookingTimeoutDuration)
-                  .retryWhen(DEFAULT_RETRY)
+                  .retryWhen(defaultRepositoryRetry)
                   .onErrorResume(ex -> handleRepositoryTimeout(ex, "saving book"));
             }
         )
@@ -160,7 +156,7 @@ public class DefaultBookingWebService implements BookingWebService {
           var bookingCreatedMessage = createBookingCreatedMessage(dto);
           return messagePostingService.postBookingCreatedMessage(bookingCreatedMessage)
               .timeout(bookingTimeoutDuration)
-              .retryWhen(DEFAULT_RETRY)
+              .retryWhen(defaultKafkaRetry)
               .onErrorResume(ex -> handlePostingTimeout(ex, dto.getId(), "BOOKING_CREATED"))
               .then(Mono.just(dto));
         })
@@ -176,7 +172,7 @@ public class DefaultBookingWebService implements BookingWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(bookingTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex,
             "finding book by id [%d] and username [%s]".formatted(id, username)))
         .switchIfEmpty(Mono.fromCallable(
@@ -192,13 +188,8 @@ public class DefaultBookingWebService implements BookingWebService {
   /// appropriate kafka messages
   private Mono<BookingDto> handleCancellationLogic(Booking booking, String token) {
     return eventRequestService.requestEvent(booking.getEventId(), token)
-        .subscribeOn(Schedulers.boundedElastic())
-        .log()
-        .timeout(bookingTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
-        .onErrorResume(ex -> handleEventServiceTimeout(ex, booking.getEventId()))
         .filter(dto ->
-            EventStatus.AWAITING == eventDtoToStatusMapper.apply(dto))
+            EventStatus.AWAITING == dto.getEventStatus())
         .flatMap(event -> {
           log.info("Booking [{}] for event [{}] has been cancelled", booking.getId(),
               event.getId());
@@ -206,7 +197,7 @@ public class DefaultBookingWebService implements BookingWebService {
               .subscribeOn(Schedulers.boundedElastic())
               .log()
               .timeout(bookingTimeoutDuration)
-              .retryWhen(DEFAULT_RETRY)
+              .retryWhen(defaultRepositoryRetry)
               .onErrorResume(ex -> handleRepositoryTimeout(ex,
                   "saving cancelled book [%d]".formatted(booking.getId())));
         })
@@ -223,7 +214,7 @@ public class DefaultBookingWebService implements BookingWebService {
               var bookingCancelledMessage = createBookingCancelledMessage(bookingDto);
               return messagePostingService.postBookingCancelledMessage(bookingCancelledMessage)
                   .timeout(bookingTimeoutDuration)
-                  .retryWhen(DEFAULT_RETRY)
+                  .retryWhen(defaultKafkaRetry)
                   .onErrorResume(ex -> handlePostingTimeout(ex, bookingDto.getId(), "BOOKING_CANCELLED"))
                   .then(Mono.just(bookingDto));
             }
@@ -277,18 +268,6 @@ public class DefaultBookingWebService implements BookingWebService {
     }
     return Flux.error(new BookingTimeoutException(
         provideTimeoutErrorMessage("attempting to %s".formatted(subMessage)), ex));
-  }
-
-  private Mono<EventDto> handleEventServiceTimeout(Throwable ex, Integer eventId) {
-    if (Exceptions.isRetryExhausted(ex)) {
-      return Mono.error(new BookingTimeoutException(
-          provideTimeoutErrorMessage(
-              "attempting to fetch event with id [%d]. Exhausted all retries".formatted(eventId)),
-          ex.getCause()));
-    }
-    return Mono.error(new BookingTimeoutException(
-        provideTimeoutErrorMessage("attempting to fetch event with id [%d].".formatted(eventId)),
-        ex));
   }
 
   private Mono<Void> handlePostingTimeout(Throwable ex, Integer bookId, String subMessage) {

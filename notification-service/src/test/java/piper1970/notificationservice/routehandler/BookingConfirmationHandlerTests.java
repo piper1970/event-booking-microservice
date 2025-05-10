@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,7 @@ import piper1970.notificationservice.repository.BookingConfirmationRepository;
 import piper1970.notificationservice.service.MessagePostingService;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 @DisplayName("Booking Confirmation Handler")
 @ExtendWith(MockitoExtension.class)
@@ -69,19 +71,25 @@ class BookingConfirmationHandlerTests {
       .bookingEmail("test_user@test.com")
       .build();
 
+  private final Retry retry = Retry.backoff(3, Duration.ofMillis(500))
+      .filter(throwable -> throwable instanceof TimeoutException)
+      .jitter(0.7D);
+
   //endregion Properties Used
 
   //region Before/After
 
   @BeforeEach
   void setUp() {
-
+    long maxRetries = 2;
     testHandler = new BookingConfirmationHandler(
         mockRepository,
         mockPostingService,
         new ObjectMapper(),
         clock,
-        notificationTimeoutDuration
+        notificationTimeoutDuration,
+        maxRetries,
+        retry
     );
   }
 

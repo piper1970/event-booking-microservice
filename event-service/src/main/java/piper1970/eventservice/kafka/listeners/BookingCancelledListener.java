@@ -1,9 +1,8 @@
 package piper1970.eventservice.kafka.listeners;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -20,6 +19,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -27,15 +27,18 @@ public class BookingCancelledListener extends DiscoverableListener{
 
   private final EventRepository eventRepository;
   private final Duration timeoutDuration;
+  private final Retry defaultRepositoryRetry;
   private Disposable subscription;
 
   public BookingCancelledListener(ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       EventRepository eventRepository,
       DeadLetterTopicProducer deadLetterTopicProducer,
-      @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds) {
+      @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds,
+      @Qualifier("repository") Retry defaultRepositoryRetry) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.eventRepository = eventRepository;
     timeoutDuration = Duration.ofMillis(timeoutInMilliseconds);
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -70,12 +73,12 @@ public class BookingCancelledListener extends DiscoverableListener{
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(timeoutDuration)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .flatMap(event -> eventRepository.save(event.withAvailableBookings(event.getAvailableBookings() + 1))
               .subscribeOn(Schedulers.boundedElastic())
               .log()
               .timeout(timeoutDuration)
-              .retryWhen(DEFAULT_RETRY)
+              .retryWhen(defaultRepositoryRetry)
               .doOnNext((Event evt) -> log.info(
                       "Event [{}] availabilities increased to [{}] due to booking cancellation",
                       evt.getId(), evt.getAvailableBookings()))

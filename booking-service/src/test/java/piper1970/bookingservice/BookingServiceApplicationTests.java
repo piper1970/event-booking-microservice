@@ -16,7 +16,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
@@ -24,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -54,6 +54,7 @@ import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
+import piper1970.eventservice.common.events.messages.EventCompleted;
 import piper1970.eventservice.common.kafka.reactive.DeadLetterTopicProducer;
 import piper1970.eventservice.common.kafka.reactive.DiscoverableListener;
 import piper1970.eventservice.common.kafka.reactive.ReactiveKafkaReceiverFactory;
@@ -64,6 +65,7 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 
 @Tag("kafka-test")
@@ -100,6 +102,14 @@ class BookingServiceApplicationTests {
   @Autowired
   private TransactionalOperator transactionalOperator;
 
+  @Autowired
+  @Qualifier("repository")
+  private Retry defaultRepositoryRetry;
+
+  @Autowired
+  @Qualifier("kafka")
+  private Retry defaultKafkaRetry;
+
   @Value("${booking-repository.timout.milliseconds}")
   private Long timeoutMillis;
 
@@ -112,17 +122,17 @@ class BookingServiceApplicationTests {
   @BeforeAll
   void setupListeners() {
     discoverableListeners.add(new BookingConfirmedListener(receiverFactory, dltProducer,
-        bookingRepository, timeoutMillis));
+        bookingRepository, timeoutMillis, defaultRepositoryRetry));
     discoverableListeners.add(new BookingExpiredListener(receiverFactory, dltProducer,
-        bookingRepository, timeoutMillis));
+        bookingRepository, timeoutMillis,defaultRepositoryRetry));
     discoverableListeners.add(new BookingEventUnavailableListener(receiverFactory, dltProducer,
-        bookingRepository, timeoutMillis));
+        bookingRepository, timeoutMillis,defaultRepositoryRetry));
     discoverableListeners.add(new EventChangedListener(receiverFactory, dltProducer,
         reactiveKafkaProducerTemplate,
-        bookingRepository, timeoutMillis));
+        bookingRepository, timeoutMillis, defaultRepositoryRetry, defaultKafkaRetry));
     discoverableListeners.add(new EventCancelledListener(receiverFactory, dltProducer,
         reactiveKafkaProducerTemplate,
-        bookingRepository, transactionalOperator, timeoutMillis));
+        bookingRepository, transactionalOperator, timeoutMillis, defaultRepositoryRetry));
 
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
@@ -268,7 +278,8 @@ class BookingServiceApplicationTests {
     assertThat(savedBooking).isNotNull();
 
     var message = new BookingConfirmed();
-    message.setBooking(new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
+    message.setBooking(
+        new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
     reactiveKafkaProducerTemplate.send(
@@ -302,7 +313,8 @@ class BookingServiceApplicationTests {
     assertThat(savedBooking).isNotNull();
 
     var message = new BookingExpired();
-    message.setBooking(new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
+    message.setBooking(
+        new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
     reactiveKafkaProducerTemplate.send(
@@ -336,7 +348,8 @@ class BookingServiceApplicationTests {
     assertThat(savedBooking).isNotNull();
 
     var message = new BookingEventUnavailable();
-    message.setBooking(new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
+    message.setBooking(
+        new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
     reactiveKafkaProducerTemplate.send(
@@ -372,7 +385,8 @@ class BookingServiceApplicationTests {
     assertThat(savedBooking).isNotNull();
 
     var message = new BookingEventUnavailable();
-    message.setBooking(new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
+    message.setBooking(
+        new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
     reactiveKafkaProducerTemplate.send(
@@ -407,7 +421,8 @@ class BookingServiceApplicationTests {
     assertThat(savedBooking).isNotNull();
 
     var message = new BookingEventUnavailable();
-    message.setBooking(new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
+    message.setBooking(
+        new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
     reactiveKafkaProducerTemplate.send(
@@ -427,8 +442,9 @@ class BookingServiceApplicationTests {
   }
 
   @Test
-  @DisplayName("should trigger a BookingsUpdated message on the BOOKINGS_UPDATED kafka topic when an "
-      + "EventChanged message is posted to the EVENT_CHANGED kafka topic")
+  @DisplayName(
+      "should trigger a BookingsUpdated message on the BOOKINGS_UPDATED kafka topic when an "
+          + "EventChanged message is posted to the EVENT_CHANGED kafka topic")
   void consumeEventChangedMessage() {
 
     var booking1 = Booking.builder() // will need updating
@@ -484,8 +500,9 @@ class BookingServiceApplicationTests {
   }
 
   @Test
-  @DisplayName("should trigger a BookingsCancelled message on BOOKINGS_CANCELLED kafka topic when an "
-      + "EventCancelled message is posted to the EVENT_CANCELLED kafka topic")
+  @DisplayName(
+      "should trigger a BookingsCancelled message on BOOKINGS_CANCELLED kafka topic when an "
+          + "EventCancelled message is posted to the EVENT_CANCELLED kafka topic")
   void consumeEventCancelledMessage() {
 
     var booking1 = Booking.builder() // will need cancelling
@@ -541,12 +558,61 @@ class BookingServiceApplicationTests {
   }
 
   @Test
-  @Disabled("logic not yet implemented")
+  @DisplayName("should update all bookings associated with event, setting status from IN_PROGRESS->CANCELLED, or CONFIRMED->COMPLETE")
   void consumeEventCompletedMessage() {
-    // TODO: should trigger a update of all booking items in db to completed, as long as they
-    //   are in either IN_PROGRESS or CONFIRMED.  Possibly, IN_PROGRESS should be CANCELLED
-    //   at this point, instead of COMPLETED
-    fail("Not Yet Implemented...");
+    var booking1 = Booking.builder() // will need cancelling
+        .email("test_user@test.com")
+        .username("test_user")
+        .eventId(1)
+        .bookingStatus(BookingStatus.IN_PROGRESS)
+        .build();
+    var booking2 = Booking.builder() // will need cancelling
+        .email("test_user@test.com")
+        .username("test_user")
+        .eventId(1)
+        .bookingStatus(BookingStatus.CONFIRMED)
+        .build();
+    var booking3 = Booking.builder() // message not for this event
+        .email("test_user@test.com")
+        .username("test_user")
+        .eventId(1)
+        .bookingStatus(BookingStatus.CONFIRMED)
+        .build();
+    var booking4 = Booking.builder() // will not cancel, since status is completed
+        .email("test_user@test.com")
+        .username("test_user")
+        .eventId(2)
+        .bookingStatus(BookingStatus.COMPLETED)
+        .build();
+
+    bookingRepository.saveAll(List.of(booking1, booking2, booking3, booking4))
+        .collectList()
+        .block(timeoutDuration);
+
+    var message = new EventCompleted(1, "Test Event Completed Message");
+    reactiveKafkaProducerTemplate.send(
+            new ProducerRecord<>(Topics.EVENT_COMPLETED, 1, message))
+        .block(timeoutDuration);
+
+    Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
+        .untilAsserted(() ->
+            assertAll(
+                () -> bookingRepository.findBookingsByEventIdAndBookingStatusIn(1,
+                        List.of(BookingStatus.CANCELLED))
+                    .count()
+                    .blockOptional()
+                    .ifPresentOrElse(
+                        count -> assertThat(count).isEqualTo(1),
+                        () -> fail(
+                            "Should not happen: Unable to find booking count for CANCELLED bookings")
+                    ),
+                () -> bookingRepository.findBookingsByEventIdAndBookingStatusIn(1, List.of(BookingStatus.COMPLETED))
+                    .count()
+                    .blockOptional()
+                    .ifPresentOrElse(
+                        count -> assertThat(count).isEqualTo(2),
+                        () -> fail("Should not happen: Unable to find booking count for COMPLETED bookings")
+                    )));
   }
 
   //endregion Tests

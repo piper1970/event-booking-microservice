@@ -13,6 +13,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeoutException;
 import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.ClassOrderer.OrderAnnotation;
@@ -30,6 +31,7 @@ import piper1970.eventservice.common.exceptions.EventForbiddenException;
 import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 @DisplayName("EventRequestServiceTest")
 @TestClassOrder(OrderAnnotation.class)
@@ -41,6 +43,10 @@ class DefaultEventRequestServiceTests {
   private static final Long timeoutInMillis = 2000L;
   private static final String token = "token";
   private static final int eventId = 1;
+
+  private final Retry retry = Retry.backoff(3, Duration.ofMillis(500L))
+      .filter(throwable -> throwable instanceof TimeoutException)
+      .jitter(0.7D);
 
   private static final ObjectMapper objectMapper;
 
@@ -62,7 +68,7 @@ class DefaultEventRequestServiceTests {
     String baseUrl = mockWebServer.baseUrl();
     Builder clientBuilder = WebClient.builder()
         .baseUrl(baseUrl);
-    requestService = new DefaultEventRequestService(clientBuilder, timeoutInMillis);
+    requestService = new DefaultEventRequestService(clientBuilder, timeoutInMillis, retry);
   }
 
   /// ## TEST SCENARIOS
@@ -169,7 +175,7 @@ class DefaultEventRequestServiceTests {
 
     StepVerifier.withVirtualTime(() -> requestService.requestEvent(eventId, token))
         .expectSubscription()
-        .thenAwait(Duration.ofMillis(timeoutInMillis))
+        .thenAwait(Duration.ofMillis(timeoutInMillis * 10))
         .verifyError(EventRequestServiceTimeoutException.class);
   }
 

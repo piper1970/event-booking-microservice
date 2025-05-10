@@ -11,6 +11,7 @@ import org.junit.jupiter.api.TestClassOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
 import org.springframework.r2dbc.core.DatabaseClient;
+import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.domain.Event;
 import reactor.test.StepVerifier;
 
@@ -44,7 +45,7 @@ class EventRepositoryTests {
                 event_date_time     timestamp    NOT NULL,
                 duration_in_minutes int          NOT NULL,
                 available_bookings  smallint     NOT NULL,
-                cancelled           boolean      NOT NULL DEFAULT false
+                event_status        varchar(30)  NOT NULL
               );
             """);
 
@@ -64,7 +65,7 @@ class EventRepositoryTests {
         .facilitator(facilitator)
         .eventDateTime(LocalDateTime.now())
         .availableBookings(2)
-        .cancelled(false)
+        .eventStatus(EventStatus.IN_PROGRESS)
         .description("test-description")
         .durationInMinutes(60)
         .location("test-location")
@@ -75,7 +76,7 @@ class EventRepositoryTests {
         .facilitator(facilitator)
         .eventDateTime(LocalDateTime.now())
         .availableBookings(2)
-        .cancelled(false)
+        .eventStatus(EventStatus.IN_PROGRESS)
         .description("test-description2")
         .durationInMinutes(60)
         .location("test-location2")
@@ -86,7 +87,7 @@ class EventRepositoryTests {
         .facilitator(facilitator + "-not")
         .eventDateTime(LocalDateTime.now())
         .availableBookings(2)
-        .cancelled(false)
+        .eventStatus(EventStatus.IN_PROGRESS)
         .description("test-description2")
         .durationInMinutes(60)
         .location("test-location2")
@@ -98,6 +99,56 @@ class EventRepositoryTests {
     eventRepository.findByIdAndFacilitator(1, facilitator)
         .as(StepVerifier::create)
         .expectNext(event1)
+        .verifyComplete();
+  }
+
+  @Test
+  @DisplayName("should be able to find events by given event statuses")
+  void findByEventStatusIn(){
+    var event1 = Event.builder()
+        .facilitator("test-facilitator-1")
+        .eventDateTime(LocalDateTime.now())
+        .availableBookings(2)
+        .eventStatus(EventStatus.IN_PROGRESS)
+        .description("test-description-1")
+        .durationInMinutes(60)
+        .location("test-location-1")
+        .title("test-title-1")
+        .build();
+    var event2 = Event.builder()
+        .facilitator("test-facilitator-2")
+        .eventDateTime(LocalDateTime.now())
+        .availableBookings(2)
+        .eventStatus(EventStatus.CANCELLED)
+        .description("test-description-2")
+        .durationInMinutes(60)
+        .location("test-location-2")
+        .title("test-title-2")
+        .build();
+    var event3 = Event.builder()
+        .facilitator("test-facilitator-3")
+        .eventDateTime(LocalDateTime.now())
+        .availableBookings(2)
+        .eventStatus(EventStatus.AWAITING)
+        .description("test-description-3")
+        .durationInMinutes(60)
+        .location("test-location-3")
+        .title("test-title-3")
+        .build();
+    var event4 = Event.builder()
+        .facilitator("test-facilitator-4")
+        .eventDateTime(LocalDateTime.now())
+        .availableBookings(2)
+        .eventStatus(EventStatus.COMPLETED)
+        .description("test-description-4")
+        .durationInMinutes(60)
+        .location("test-location-4")
+        .title("test-title-4")
+        .build();
+    insertEvents(event1, event2, event3, event4);
+    eventRepository.findByEventStatusIn(List.of(EventStatus.IN_PROGRESS, EventStatus.AWAITING))
+        .as(StepVerifier::create)
+        .expectNextCount(2)
         .verifyComplete();
   }
 

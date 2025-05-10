@@ -1,6 +1,6 @@
 package piper1970.eventservice.service;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,7 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
+import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.domain.Event;
 import piper1970.eventservice.dto.mapper.EventMapper;
@@ -38,6 +40,7 @@ import piper1970.eventservice.repository.EventRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Event Web Service")
@@ -68,6 +71,13 @@ class DefaultEventWebServiceTests {
   private static final Integer eventId = 1;
   private static final Duration eventDuration = Duration.ofMinutes(
       eventRepositoryTimeoutInMilliseconds);
+  private static final Retry defaultRepositoryRetry = Retry.backoff(2, Duration.ofMillis(500L))
+      .filter(throwable -> throwable instanceof TimeoutException)
+      .jitter(0.7D);
+  private static final Retry defaultKafkaRetry = Retry.backoff(2, Duration.ofMillis(500L))
+      .filter(throwable -> throwable instanceof TimeoutException)
+      .jitter(0.7D);
+
 
   @BeforeEach
   void setUp() {
@@ -77,7 +87,9 @@ class DefaultEventWebServiceTests {
         eventMapper,
         transactionalOperator,
         clock,
-        eventRepositoryTimeoutInMilliseconds);
+        eventRepositoryTimeoutInMilliseconds,
+        defaultRepositoryRetry,
+        defaultKafkaRetry);
   }
 
   //region Get Events Scenarios
@@ -140,6 +152,9 @@ class DefaultEventWebServiceTests {
   void getEvent_nothing_found() {
     when(eventRepository.findById(eventId)).thenReturn(Mono.empty());
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
+        args -> args.getArgument(0));
+
     StepVerifier.create(webService.getEvent(eventId))
         .verifyComplete();
   }
@@ -155,10 +170,73 @@ class DefaultEventWebServiceTests {
         .delayElement(eventDuration)
     );
 
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
+        args -> args.getArgument(0));
+
     StepVerifier.withVirtualTime(() -> webService.getEvent(eventId))
         .expectSubscription()
         .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
+  }
+
+  @Test
+  @DisplayName("getEvent should returns completed event when an in_progress event is found in repo via id param that has ended")
+  void getEvent_returns_event_updated_to_completed() {
+    setupMockClocks();
+    setupMockMapper();
+
+    var edt = LocalDateTime.now(clock).minusHours(2);
+    var durationMinutes = 60;
+
+    var param = EventParams.of(eventId, null);
+    var event = createEvent(param)
+        .withEventDateTime(edt)
+        .withDurationInMinutes(durationMinutes)
+        .withEventStatus(EventStatus.IN_PROGRESS);
+    var eventDto = this.createEventDto(param)
+        .withEventStatus(EventStatus.COMPLETED)
+        .withDurationInMinutes(durationMinutes)
+        .withEventDateTime(edt);
+    when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
+        args -> args.getArgument(0));
+    when(eventRepository.save(any(Event.class))).thenAnswer(
+        args -> Mono.just(args.getArgument(0)));
+
+    StepVerifier.create(webService.getEvent(eventId))
+        .expectNext(eventDto)
+        .verifyComplete();
+  }
+
+  @Test
+  @DisplayName("getEvent should return an in_progress event when an awaiting event is found in repo via id param that has started")
+  void getEvent_returns_event_updated_to_in_progress() {
+    setupMockClocks();
+    setupMockMapper();
+
+    var edt = LocalDateTime.now(clock).minusMinutes(2);
+    var durationMinutes = 60;
+
+    var param = EventParams.of(eventId, null);
+    var event = createEvent(param)
+        .withEventDateTime(edt)
+        .withDurationInMinutes(durationMinutes)
+        .withEventStatus(EventStatus.AWAITING);
+    var eventDto = this.createEventDto(param)
+        .withEventStatus(EventStatus.IN_PROGRESS)
+        .withDurationInMinutes(durationMinutes)
+        .withEventDateTime(edt);
+    when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
+        args -> args.getArgument(0));
+    when(eventRepository.save(any(Event.class))).thenAnswer(
+        args -> Mono.just(args.getArgument(0)));
+
+    StepVerifier.create(webService.getEvent(eventId))
+        .expectNext(eventDto)
+        .verifyComplete();
   }
 
   @Test
@@ -172,6 +250,8 @@ class DefaultEventWebServiceTests {
     var event = this.createEvent(param);
     var eventDto = this.createEventDto(param);
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.create(webService.getEvent(eventId))
         .expectNext(eventDto)
@@ -197,8 +277,10 @@ class DefaultEventWebServiceTests {
         new CreateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 60));
 
     var param = EventParams.of(eventId, null);
-    var event = this.createEvent(param);
-    var eventDto = this.createEventDto(param);
+    var event = this.createEvent(param)
+        .withEventStatus(EventStatus.AWAITING);
+    var eventDto = this.createEventDto(param)
+        .withEventStatus(EventStatus.AWAITING);
 
     when(eventMapper.toEntity(eventCreateRequest)).thenReturn(event.withId(null));
     when(eventRepository.save(event)).thenReturn(Mono.just(event));
@@ -216,7 +298,8 @@ class DefaultEventWebServiceTests {
 
     var cre = this.createEventRequest(
         new CreateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 60));
-    var event = this.createEvent(EventParams.of(eventId, null));
+    var event = this.createEvent(EventParams.of(eventId, null))
+        .withEventStatus(EventStatus.AWAITING);
 
     when(eventMapper.toEntity(cre)).thenReturn(event.withId(null));
     when(eventRepository.save(event)).thenReturn(Mono.just(event)
@@ -253,7 +336,8 @@ class DefaultEventWebServiceTests {
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent)
         .delayElement(eventDuration));
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.withVirtualTime(() -> webService.updateEvent(eventId, eventUpdateRequest))
         .expectSubscription()
@@ -272,7 +356,8 @@ class DefaultEventWebServiceTests {
 
     when(eventRepository.findById(eventId)).thenReturn(Mono.empty());
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
         .verifyError(EventNotFoundException.class);
@@ -292,7 +377,8 @@ class DefaultEventWebServiceTests {
 
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent));
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
         .verifyError(EventUpdateException.class);
@@ -304,7 +390,8 @@ class DefaultEventWebServiceTests {
 
     setupMockClocks();
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
 
@@ -346,7 +433,7 @@ class DefaultEventWebServiceTests {
     var updatedEvent = originalEvent.toBuilder()
         .durationInMinutes(updateDurationInMinutes)
         .build();
-    
+
     var updatedEventDto = EventDto.builder()
         .id(updatedEvent.getId())
         .facilitator(updatedEvent.getFacilitator())
@@ -366,7 +453,8 @@ class DefaultEventWebServiceTests {
     when(messagePostingService.postEventChangedMessage(any(EventChanged.class)))
         .thenReturn(Mono.empty());
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
         .expectNext(updatedEventDto)
@@ -382,7 +470,8 @@ class DefaultEventWebServiceTests {
   /// - repo cannot find event with given id -> EventNotFoundException is thrown
   /// - event is in progress or completed -> EventCancellationException is thrown
   /// - repo times out trying to cancel event with given id -> EventTimeoutException is thrown
-  /// - repo successfully cancels event that hasn't started -> Mono[EventDto] returned with cancelled=true
+  /// - repo successfully cancels event that hasn't started -> Mono[EventDto] returned with
+  /// cancelled=true
 
   @Test
   @DisplayName("cancelEvent should return EventTimeoutException Mono when repo call times out")
@@ -395,7 +484,8 @@ class DefaultEventWebServiceTests {
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(event)
         .delayElement(eventDuration));
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.withVirtualTime(() -> webService.cancelEvent(eventId, facilitator))
         .expectSubscription()
@@ -409,7 +499,8 @@ class DefaultEventWebServiceTests {
 
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.empty());
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelEvent(eventId, facilitator))
         .verifyError(EventNotFoundException.class);
@@ -423,9 +514,11 @@ class DefaultEventWebServiceTests {
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
     originalEvent.setEventDateTime(LocalDateTime.now(clock).minusMinutes(1));
 
-    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(
+        Mono.just(originalEvent));
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelEvent(eventId, facilitator))
         .verifyError(EventCancellationException.class);
@@ -439,13 +532,15 @@ class DefaultEventWebServiceTests {
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
     originalEvent.setEventDateTime(LocalDateTime.now(clock).plusDays(1));
 
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(
+        Mono.just(originalEvent));
 
-    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
+    when(eventRepository.save(any(Event.class))).thenAnswer(
+        args -> Mono.just((Event) args.getArgument(0)
+        ).delayElement(eventDuration));
 
-    when(eventRepository.save(any(Event.class))).thenAnswer(args -> Mono.just((Event)args.getArgument(0)
-    ).delayElement(eventDuration));
-
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.withVirtualTime(() -> webService.cancelEvent(eventId, facilitator))
         .expectSubscription()
@@ -462,18 +557,21 @@ class DefaultEventWebServiceTests {
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
     originalEvent.setEventDateTime(LocalDateTime.now(clock).plusHours(1));
 
-    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(
+        Mono.just(originalEvent));
 
-    when(eventRepository.save(any(Event.class))).thenAnswer(args -> Mono.just((Event)args.getArgument(0)
-    ));
+    when(eventRepository.save(any(Event.class))).thenAnswer(
+        args -> Mono.just((Event) args.getArgument(0)
+        ));
 
     when(messagePostingService.postEventCancelledMessage(any(EventCancelled.class)))
         .thenReturn(Mono.empty());
 
-    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(args -> args.getArgument(0));
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
+        args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelEvent(eventId, facilitator))
-        .assertNext(event -> assertTrue(event.isCancelled()))
+        .assertNext(event -> assertEquals(EventStatus.CANCELLED, event.getEventStatus()))
         .verifyComplete();
   }
 
@@ -489,7 +587,7 @@ class DefaultEventWebServiceTests {
     when(clock.getZone()).thenReturn(zoneId);
   }
 
-  private void setupMockMapper(){
+  private void setupMockMapper() {
     when(eventMapper.toDto(any(Event.class))).
         thenAnswer(invocation -> {
           Event argument = invocation.getArgument(0);
@@ -502,7 +600,7 @@ class DefaultEventWebServiceTests {
               .availableBookings(argument.getAvailableBookings())
               .eventDateTime(argument.getEventDateTime())
               .durationInMinutes(argument.getDurationInMinutes())
-              .cancelled(argument.isCancelled())
+              .eventStatus(argument.getEventStatus())
               .build();
         });
   }
@@ -525,7 +623,9 @@ class DefaultEventWebServiceTests {
   }
 
   record UpdateEventRequestParam(Integer id, LocalDateTime dateTime,
-                                 Integer durationInMinutes) {}
+                                 Integer durationInMinutes) {
+
+  }
 
   private EventUpdateRequest createEventUpdateRequest(UpdateEventRequestParam param) {
     return EventUpdateRequest.builder()
@@ -539,6 +639,7 @@ class DefaultEventWebServiceTests {
   }
 
   private record EventParams(int id, @Nullable String facilitator) {
+
     static EventParams of(int id, @Nullable String facilitator) {
       return new EventParams(id, facilitator);
     }

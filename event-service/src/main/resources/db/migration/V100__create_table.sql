@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS events
     event_date_time     timestamp    NOT NULL,
     duration_in_minutes int          NOT NULL,
     available_bookings  smallint     NOT NULL,
-    cancelled           boolean      NOT NULL DEFAULT false
+    event_status        varchar(30)  NOT NULL
 );

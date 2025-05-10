@@ -1,10 +1,9 @@
 package piper1970.notificationservice.kafka.listener;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -14,16 +13,20 @@ import piper1970.notificationservice.kafka.listener.options.BaseListenerOptions;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
 public class BookingEventUnavailableListener extends AbstractListener {
 
   public static final String BOOKING_EVENT_UNAVAILABLE_SUBJECT = "RE: Booking event is no longer available";
+  private final Retry defaultMailerRetry;
   private Disposable subscription;
 
-  public BookingEventUnavailableListener(BaseListenerOptions options) {
+  public BookingEventUnavailableListener(BaseListenerOptions options,
+      @Qualifier("mailer") Retry defaultMailerRetry) {
     super(options);
+    this.defaultMailerRetry = defaultMailerRetry;
   }
 
   @Override
@@ -71,7 +74,7 @@ public class BookingEventUnavailableListener extends AbstractListener {
           .doOnNext(email -> logMailDelivery(bookingId.getEmail(), email))
           .flatMap(msg ->
               handleMailMono(bookingId.getEmail().toString(), BOOKING_EVENT_UNAVAILABLE_SUBJECT, msg)
-                  .retryWhen(DEFAULT_RETRY)
+                  .retryWhen(defaultMailerRetry)
                   .then(Mono.just(record))
           ).onErrorResume(error -> {
             log.error("BOOKING_EVENT_UNAVAILABLE handling failed [{}]. Sending to DLT", bookingId, error);

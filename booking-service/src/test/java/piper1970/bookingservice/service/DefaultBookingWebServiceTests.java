@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,12 +36,12 @@ import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.repository.BookingRepository;
 import piper1970.eventservice.common.bookings.messages.BookingCancelled;
 import piper1970.eventservice.common.bookings.messages.BookingCreated;
-import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Booking Web Service")
@@ -58,8 +59,6 @@ class DefaultBookingWebServiceTests {
   EventRequestService eventRequestService;
   @Mock
   MessagePostingService messagePostingService;
-  @Mock
-  EventDtoToStatusMapper eventDtoToStatusMapper;
   @Mock
   BookingMapper bookingMapper;
   @Mock
@@ -79,6 +78,12 @@ class DefaultBookingWebServiceTests {
   private static final Long timeoutValue = 2000L;
   private static final Duration timeoutDuration = Duration.ofMillis(timeoutValue);
   private static final String errorMessage = "Something went wrong";
+  private static final Retry defaultRepository = Retry.backoff(3, Duration.ofMillis(500L))
+      .filter(throwable -> throwable instanceof TimeoutException)
+      .jitter(0.7D);
+  private static final Retry defaultKafkaRetry = Retry.backoff(3, Duration.ofMillis(500L))
+      .filter(throwable -> throwable instanceof TimeoutException)
+      .jitter(0.7D);
 
   @BeforeEach
   void setUp() {
@@ -87,9 +92,10 @@ class DefaultBookingWebServiceTests {
         bookingRepository,
         eventRequestService,
         messagePostingService,
-        eventDtoToStatusMapper,
         transactionalOperator,
-        timeoutValue
+        timeoutValue,
+        defaultRepository,
+        defaultKafkaRetry
     );
   }
 
@@ -317,8 +323,6 @@ class DefaultBookingWebServiceTests {
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
 
-    when(eventDtoToStatusMapper.apply(eventDto)).thenReturn(EventStatus.IN_PROGRESS);
-
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.createBooking(cbr, token))
@@ -337,8 +341,6 @@ class DefaultBookingWebServiceTests {
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
-
-    when(eventDtoToStatusMapper.apply(eventDto)).thenReturn(EventStatus.COMPLETED);
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
@@ -360,8 +362,6 @@ class DefaultBookingWebServiceTests {
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
-
-    when(eventDtoToStatusMapper.apply(eventDto)).thenReturn(EventStatus.AWAITING);
 
     when(bookingRepository.save(any(Booking.class))).thenReturn(Mono.just(booking)
         .delayElement(timeoutDuration)
@@ -391,8 +391,6 @@ class DefaultBookingWebServiceTests {
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(eventDto));
-
-    when(eventDtoToStatusMapper.apply(eventDto)).thenReturn(EventStatus.AWAITING);
 
     when(bookingRepository.save(any(Booking.class))).thenReturn(Mono.just(booking));
 
@@ -467,8 +465,6 @@ class DefaultBookingWebServiceTests {
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
 
-    when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.IN_PROGRESS);
-
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     StepVerifier.create(webService.cancelBooking(bookingId, username, token))
@@ -509,8 +505,6 @@ class DefaultBookingWebServiceTests {
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
 
-    when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.AWAITING);
-
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
     var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
@@ -537,12 +531,11 @@ class DefaultBookingWebServiceTests {
     when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
-    var event = buildEventDto(LocalDateTime.now(clock).minusDays(10), 80);
+    var event = buildEventDto(LocalDateTime.now(clock).minusDays(10), 80)
+        .withEventStatus(EventStatus.AWAITING);
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
-
-    when(eventDtoToStatusMapper.apply(event)).thenReturn(EventStatus.AWAITING);
 
     var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
     when(bookingRepository.save(cancelledBooking))
@@ -563,6 +556,20 @@ class DefaultBookingWebServiceTests {
   //region Helper Methods
 
   private EventDto buildEventDto(LocalDateTime eventDateTime, Integer duration) {
+
+    // set event-status based on comparison of now, eventDateTime and duration
+    // assume cancelled is not an option
+    var now = LocalDateTime.now(clock);
+    var endTime = eventDateTime.plusMinutes(duration);
+    EventStatus status;
+    if(now.isAfter(endTime)) {
+      status = EventStatus.COMPLETED;
+    }else if(now.isAfter(eventDateTime)) {
+      status = EventStatus.IN_PROGRESS;
+    }else{
+      status = EventStatus.AWAITING;
+    }
+
     return EventDto.builder()
         .id(eventId)
         .title("title")
@@ -572,6 +579,7 @@ class DefaultBookingWebServiceTests {
         .availableBookings(10)
         .eventDateTime(eventDateTime)
         .durationInMinutes(duration)
+        .eventStatus(status)
         .build();
   }
 

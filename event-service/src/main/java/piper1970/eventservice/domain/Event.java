@@ -11,6 +11,7 @@ import lombok.With;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
+import piper1970.eventservice.common.events.status.EventStatus;
 
 @Getter
 @Setter
@@ -37,5 +38,5 @@ public class Event {
   private LocalDateTime eventDateTime;
   private Integer durationInMinutes;
   private Integer availableBookings;
-  private boolean cancelled;
+  private EventStatus eventStatus;
 }

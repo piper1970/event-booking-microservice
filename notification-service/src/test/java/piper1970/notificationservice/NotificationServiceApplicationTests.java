@@ -39,6 +39,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -76,6 +77,7 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 @Tag("kafka-test")
 @DisplayName("Notification-Service: Kafka Tests")
@@ -116,6 +118,14 @@ public class NotificationServiceApplicationTests {
   private Clock clock;
 
   @Autowired
+  @Qualifier("mailer")
+  private Retry defaultMailerRetry;
+
+  @Autowired
+  @Qualifier("repository")
+  private Retry defaultRepositoryRetry;
+
+  @Autowired
   private TransactionalOperator transactionalOperator;
 
   @Captor
@@ -138,11 +148,11 @@ public class NotificationServiceApplicationTests {
   void setupListeners() {
     discoverableListeners.add(new BookingCreatedListener(baseListenerOptions, repository,
         transactionalOperator, clock, timeoutInMilliseconds,
-        confirmationUrl, confirmationInMinutes));
-    discoverableListeners.add(new BookingCancelledListener(baseListenerOptions));
-    discoverableListeners.add(new BookingEventUnavailableListener(baseListenerOptions));
-    discoverableListeners.add(new BookingsCancelledListener(baseListenerOptions));
-    discoverableListeners.add(new BookingsUpdatedListener(baseListenerOptions));
+        confirmationUrl, confirmationInMinutes, defaultRepositoryRetry));
+    discoverableListeners.add(new BookingCancelledListener(baseListenerOptions, defaultMailerRetry));
+    discoverableListeners.add(new BookingEventUnavailableListener(baseListenerOptions, defaultMailerRetry));
+    discoverableListeners.add(new BookingsCancelledListener(baseListenerOptions, defaultMailerRetry));
+    discoverableListeners.add(new BookingsUpdatedListener(baseListenerOptions,defaultMailerRetry));
 
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }

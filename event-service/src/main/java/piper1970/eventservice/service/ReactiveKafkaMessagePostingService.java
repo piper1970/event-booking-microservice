@@ -56,8 +56,6 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
 
   @Override
   public Mono<Void> postEventCompletedMessage(EventCompleted message) {
-    // TODO: need to figure out how to trigger this logic.
-    //  Possibly a Scheduled process, with a configurable timerange
     try{
       var eventId = message.getEventId();
       log.debug("Posting EVENT_COMPLETED message [{}]", eventId);

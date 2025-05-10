@@ -1,14 +1,12 @@
 package piper1970.eventservice.service;
 
-
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -16,6 +14,7 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
+import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.exceptions.KafkaPostingException;
 import piper1970.eventservice.domain.Event;
@@ -30,6 +29,7 @@ import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
 
 @Service
 @Slf4j
@@ -42,6 +42,8 @@ public class DefaultEventWebService implements EventWebService {
   private final Integer eventRepositoryTimeoutInMilliseconds;
   private final Duration eventsTimeoutDuration;
   private final TransactionalOperator transactionalOperator;
+  private final Retry defaultRepositoryRetry;
+  private final Retry defaultKafkaRetry;
 
   public DefaultEventWebService(
       @NonNull EventRepository eventRepository,
@@ -49,7 +51,9 @@ public class DefaultEventWebService implements EventWebService {
       @NonNull EventMapper eventMapper,
       TransactionalOperator transactionalOperator,
       Clock clock,
-      @NonNull @Value("${event-repository.timout.milliseconds}") Integer eventRepositoryTimeoutInMilliseconds) {
+      @NonNull @Value("${event-repository.timout.milliseconds}") Integer eventRepositoryTimeoutInMilliseconds,
+      @Qualifier("repository") Retry defaultRepositoryRetry,
+      @Qualifier("kafka") Retry defaultKafkaRetry) {
 
     this.eventRepository = eventRepository;
     this.messagePostingService = messagePostingService;
@@ -58,6 +62,8 @@ public class DefaultEventWebService implements EventWebService {
     this.clock = clock;
     this.eventRepositoryTimeoutInMilliseconds = eventRepositoryTimeoutInMilliseconds;
     this.eventsTimeoutDuration = Duration.ofMinutes(eventRepositoryTimeoutInMilliseconds);
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
+    this.defaultKafkaRetry = defaultKafkaRetry;
   }
 
   @Override
@@ -68,7 +74,7 @@ public class DefaultEventWebService implements EventWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(eventsTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryFluxTimeout(ex,  "attempting to get all events"))
         .map(eventMapper::toDto)
         .doOnNext(this::logEventRetrieval);
@@ -81,8 +87,11 @@ public class DefaultEventWebService implements EventWebService {
     return eventRepository.findById(id)
         .subscribeOn(Schedulers.boundedElastic())
         .log()
+        // ensure status is correct before returning to caller
+        .flatMap(this::handlePossibleStatusUpdate)
         .timeout(eventsTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .as(transactionalOperator::transactional)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to get event"))
         .map(eventMapper::toDto)
         .doOnNext(this::logEventRetrieval);
@@ -92,12 +101,14 @@ public class DefaultEventWebService implements EventWebService {
   public Mono<EventDto> createEvent(@NonNull EventCreateRequest createRequest) {
     log.debug("Create event called [{}]", createRequest);
 
-    var event = eventMapper.toEntity(createRequest);
+    var event = eventMapper.toEntity(createRequest)
+        // EventCreateRequest validation ensures future date
+        .withEventStatus(EventStatus.AWAITING);
     return eventRepository.save(event)
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(eventsTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex, 0, "attempting to save event"))
         .map(eventMapper::toDto)
         .doOnNext(dto -> log.debug("Event [{}] has been created", dto));
@@ -113,7 +124,7 @@ public class DefaultEventWebService implements EventWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(eventsTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found".formatted(id))))
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
@@ -124,7 +135,7 @@ public class DefaultEventWebService implements EventWebService {
               .log()
               .subscribeOn(Schedulers.boundedElastic())
               .timeout(eventsTimeoutDuration)
-              .retryWhen(DEFAULT_RETRY)
+              .retryWhen(defaultKafkaRetry)
               .onErrorResume(ex -> handlePostingTimeout(ex, dto.getId(), "EVENT_CHANGED"))
               .then(Mono.just(dto));
         })
@@ -140,7 +151,7 @@ public class DefaultEventWebService implements EventWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(eventsTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException(
             "Event [%d} run by [%s]not found".formatted(id, facilitator))))
@@ -156,7 +167,7 @@ public class DefaultEventWebService implements EventWebService {
               .subscribeOn(Schedulers.boundedElastic())
               .log()
               .timeout(eventsTimeoutDuration)
-              .retryWhen(DEFAULT_RETRY)
+              .retryWhen(defaultKafkaRetry)
               .onErrorResume(ex -> handlePostingTimeout(ex, dto.getId(), "EVENT_CANCELLED"))
               .then(Mono.just(dto));
         })
@@ -182,15 +193,15 @@ public class DefaultEventWebService implements EventWebService {
   }
 
   private Mono<Event> cancelAndSave(Event event) {
-    if (event.isCancelled()) {
+    if (EventStatus.CANCELLED == event.getEventStatus()) {
       return Mono.just(event);
     }
-    var cancelledEvent = event.toBuilder().cancelled(true).build();
+    var cancelledEvent = event.toBuilder().eventStatus(EventStatus.CANCELLED).build();
     return eventRepository.save(cancelledEvent)
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(eventsTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .doOnNext(
             savedEvent -> log.debug("Event [{}] has been cancelled in the database", savedEvent.getId()))
         .onErrorResume(ex -> handleRepositoryTimeout(ex, event.getId(), "save cancelled event"));
@@ -232,7 +243,7 @@ public class DefaultEventWebService implements EventWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(eventsTimeoutDuration)
-        .retryWhen(DEFAULT_RETRY)
+        .retryWhen(defaultRepositoryRetry)
         .doOnNext(dto -> log.debug("Event [{}] has been updated in the database", dto.getId()))
         .onErrorResume(ex -> handleRepositoryTimeout(ex, event.getId(), "update event "));
   }
@@ -285,7 +296,7 @@ public class DefaultEventWebService implements EventWebService {
   }
 
   private boolean safeToChange(Event event, LocalDateTime eventDateTime) {
-    if (event.isCancelled()) {
+    if (EventStatus.CANCELLED == event.getEventStatus()) {
       return false;
     }
     var now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
@@ -300,4 +311,34 @@ public class DefaultEventWebService implements EventWebService {
     return now.isBefore(originalCutoffTime) && now.isBefore(newCutoffTime);
   }
 
+  /**
+   * When getting individual event, need to ensure that the status properly updated for downstream
+   * processing by calling services
+   */
+  private Mono<Event> handlePossibleStatusUpdate(Event event){
+    // only statuses to update are 'IN_PROGRESS' or 'AWAITING'
+    if(EventStatus.CANCELLED == event.getEventStatus() || EventStatus.COMPLETED == event.getEventStatus()){
+      return Mono.just(event);
+    }
+    var now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
+    var startTime = event.getEventDateTime().truncatedTo(ChronoUnit.MINUTES);
+    var endTime = event.getEventDateTime().plus(Duration.ofMinutes(event.getDurationInMinutes())).truncatedTo(ChronoUnit.MINUTES);
+
+    EventStatus derivedStatus;
+    if(now.isAfter(endTime)){
+      derivedStatus = EventStatus.COMPLETED;
+    }else if(now.isAfter(startTime)){
+      derivedStatus = EventStatus.IN_PROGRESS;
+    }else{
+      derivedStatus = event.getEventStatus();
+    }
+
+    if(derivedStatus == event.getEventStatus()){
+      // status is correct, so return as is
+      return Mono.just(event);
+    }else{
+      // status must be updated before returning
+      return eventRepository.save(event.withEventStatus(derivedStatus));
+    }
+  }
 }

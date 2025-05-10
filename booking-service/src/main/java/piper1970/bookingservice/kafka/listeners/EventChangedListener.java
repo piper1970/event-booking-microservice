@@ -1,10 +1,9 @@
 package piper1970.bookingservice.kafka.listeners;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -25,6 +24,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -34,6 +34,8 @@ public class EventChangedListener extends DiscoverableListener {
   private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
   private final BookingRepository bookingRepository;
   private final Duration timeoutDuration;
+  private final Retry defaultRepositoryRetry;
+  private final Retry defaultKafkaRetry;
   private Disposable subscription;
 
   public EventChangedListener(
@@ -41,11 +43,16 @@ public class EventChangedListener extends DiscoverableListener {
       DeadLetterTopicProducer deadLetterTopicProducer,
       ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
       BookingRepository bookingRepository,
-      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis) {
+      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis,
+      @Qualifier("repository") Retry defaultRepositoryRetry,
+      @Qualifier("kafka") Retry defaultKafkaRetry
+      ) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
     this.bookingRepository = bookingRepository;
     timeoutDuration = Duration.ofMillis(timeoutMillis);
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
+    this.defaultKafkaRetry = defaultKafkaRetry;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -80,7 +87,7 @@ public class EventChangedListener extends DiscoverableListener {
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(timeoutDuration)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .map(this::toBookingId)
           .collectList()
           .doOnNext(bookings -> log.debug("[{}] bookings updated for event [{}]", bookings.size(), eventId))
@@ -93,7 +100,7 @@ public class EventChangedListener extends DiscoverableListener {
                 .subscribeOn(Schedulers.boundedElastic())
                 .log()
                 .timeout(timeoutDuration)
-                .retryWhen(DEFAULT_RETRY)
+                .retryWhen(defaultKafkaRetry)
                 .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
                 .map(updatedBooking -> record);
           })

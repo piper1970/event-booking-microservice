@@ -1,10 +1,9 @@
 package piper1970.bookingservice.kafka.listeners;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -26,6 +25,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -36,6 +36,7 @@ public class EventCancelledListener extends DiscoverableListener {
   private final BookingRepository bookingRepository;
   private final TransactionalOperator transactionalOperator;
   private final Duration timeoutDuration;
+  private final Retry defaultRepositoryRetry;
   private Disposable subscription;
 
   public EventCancelledListener(
@@ -44,12 +45,14 @@ public class EventCancelledListener extends DiscoverableListener {
       ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
       BookingRepository bookingRepository,
       TransactionalOperator transactionalOperator,
-      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis) {
+      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis,
+      @Qualifier("repository") Retry defaultRepositoryRetry) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
     this.bookingRepository = bookingRepository;
     this.transactionalOperator = transactionalOperator;
     timeoutDuration = Duration.ofMillis(timeoutMillis);
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -109,7 +112,7 @@ public class EventCancelledListener extends DiscoverableListener {
                 .map(_senderResult -> record);
           })
           .as(transactionalOperator::transactional)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .onErrorResume(err -> {
             log.error("Unable to send EventCancelled message after max attempts. Sending to DLT and aborting transaction", err);
             return handleDLTLogic(record);

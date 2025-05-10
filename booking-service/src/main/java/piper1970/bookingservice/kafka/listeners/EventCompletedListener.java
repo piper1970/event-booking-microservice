@@ -1,10 +1,9 @@
 package piper1970.bookingservice.kafka.listeners;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -20,6 +19,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -27,16 +27,19 @@ public class EventCompletedListener extends DiscoverableListener {
 
   private final BookingRepository bookingRepository;
   private final Duration timeoutDuration;
+  private final Retry defaultRepositoryRetry;
   private Disposable subscription;
 
   public EventCompletedListener(
       ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       DeadLetterTopicProducer deadLetterTopicProducer,
       BookingRepository bookingRepository,
-      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis) {
+      @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis,
+      @Qualifier("repository") Retry defaultRepositoryRetry) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.bookingRepository = bookingRepository;
     timeoutDuration = Duration.ofMillis(timeoutMillis);
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -66,29 +69,39 @@ public class EventCompletedListener extends DiscoverableListener {
           "[{}] message has been received from EVENT_COMPLETED topic. Updating related bookings",
           eventId);
 
-      return bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(
-              BookingStatus.CANCELLED, BookingStatus.COMPLETED, BookingStatus.IN_PROGRESS
-          ))
+      // For handling bookings that have already been confirmed -> status changes to complete
+      var completedFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(BookingStatus.CONFIRMED))
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(timeoutDuration)
-          .retryWhen(DEFAULT_RETRY)
-          .map(booking -> booking.withBookingStatus(BookingStatus.COMPLETED))
-          .collectList()
-          .flatMapMany(bookingList ->
-              bookingRepository.saveAll(bookingList)
+          .retryWhen(defaultRepositoryRetry)
+          .map(booking -> booking.withBookingStatus(BookingStatus.COMPLETED));
+
+      // For handling bookings that have not yet been confirmed -> status changes to cancelled
+      var cancelledFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(BookingStatus.IN_PROGRESS))
+          .subscribeOn(Schedulers.boundedElastic())
+          .log()
+          .timeout(timeoutDuration)
+          .retryWhen(defaultRepositoryRetry)
+          .map(booking -> booking.withBookingStatus(BookingStatus.CANCELLED));
+
+      return completedFlux
+          .concatWith(cancelledFlux)
+          // save both cancelled and completed booking
+          .flatMap(booking ->
+              bookingRepository.save(booking)
                   .subscribeOn(Schedulers.boundedElastic())
                   .log()
                   .timeout(timeoutDuration)
-                  .retryWhen(DEFAULT_RETRY)
-          )
-          .count()
-          .doOnNext(count -> log.info("{} Bookings completed for event {}", count, eventId))
+                  .retryWhen(defaultRepositoryRetry)
+          ).count()
+          .doOnNext(count -> log.info("{} Bookings updated for completed event {}", count, eventId))
           .map(cnt -> record)
           .onErrorResume(err -> {
-            log.error("Unable to send EventCompleted message after max attempts. Sending to DLT", err);
+            log.error("Unable to process EventCompleted message after max attempts. Sending to DLT", err);
             return handleDLTLogic(record);
           });
+
     } else {
       log.error(
           "Unable to deserialize EventCompleted message. Sending to DLT for further processing");

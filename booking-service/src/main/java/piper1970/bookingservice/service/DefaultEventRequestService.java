@@ -1,8 +1,8 @@
 package piper1970.bookingservice.service;
 
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -16,8 +16,10 @@ import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.exceptions.EventForbiddenException;
 import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
 
 @Service
 @Slf4j
@@ -26,12 +28,15 @@ public class DefaultEventRequestService implements EventRequestService {
   private final WebClient.Builder webClientBuilder;
   private final Long eventTimeoutInMilliseconds;
   private final Duration eventTimeoutDuration;
+  private final Retry defaultEventServiceRetry;
 
   public DefaultEventRequestService(WebClient.Builder webClientBuilder,
-      @Value("${event-request-service.timeout.milliseconds}") Long eventTimeoutInMilliseconds) {
+      @Value("${event-request-service.timeout.milliseconds}") Long eventTimeoutInMilliseconds,
+      @Qualifier("event-service") Retry defaultEventServiceRetry) {
     this.webClientBuilder = webClientBuilder;
     this.eventTimeoutInMilliseconds = eventTimeoutInMilliseconds;
     this.eventTimeoutDuration = Duration.ofMillis(eventTimeoutInMilliseconds);
+    this.defaultEventServiceRetry = defaultEventServiceRetry;
   }
 
   @Override
@@ -51,13 +56,21 @@ public class DefaultEventRequestService implements EventRequestService {
         .onStatus(HttpStatusCode::is4xxClientError, this::handle400Response)
         .bodyToMono(EventDto.class)
         .subscribeOn(Schedulers.boundedElastic())
+        .log()
         .doOnNext(eventDto -> log.debug("Event [{}] has been retrieved", eventId)).doOnError(throwable -> log.error("Event [{}] could not be retrieved", eventId, throwable))
         .timeout(eventTimeoutDuration)
-        .onErrorResume(TimeoutException.class, ex ->
-            Mono.error(new EventRequestServiceTimeoutException(
+        .retryWhen(defaultEventServiceRetry)
+        .onErrorResume(ex -> {
+          if(Exceptions.isRetryExhausted(ex)){
+            // timeout retries are exhausted
+            return Mono.error(new EventRequestServiceTimeoutException(
                 "Event Request Service timed out [over %d milliseconds] fetching event".formatted(
                     eventTimeoutInMilliseconds),
-                ex)));
+                ex));
+          }
+          // let everything else pass through
+          return Mono.error(ex);
+        });
   }
 
   private Mono<? extends Throwable> handle400Response(ClientResponse clientResponse) {
@@ -68,4 +81,6 @@ public class DefaultEventRequestService implements EventRequestService {
       default -> Mono.error(new UnknownCauseException("This should not be happening... Unhandled status code: " + clientResponse.statusCode()));
     };
   }
+
+
 }

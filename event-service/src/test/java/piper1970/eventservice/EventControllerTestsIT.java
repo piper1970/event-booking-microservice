@@ -3,7 +3,6 @@ package piper1970.eventservice;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
@@ -66,11 +65,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
-import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.domain.Event;
-import piper1970.eventservice.dto.mapper.EventMapper;
 import piper1970.eventservice.dto.model.EventCreateRequest;
 import piper1970.eventservice.dto.model.EventUpdateRequest;
 import piper1970.eventservice.repository.EventRepository;
@@ -99,13 +96,8 @@ public class EventControllerTestsIT {
   @LocalServerPort
   Integer port;
 
-  @Autowired
-  EventMapper eventMapper;
-
   @MockitoBean
   Clock clock;
-
-  EventDtoToStatusMapper eventDtoToStatusMapper;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -149,8 +141,6 @@ public class EventControllerTestsIT {
 
     given(clock.instant()).willReturn(clockInstant);
     given(clock.getZone()).willReturn(clockZone);
-
-    eventDtoToStatusMapper = new EventDtoToStatusMapper(clock);
 
     webClient = WebTestClient.bindToServer()
         .baseUrl("http://localhost:" + port)
@@ -310,7 +300,7 @@ public class EventControllerTestsIT {
         .getResponseBody();
 
     assertNotNull(results);
-    EventStatus resultStatus = eventDtoToStatusMapper.apply(results);
+    EventStatus resultStatus = results.getEventStatus();
     assertNotNull(resultStatus);
     assertEquals(EventStatus.AWAITING, resultStatus, "Event status should be AWAITING");
     assertEquals(Boolean.TRUE, eventRepository.existsById(results.getId()).block());
@@ -490,7 +480,7 @@ public class EventControllerTestsIT {
         .getResponseBody();
 
     assertNotNull(result);
-    assertEquals(EventStatus.AWAITING, eventDtoToStatusMapper.apply(result));
+    assertEquals(EventStatus.AWAITING, result.getEventStatus());
   }
 
 
@@ -555,7 +545,7 @@ public class EventControllerTestsIT {
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
+        .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
     var token = getJwtToken("test_performer", "PERFORMER");
@@ -582,7 +572,7 @@ public class EventControllerTestsIT {
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
+        .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
     var token = getJwtToken("test_performer", "PERFORMER");
@@ -610,7 +600,7 @@ public class EventControllerTestsIT {
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
+        .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
     var token = getJwtToken("test_performer", "PERFORMER");
@@ -638,7 +628,7 @@ public class EventControllerTestsIT {
         .block();
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
+        .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
     var token = getJwtToken("test_performer", "PERFORMER");
@@ -669,7 +659,7 @@ public class EventControllerTestsIT {
 
     var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(evt -> EventStatus.AWAITING == eventDtoToStatusMapper.apply(eventMapper.toDto(evt)))
+        .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .map(Event::getId)
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
@@ -686,7 +676,7 @@ public class EventControllerTestsIT {
         .returnResult()
         .getResponseBody();
 
-    assertTrue(Objects.requireNonNull(result).isCancelled());
+    assertEquals(EventStatus.CANCELLED, Objects.requireNonNull(result).getEventStatus());
   }
 
   @Test
@@ -697,8 +687,7 @@ public class EventControllerTestsIT {
 
     var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(
-            eventMapper.toDto(event)))
+        .filter(event -> EventStatus.IN_PROGRESS == event.getEventStatus())
         .map(Event::getId)
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
@@ -723,8 +712,7 @@ public class EventControllerTestsIT {
 
     var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(
-            eventMapper.toDto(event)))
+        .filter(event -> EventStatus.IN_PROGRESS == event.getEventStatus())
         .map(Event::getId)
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
@@ -748,8 +736,7 @@ public class EventControllerTestsIT {
 
     var eventId = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
-        .filter(event -> EventStatus.IN_PROGRESS == eventDtoToStatusMapper.apply(
-            eventMapper.toDto(event)))
+        .filter(event -> EventStatus.IN_PROGRESS == event.getEventStatus())
         .map(Event::getId)
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
@@ -777,6 +764,7 @@ public class EventControllerTestsIT {
             .eventDateTime(LocalDateTime.now(clock).plusDays(2).plusHours(2))
             .durationInMinutes(30)
             .availableBookings(100)
+            .eventStatus(EventStatus.AWAITING)
             .build(),
         Event.builder() // IN_PROGRESS
             .title("Test Event 2")
@@ -786,6 +774,7 @@ public class EventControllerTestsIT {
             .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
             .durationInMinutes(30)
             .availableBookings(100)
+            .eventStatus(EventStatus.IN_PROGRESS)
             .build(),
         Event.builder()  // COMPLETED
             .title("Test Event 3")
@@ -793,6 +782,7 @@ public class EventControllerTestsIT {
             .facilitator("test_performer")
             .location("Test Location 3")
             .eventDateTime(LocalDateTime.now(clock).minusDays(2))
+            .eventStatus(EventStatus.COMPLETED)
             .durationInMinutes(30)
             .availableBookings(100)
             .build()
@@ -871,7 +861,7 @@ public class EventControllerTestsIT {
   }
 
   boolean eventStatusMatches(Event event, EventStatus expectedStatus) {
-    return expectedStatus == eventDtoToStatusMapper.apply(eventMapper.toDto(event));
+    return expectedStatus == event.getEventStatus();
   }
 
   /// Setup TestContainer based off docker-compose test file

@@ -3,9 +3,9 @@ package piper1970.notificationservice.service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,6 @@ import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class SchedulingService {
 
@@ -28,7 +27,25 @@ public class SchedulingService {
   private final MessagePostingService messagePostingService;
   private final TransactionalOperator transactionalOperator;
   private final Clock clock;
+  private final long staleDataDurationInHours;
+  private final long maxRetries;
 
+  public SchedulingService(BookingConfirmationRepository bookingConfirmationRepository,
+      MessagePostingService messagePostingService, TransactionalOperator transactionalOperator,
+      Clock clock,
+      @Value("${scheduler.stale.data.duration.hours:6}") long staleDataDurationInHours,
+      @Value("${scheduler.expired.confirmations.max.retries:10}") long maxRetries) {
+    this.bookingConfirmationRepository = bookingConfirmationRepository;
+    this.messagePostingService = messagePostingService;
+    this.transactionalOperator = transactionalOperator;
+    this.clock = clock;
+    this.staleDataDurationInHours = staleDataDurationInHours;
+    this.maxRetries = maxRetries;
+  }
+
+  /**
+   * Periodically checks for non-confirmed records that have expired, updating repository and posting to kafka if any are found
+   */
   @Scheduled(fixedDelayString = "${scheduler.expired.confirmations.fixed.delay.millis:900000}", initialDelayString = "${scheduler.expired.confirmations.initial.delay.millis:60000}")
   @SchedulerLock(name = "checkForExpiredConfirmationsLock", lockAtLeastFor = "${shedlock.lockAtLeastFor.default:PT5M}")
   public void checkForExpiredConfirmations(){
@@ -42,17 +59,27 @@ public class SchedulingService {
     try{
       bookingConfirmationRepository.findByConfirmationStatus(ConfirmationStatus.AWAITING_CONFIRMATION)
           .subscribeOn(Schedulers.boundedElastic())
+          .log()
+          // check to see if the expiration window has past
           .filter(this::filterForExpiredConfirmations)
+          // update record in repo with expired status
           .flatMap(confirmation ->
-              bookingConfirmationRepository.save(confirmation.withConfirmationStatus(ConfirmationStatus.EXPIRED))
+              bookingConfirmationRepository.save(confirmation.withConfirmationStatus(
+                      ConfirmationStatus.EXPIRED))
                   .subscribeOn(Schedulers.boundedElastic())
+                  .log()
           )
+          // add transaction behavior for optimistic locking via version field
           .as(transactionalOperator::transactional)
-          .retryWhen(Retry.max(10)
-              .filter(throwable -> throwable instanceof OptimisticLockingFailureException))
+          // allow for retries in case of optimistic lock failures between fetching and saving
+          .retryWhen(Retry.backoff(maxRetries, Duration.ofMillis(500L))
+              .filter(throwable -> throwable instanceof OptimisticLockingFailureException)
+              .jitter(0.7D))
+          // post booking-expired message to kafka
           .flatMap(this::postExpiredConfirmationMessageToKafka)
-          .then()
-          // make sure blocked duration is less thant shedlock lockAtLeastFor duration
+          .count()
+          .doOnNext(count -> log.info("{} expired confirmations have been processed", count))
+          // IMPORTANT: make sure blocked duration is less thant shedlock lockAtLeastFor duration
           .block(Duration.ofMinutes(4));
     }catch(RuntimeException e){
       log.error("Unable to finish scheduled checkForExpiredConfirmations job", e);
@@ -69,13 +96,14 @@ public class SchedulingService {
   public void clearStaleData(){
 
     log.info("Clearing stale data");
-    var deletionDateTime = LocalDateTime.now(clock).minusHours(6); //TODO: make this a property
+    var deletionDateTime = LocalDateTime.now(clock).minusHours(staleDataDurationInHours);
 
     try{
       bookingConfirmationRepository.deleteByConfirmationDateTimeBefore(deletionDateTime)
           .subscribeOn(Schedulers.boundedElastic())
+          .log()
           .doOnNext(deleteCount -> log.info("Deleted [{}] confirmation records that were older than {}:", deleteCount, deletionDateTime))
-          // make sure blocked duration is less thant shedlock lockAtLeastFor duration
+          // IMPORTANT: make sure blocked duration is less thant shedlock lockAtLeastFor duration
           .block(Duration.ofMinutes(4));
     }catch(RuntimeException e){
       log.error("Unable to finish scheduled clearStaleData job", e);
@@ -94,13 +122,14 @@ public class SchedulingService {
     booking.setUsername(expiredConfirmation.getBookingUser());
     bookingExpiredMessage.setBooking(booking);
     return messagePostingService.postBookingExpiredMessage(bookingExpiredMessage)
-        .subscribeOn(Schedulers.boundedElastic());
+        .subscribeOn(Schedulers.boundedElastic())
+        .log();
   }
 
   /**
    * Filters out confirmations that are not expired.
    * Defines expiration as 'confirmationDateTime + durationInMinutes' time already in past
-   * Expectation: bookingConfirmation parameter is currently in the AWAITING_CONFIRMATION status.
+   * Assumption: bookingConfirmation parameter is currently in the AWAITING_CONFIRMATION status.
    */
   private boolean filterForExpiredConfirmations(BookingConfirmation bookingConfirmation) {
     var currentTime = LocalDateTime.now(clock);

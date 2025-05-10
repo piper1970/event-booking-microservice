@@ -3,7 +3,10 @@ package piper1970.eventservice.config;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,11 +24,11 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import piper1970.eventservice.common.events.EventDtoToStatusMapper;
 import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
 import piper1970.eventservice.common.validation.validators.CustomFutureValidator;
 import piper1970.eventservice.common.validation.validators.context.ValidationContextProvider;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -72,11 +75,6 @@ public class EventServiceConfig {
   }
 
   @Bean
-  public EventDtoToStatusMapper eventToStatusHandler() {
-    return new EventDtoToStatusMapper(clock());
-  }
-
-  @Bean
   public Clock clock() {
     return Clock.systemDefaultZone();
   }
@@ -89,6 +87,30 @@ public class EventServiceConfig {
   @Bean
   public ValidationContextProvider contextProvider() {
     return new ValidationContextProvider();
+  }
+
+  @Bean
+  @Qualifier("repository")
+  public Retry defaultRepositoryRetry(
+      @Value("${repository.retry.max.attempts:3}") long maxAttempts,
+      @Value("${repository.retry.duration.millis:500}") long durationInMillis,
+      @Value("${repository.retry.jitter.factor:0.7D}")double jitterFactor
+  ){
+    return Retry.backoff(maxAttempts, Duration.ofMillis(durationInMillis))
+        .filter(throwable -> throwable instanceof TimeoutException)
+        .jitter(jitterFactor);
+  }
+
+  @Bean
+  @Qualifier("kafka")
+  public Retry defaultKafkaRetry(
+      @Value("${kafka.retry.max.attempts:3}") long maxAttempts,
+      @Value("${kafka.retry.duration.millis:500}") long durationInMillis,
+      @Value("${kafka.retry.jitter.factor:0.7D}")double jitterFactor
+  ){
+    return Retry.backoff(maxAttempts, Duration.ofMillis(durationInMillis))
+        .filter(throwable -> throwable instanceof TimeoutException)
+        .jitter(jitterFactor);
   }
 
   private Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {

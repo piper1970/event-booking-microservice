@@ -1,7 +1,5 @@
 package piper1970.notificationservice.kafka.listener;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -9,6 +7,7 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -24,6 +23,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -36,6 +36,7 @@ public class BookingCreatedListener extends AbstractListener {
   private final Duration notificationTimeoutDuration;
   private final Clock clock;
   private final TransactionalOperator transactionalOperator;
+  private final Retry defaultRepositoryRetry;
 
   private Disposable subscription;
 
@@ -45,7 +46,8 @@ public class BookingCreatedListener extends AbstractListener {
       Clock clock,
       @Value("${notification-repository.timeout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds,
       @Value("${confirmation.url:http://localhost:8084/api/notifications/confirm}") String confirmationUrl,
-      @Value("${confirmation.duration.minutes:30}") Integer confirmationInMinutes
+      @Value("${confirmation.duration.minutes:30}") Integer confirmationInMinutes,
+      @Qualifier("repository") Retry defaultRepositoryRetry
       ) {
     super(options);
     this.bookingConfirmationRepository = bookingConfirmationRepository;
@@ -54,6 +56,7 @@ public class BookingCreatedListener extends AbstractListener {
     this.notificationTimeoutDuration = Duration.ofMinutes(notificationRepositoryTimeoutInMilliseconds);
     this.clock = clock;
     this.transactionalOperator = transactionalOperator;
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
   }
 
   @Override
@@ -127,7 +130,7 @@ public class BookingCreatedListener extends AbstractListener {
           .doOnNext(confirmation -> log.info("Booking confirmation saved [{}]", confirmation))
           .then(sendEmailMono)
           .as(transactionalOperator::transactional)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .then(Mono.just(record))
           .onErrorResume(error -> {
             log.error("BOOKING_CREATED message handling failed. Transaction rolled back and message sent to DLT", error);

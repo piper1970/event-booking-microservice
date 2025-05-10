@@ -1,9 +1,8 @@
 package piper1970.eventservice.kafka.listeners;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -21,6 +20,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
@@ -29,17 +29,23 @@ public class BookingConfirmedListener extends DiscoverableListener{
   private final EventRepository eventRepository;
   private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
   private final Duration timeoutDuration;
+  private final Retry defaultRepositoryRetry;
+  private final Retry defaultKafkaRetry;
   private Disposable subscription;
 
   public BookingConfirmedListener(ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       EventRepository eventRepository,
       ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
       DeadLetterTopicProducer deadLetterTopicProducer,
-      @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds) {
+      @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds,
+      @Qualifier("repository") Retry defaultRepositoryRetry,
+      @Qualifier("kafka") Retry defaultKafkaRetry) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.eventRepository = eventRepository;
     this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
     timeoutDuration = Duration.ofMillis(timeoutInMilliseconds);
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
+    this.defaultKafkaRetry = defaultKafkaRetry;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -78,7 +84,7 @@ public class BookingConfirmedListener extends DiscoverableListener{
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(timeoutDuration)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .filter(event -> event.getAvailableBookings() > 0)
           .switchIfEmpty(Mono.defer(() -> {
             log.warn("Event [{}] has no available bookings left. Sending message to BOOKING_EVENT_UNAVAILABLE topic", eventId);
@@ -86,7 +92,7 @@ public class BookingConfirmedListener extends DiscoverableListener{
             return reactiveKafkaProducerTemplate.send(Topics.BOOKING_EVENT_UNAVAILABLE, eventId, buMsg)
                 .log()
                 .timeout(timeoutDuration)
-                .retryWhen(DEFAULT_RETRY)
+                .retryWhen(defaultKafkaRetry)
                 .onErrorResume(err -> {
                   // error only logged...
                   log.error("Unable to send message to BOOKING_EVENT_UNAVAILABLE topic. Manual intervention necessary", err);
@@ -97,7 +103,7 @@ public class BookingConfirmedListener extends DiscoverableListener{
               .subscribeOn(Schedulers.boundedElastic())
               .log()
               .timeout(timeoutDuration)
-              .retryWhen(DEFAULT_RETRY)
+              .retryWhen(defaultRepositoryRetry)
               .map(evt -> record)
               .onErrorResume(err -> {
                 log.error("BOOKING_CONFIRMED message not handled after max attempts. Sending to DLT",

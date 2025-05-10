@@ -1,7 +1,5 @@
 package piper1970.notificationservice.routehandler;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -13,8 +11,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -32,9 +30,9 @@ import piper1970.notificationservice.service.MessagePostingService;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
 
 @Slf4j
-@RequiredArgsConstructor
 public class BookingConfirmationHandler {
 
   private final BookingConfirmationRepository bookingConfirmationRepository;
@@ -42,6 +40,22 @@ public class BookingConfirmationHandler {
   private final ObjectMapper objectMapper;
   private final Clock clock;
   private final Duration notificationTimeoutDuration;
+  private final long maxRetries;
+  private final Retry defaultRepositoryRetry;
+
+  public BookingConfirmationHandler(BookingConfirmationRepository bookingConfirmationRepository,
+      MessagePostingService messagePostingService, ObjectMapper objectMapper, Clock clock,
+      Duration notificationTimeoutDuration,
+      long maxRetries,
+      Retry defaultRepositoryRetry) {
+    this.bookingConfirmationRepository = bookingConfirmationRepository;
+    this.messagePostingService = messagePostingService;
+    this.objectMapper = objectMapper;
+    this.clock = clock;
+    this.notificationTimeoutDuration = notificationTimeoutDuration;
+    this.maxRetries = maxRetries;
+    this.defaultRepositoryRetry = defaultRepositoryRetry;
+  }
 
   //region Main Handler
 
@@ -55,7 +69,7 @@ public class BookingConfirmationHandler {
 
       return bookingConfirmationRepository.findByConfirmationString(confimationUUID)
           .timeout(notificationTimeoutDuration)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .onErrorResume(
               ex -> handleConfirmationRepositoryTimeout(ex,
                   "finding booking confirmation for token [%s]".formatted(confimationUUID)))
@@ -69,6 +83,10 @@ public class BookingConfirmationHandler {
             throw new ConfirmationNotFoundException(message);
           }))
           .flatMap(confirmation -> handleConfirmationLogic(confirmation, confirmationString))
+          // retry if version mismatch
+          .retryWhen(Retry.backoff(maxRetries, Duration.ofMillis(500L))
+              .filter(throwable -> throwable instanceof OptimisticLockingFailureException)
+              .jitter(0.7D))
           .onErrorResume(ConfirmationNotFoundException.class, e ->
               buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), pd -> {
                 pd.setTitle("Booking confirmation not found");
@@ -176,7 +194,7 @@ public class BookingConfirmationHandler {
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(notificationTimeoutDuration)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .onErrorResume(
               ex -> handleConfirmationRepositoryTimeout(ex,
                   "saving confirmed booking confirmation for token [%s]".formatted(
@@ -218,7 +236,7 @@ public class BookingConfirmationHandler {
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(notificationTimeoutDuration)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultRepositoryRetry)
           .onErrorResume(
               ex -> handleConfirmationRepositoryTimeout(ex,
                   "saving expired booking confirmation for token [%s]".formatted(

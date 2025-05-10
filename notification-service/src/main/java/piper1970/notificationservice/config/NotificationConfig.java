@@ -9,8 +9,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
+import java.util.concurrent.TimeoutException;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
@@ -19,7 +20,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
@@ -40,12 +40,11 @@ import piper1970.notificationservice.routehandler.BookingConfirmationHandler;
 import piper1970.notificationservice.service.MessagePostingService;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.sender.SenderOptions;
+import reactor.util.retry.Retry;
 
 @Configuration(proxyBeanMethods = false)
 @EnableKafka
 @EnableWebFluxSecurity
-@EnableScheduling
-@EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
 public class NotificationConfig {
 
   private final BookingConfirmationRepository bookingConfirmationRepository;
@@ -112,13 +111,17 @@ public class NotificationConfig {
   @Bean
   public BookingConfirmationHandler bookingConfirmationHandler(
       MessagePostingService messagePostingService,
-      Clock clock) {
+      Clock clock,
+      @Value("${confirmation-handler.retries.max:2}") long maxRetries,
+      @Qualifier("repository") Retry defaultRepositoryRetry) {
     return new BookingConfirmationHandler(
         bookingConfirmationRepository,
         messagePostingService,
         objectMapper,
         clock,
-        notificationTimeoutDuration
+        notificationTimeoutDuration,
+        maxRetries,
+        defaultRepositoryRetry
     );
   }
 
@@ -254,13 +257,44 @@ public class NotificationConfig {
 
   //endregion Kafka Setup
 
-  //region Scheduling
+  //region Reactive Retries
 
-//  @Bean
-//  public LockProvider lockProvider(ConnectionFactory connectionFactory) {
-//    return new R2dbcLockProvider(connectionFactory);
-//  }
+  @Bean
+  @Qualifier("repository")
+  public Retry defaultRepositoryRetry(
+      @Value("${repository.retry.max.attempts:3}") long maxAttempts,
+      @Value("${repository.retry.duration.millis:500}") long durationInMillis,
+      @Value("${repository.retry.jitter.factor:0.7D}")double jitterFactor
+  ){
+    return Retry.backoff(maxAttempts, Duration.ofMillis(durationInMillis))
+        .filter(throwable -> throwable instanceof TimeoutException)
+        .jitter(jitterFactor);
+  }
 
-  //endregion Scheduling
+  @Bean
+  @Qualifier("kafka")
+  public Retry defaultKafkaRetry(
+      @Value("${kafka.retry.max.attempts:3}") long maxAttempts,
+      @Value("${kafka.retry.duration.millis:500}") long durationInMillis,
+      @Value("${kafka.retry.jitter.factor:0.7D}")double jitterFactor
+  ){
+    return Retry.backoff(maxAttempts, Duration.ofMillis(durationInMillis))
+        .filter(throwable -> throwable instanceof TimeoutException)
+        .jitter(jitterFactor);
+  }
+
+  @Bean
+  @Qualifier("mailer")
+  public Retry defaultMailerRetry(
+      @Value("${mailer.retry.max.attempts:3}") long maxAttempts,
+      @Value("${mailer.retry.duration.millis:500}") long durationInMillis,
+      @Value("${mailer.retry.jitter.factor:0.7D}")double jitterFactor
+  ){
+    return Retry.backoff(maxAttempts, Duration.ofMillis(durationInMillis))
+        .filter(throwable -> throwable instanceof TimeoutException)
+        .jitter(jitterFactor);
+  }
+
+  //endregion Reactive Retries
 
 }

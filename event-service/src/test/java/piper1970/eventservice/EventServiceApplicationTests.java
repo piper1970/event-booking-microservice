@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,6 +41,7 @@ import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
 import piper1970.eventservice.common.events.messages.EventCompleted;
+import piper1970.eventservice.common.events.status.EventStatus;
 import piper1970.eventservice.common.kafka.reactive.DeadLetterTopicProducer;
 import piper1970.eventservice.common.kafka.reactive.DiscoverableListener;
 import piper1970.eventservice.common.kafka.reactive.ReactiveKafkaReceiverFactory;
@@ -54,6 +56,7 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.test.StepVerifier;
+import reactor.util.retry.Retry;
 
 @Tag("kafka-test")
 @DisplayName("Event-Service: Kafka Tests")
@@ -64,6 +67,14 @@ import reactor.test.StepVerifier;
 @TestClassOrder(OrderAnnotation.class)
 @Order(1)
 public class EventServiceApplicationTests {
+
+  @Autowired
+  @Qualifier("repository")
+  public Retry defaultRepositoryRetry;
+
+  @Autowired
+  @Qualifier("kafka")
+  public Retry defaultKafkaRetry;
 
   //region Properties Used
 
@@ -96,9 +107,10 @@ public class EventServiceApplicationTests {
   @BeforeAll
   void setupListeners() {
     discoverableListeners.add(new BookingCancelledListener(receiverFactory,
-        eventRepository, dltProducer, timeoutInMilliseconds));
+        eventRepository, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry));
     discoverableListeners.add(new BookingConfirmedListener(receiverFactory, eventRepository,
-        reactiveKafkaProducerTemplate, dltProducer, timeoutInMilliseconds));
+        reactiveKafkaProducerTemplate, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry,
+        defaultKafkaRetry));
 
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
@@ -133,7 +145,7 @@ public class EventServiceApplicationTests {
         .facilitator(facilitator)
         .location("test-location")
         .description("test-description")
-        .cancelled(false)
+        .eventStatus(EventStatus.IN_PROGRESS)
         .availableBookings(availableBookings)
         .build();
 
@@ -169,7 +181,7 @@ public class EventServiceApplicationTests {
         .facilitator(facilitator)
         .location("test-location")
         .description("test-description")
-        .cancelled(false)
+        .eventStatus(EventStatus.IN_PROGRESS)
         .availableBookings(availableBookings)
         .build();
 
@@ -206,7 +218,7 @@ public class EventServiceApplicationTests {
         .facilitator(facilitator)
         .location("test-location")
         .description("test-description")
-        .cancelled(false)
+        .eventStatus(EventStatus.IN_PROGRESS)
         .availableBookings(0)
         .build();
 

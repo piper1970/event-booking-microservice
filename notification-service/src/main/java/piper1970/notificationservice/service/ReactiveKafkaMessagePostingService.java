@@ -1,9 +1,8 @@
 package piper1970.notificationservice.service;
 
-import static piper1970.eventservice.common.kafka.KafkaHelper.DEFAULT_RETRY;
-
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.stereotype.Service;
@@ -16,6 +15,7 @@ import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.SenderResult;
+import reactor.util.retry.Retry;
 
 @Service
 @Slf4j
@@ -25,13 +25,16 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
 
   private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
   private final Duration postingTimeout;
+  private final Retry defaultKafkaRetry;
 
   public ReactiveKafkaMessagePostingService(
       ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      @Value("${kafka.posting.timout.milliseconds:1500}") Long postingTimeoutMillis
+      @Value("${kafka.posting.timout.milliseconds:1500}") Long postingTimeoutMillis,
+      @Qualifier("kafka") Retry defaultKafkaRetry
   ){
     this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
     this.postingTimeout = Duration.ofMillis(postingTimeoutMillis);
+    this.defaultKafkaRetry = defaultKafkaRetry;
   }
 
   @Override
@@ -43,7 +46,7 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(postingTimeout)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultKafkaRetry)
           .onErrorResume(ex -> handlePostingTimeout(ex, eventId, "BOOKING_CONFIRMED"))
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .then();
@@ -62,7 +65,7 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(postingTimeout)
-          .retryWhen(DEFAULT_RETRY)
+          .retryWhen(defaultKafkaRetry)
           .onErrorResume(ex -> handlePostingTimeout(ex, eventId, "BOOKING_EXPIRED"))
           .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .then();

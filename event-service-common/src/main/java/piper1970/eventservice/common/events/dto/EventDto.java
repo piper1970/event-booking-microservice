@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.With;
+import piper1970.eventservice.common.events.status.EventStatus;
 
 @Data
 @Builder(toBuilder = true)
@@ -23,7 +24,7 @@ public class EventDto {
   private String title;
   private String description;
   private String location;
-  private boolean cancelled;
+  private EventStatus eventStatus;
 
   @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
   private LocalDateTime eventDateTime;

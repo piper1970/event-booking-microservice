@@ -1,4 +1,4 @@
-package piper1970.notificationservice.service;
+package piper1970.eventservice.service;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -16,12 +16,12 @@ class SchedulingServiceTests {
   }
 
   @Test
-  void checkForExpiredConfirmations() {
+  void checkForCompletedEvents() {
     fail("Not Yet Implemented...");
   }
 
   @Test
-  void clearStaleData() {
+  void checkForAwaitingEventsThatHaveStarted() {
     fail("Not Yet Implemented...");
   }
 }
