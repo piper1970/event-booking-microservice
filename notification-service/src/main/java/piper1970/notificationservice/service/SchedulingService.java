@@ -113,7 +113,7 @@ public class SchedulingService {
   /**
    * Posts BookingExpired message to kafka topic based off expiredConfirmation parameter.
    */
-  private Mono<Void> postExpiredConfirmationMessageToKafka(BookingConfirmation expiredConfirmation) {
+  private Mono<Integer> postExpiredConfirmationMessageToKafka(BookingConfirmation expiredConfirmation) {
     BookingExpired bookingExpiredMessage = new BookingExpired();
     bookingExpiredMessage.setEventId(expiredConfirmation.getEventId());
     BookingId booking = new BookingId();
@@ -123,7 +123,8 @@ public class SchedulingService {
     bookingExpiredMessage.setBooking(booking);
     return messagePostingService.postBookingExpiredMessage(bookingExpiredMessage)
         .subscribeOn(Schedulers.boundedElastic())
-        .log();
+        .log()
+        .then(Mono.just(1)); // for later count of posted messages
   }
 
   /**
