@@ -36,8 +36,10 @@ public class EventController {
   @PreAuthorize("hasAuthority('MEMBER')")
   public Flux<EventDto> getEvents(@AuthenticationPrincipal JwtAuthenticationToken jwtToken) {
 
-    var user = TokenUtilities.getUserFromToken(jwtToken);
-    log.debug("User [{}] is retrieving all events", user);
+    if(log.isDebugEnabled()) {
+      var user = TokenUtilities.getUserFromToken(jwtToken);
+      log.debug("User [{}] is retrieving all events", user);
+    }
 
     return eventWebService.getEvents();
   }
@@ -47,8 +49,10 @@ public class EventController {
   public Mono<EventDto> getEvent(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
       @PathVariable Integer id) {
 
-    var user = TokenUtilities.getUserFromToken(jwtToken);
-    log.debug("User [{}] is retrieving event [{}]", user, id);
+    if(log.isDebugEnabled()) {
+      var user = TokenUtilities.getUserFromToken(jwtToken);
+      log.debug("User [{}] is retrieving event [{}]", user, id);
+    }
 
     return eventWebService.getEvent(id);
   }
@@ -72,10 +76,10 @@ public class EventController {
       @PathVariable Integer id,
       @Valid @RequestBody EventUpdateRequest updateRequest) {
 
-    var user = TokenUtilities.getUserFromToken(jwtToken);
-    log.debug("User [{}] is updating event [{}]", user, id);
+    var facilitator = TokenUtilities.getUserFromToken(jwtToken);
+    log.debug("Facilitator [{}] is updating event [{}]", facilitator, id);
 
-    return eventWebService.updateEvent(id, updateRequest);
+    return eventWebService.updateEvent(id, facilitator, updateRequest);
   }
 
   @PatchMapping("{id}/cancel")

@@ -10,6 +10,6 @@ public interface EventWebService {
   Flux<EventDto> getEvents();
   Mono<EventDto> getEvent(Integer id);
   Mono<EventDto> createEvent(EventCreateRequest event);
-  Mono<EventDto> updateEvent(Integer id, EventUpdateRequest event);
+  Mono<EventDto> updateEvent(Integer id, String facilitator, EventUpdateRequest event);
   Mono<EventDto> cancelEvent(Integer id, String facilitator);
 }

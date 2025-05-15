@@ -333,13 +333,13 @@ class DefaultEventWebServiceTests {
     var eventUpdateRequest = createEventUpdateRequest(
         new UpdateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 90));
 
-    when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent)
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent)
         .delayElement(eventDuration));
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
         args -> args.getArgument(0));
 
-    StepVerifier.withVirtualTime(() -> webService.updateEvent(eventId, eventUpdateRequest))
+    StepVerifier.withVirtualTime(() -> webService.updateEvent(eventId, facilitator, eventUpdateRequest))
         .expectSubscription()
         .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
@@ -354,12 +354,12 @@ class DefaultEventWebServiceTests {
     var eventUpdateRequest = createEventUpdateRequest(
         new UpdateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 90));
 
-    when(eventRepository.findById(eventId)).thenReturn(Mono.empty());
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.empty());
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
         args -> args.getArgument(0));
 
-    StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
+    StepVerifier.create(webService.updateEvent(eventId, facilitator, eventUpdateRequest))
         .verifyError(EventNotFoundException.class);
   }
 
@@ -375,12 +375,12 @@ class DefaultEventWebServiceTests {
     var eventUpdateRequest = createEventUpdateRequest(
         new UpdateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 90));
 
-    when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent));
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
         args -> args.getArgument(0));
 
-    StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
+    StepVerifier.create(webService.updateEvent(eventId, facilitator, eventUpdateRequest))
         .verifyError(EventUpdateException.class);
   }
 
@@ -404,13 +404,13 @@ class DefaultEventWebServiceTests {
         .durationInMinutes(updateDurationInMinutes)
         .build();
 
-    when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent));
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
 
     when(eventRepository.save(any(Event.class))).thenReturn(Mono.just(updatedEvent)
         .delayElement(eventDuration)
     );
 
-    StepVerifier.withVirtualTime(() -> webService.updateEvent(eventId, eventUpdateRequest))
+    StepVerifier.withVirtualTime(() -> webService.updateEvent(eventId, facilitator, eventUpdateRequest))
         .expectSubscription()
         .thenAwait(eventDuration.multipliedBy(10))
         .verifyError(EventTimeoutException.class);
@@ -445,7 +445,7 @@ class DefaultEventWebServiceTests {
         .durationInMinutes(updatedEvent.getDurationInMinutes())
         .build();
 
-    when(eventRepository.findById(eventId)).thenReturn(Mono.just(originalEvent));
+    when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(Mono.just(originalEvent));
 
     when(eventRepository.save(any(Event.class))).thenReturn(Mono.just(updatedEvent)
     );
@@ -456,7 +456,7 @@ class DefaultEventWebServiceTests {
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<EventDto>>any())).thenAnswer(
         args -> args.getArgument(0));
 
-    StepVerifier.create(webService.updateEvent(eventId, eventUpdateRequest))
+    StepVerifier.create(webService.updateEvent(eventId, facilitator, eventUpdateRequest))
         .expectNext(updatedEventDto)
         .verifyComplete();
   }

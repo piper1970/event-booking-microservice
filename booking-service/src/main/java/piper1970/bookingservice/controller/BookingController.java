@@ -61,6 +61,8 @@ public class BookingController {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
     var email = TokenUtilities.getEmailFromToken(jwtToken);
+
+    // needed for service call to event-service
     var token = jwtToken.getToken().getTokenValue();
 
     log.debug("Creating booking called by [{}]", user);
@@ -79,6 +81,8 @@ public class BookingController {
       @PathVariable Integer id) {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
+
+    // needed for service call to event-service
     var token = jwtToken.getToken().getTokenValue();
 
     log.debug("Cancel booking[{}] called by [{}]", id, user);

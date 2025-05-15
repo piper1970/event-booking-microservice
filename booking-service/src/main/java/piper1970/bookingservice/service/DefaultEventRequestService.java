@@ -59,7 +59,7 @@ public class DefaultEventRequestService implements EventRequestService {
         .log()
         .doOnNext(eventDto -> log.debug("Event [{}] has been retrieved", eventId)).doOnError(throwable -> log.error("Event [{}] could not be retrieved", eventId, throwable))
         .timeout(eventTimeoutDuration)
-        .retryWhen(defaultEventServiceRetry)
+        .retryWhen(defaultEventServiceRetry) // only retries for timeouts
         .onErrorResume(ex -> {
           if(Exceptions.isRetryExhausted(ex)){
             // timeout retries are exhausted
@@ -81,6 +81,4 @@ public class DefaultEventRequestService implements EventRequestService {
       default -> Mono.error(new UnknownCauseException("This should not be happening... Unhandled status code: " + clientResponse.statusCode()));
     };
   }
-
-
 }

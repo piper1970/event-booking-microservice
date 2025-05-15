@@ -140,6 +140,11 @@
       <version>${shedlock-spring.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+    </dependency>
+
     <!--  Test Dependencies  -->
 
     <dependency>

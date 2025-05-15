@@ -116,17 +116,17 @@ public class DefaultEventWebService implements EventWebService {
 
   @Override
   public Mono<EventDto> updateEvent(@NonNull Integer id,
-      @NonNull EventUpdateRequest updateRequest) {
+      @NonNull String facilitator, @NonNull EventUpdateRequest updateRequest) {
 
     log.debug("Update event with id [{}] called [{}]", id, updateRequest);
 
-    return eventRepository.findById(id)
+    return eventRepository.findByIdAndFacilitator(id, facilitator)
         .subscribeOn(Schedulers.boundedElastic())
         .log()
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to find event"))
-        .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found".formatted(id))))
+        .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found for facilitator [%s]".formatted(id, facilitator))))
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
         .flatMap(updatedEvent -> {
           var dto = eventMapper.toDto(updatedEvent);

@@ -8,7 +8,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
@@ -61,19 +60,22 @@ public class BookingConfirmationHandler {
 
   public Mono<ServerResponse> handleConfirmation(ServerRequest request) {
 
+    // guaranteed to be on path due to route-handler path template
     var confirmationString = request.pathVariable("confirmationString");
     log.debug("HandleConfirmation request received with token [{}]", confirmationString);
 
     try {
+
+      // throws IllegalArgumentException if confirmationString not UUID
       var confimationUUID = UUID.fromString(confirmationString);
 
       return bookingConfirmationRepository.findByConfirmationString(confimationUUID)
           .timeout(notificationTimeoutDuration)
-          .retryWhen(defaultRepositoryRetry)
+          .retryWhen(defaultRepositoryRetry) // retries only for timeouts
           .onErrorResume(
               ex -> handleConfirmationRepositoryTimeout(ex,
                   "finding booking confirmation for token [%s]".formatted(confimationUUID)))
-          // avoid double-clicking on confirm token
+          // avoid records already confirmed or expired
           .filter(confirmation -> confirmation.getConfirmationStatus()
               == ConfirmationStatus.AWAITING_CONFIRMATION)
           .switchIfEmpty(Mono.fromCallable(() -> {
@@ -82,21 +84,30 @@ public class BookingConfirmationHandler {
             log.warn(message);
             throw new ConfirmationNotFoundException(message);
           }))
+          // main confirmation logic
           .flatMap(confirmation -> handleConfirmationLogic(confirmation, confirmationString))
-          // retry if version mismatch
+          // retry if version of confirmation updated in repository since checked out
           .retryWhen(Retry.backoff(maxRetries, Duration.ofMillis(500L))
               .filter(throwable -> throwable instanceof OptimisticLockingFailureException)
               .jitter(0.7D))
-          .onErrorResume(ConfirmationNotFoundException.class, e ->
-              buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), pd -> {
+          .onErrorResume(ConfirmationNotFoundException.class, e -> {
+            try {
+              var body = buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), pd -> {
                 pd.setTitle("Booking confirmation not found");
                 pd.setType(
                     URI.create("http://notification-service/booking-confirmation-not-found"));
-              }).map(body ->
-                      ServerResponse.status(HttpStatus.NOT_FOUND)
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .bodyValue(body))
-                  .orElseGet(() -> ServerResponse.notFound().build()))
+              });
+              return ServerResponse.status(HttpStatus.NOT_FOUND)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .bodyValue(body);
+            } catch (JsonProcessingException ex) {
+              // should never happen!!!
+              log.error("JSON PROCESSING ERROR: response could not be properly built", e); 
+              
+              return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+          })
+          // handle error logic if confirmation request timed out
           .onErrorResume(ConfirmationTimedOutException.class, e -> {
             log.warn("Repository timed out during processing of confirmation with token [{}]: {}",
                 confirmationString, e.getMessage(),
@@ -104,18 +115,24 @@ public class BookingConfirmationHandler {
             return handleServiceUnavailableResponse();
           });
 
-    } catch (IllegalArgumentException e) {
+    } catch (
+        IllegalArgumentException e) { // error logic if confirmationString is not UUID-formatted
       var message = "[%s] is not a UUID-formatted string".formatted(confirmationString);
       log.warn(message, e);
-      return buildErrorResponse(HttpStatus.BAD_REQUEST, message, pd -> {
-        pd.setTitle("Malformed confirmation-id");
-        pd.setType(URI.create("http://notification-service/malformed-confirmation-id"));
-      })
-          .map(body ->
-              ServerResponse.status(HttpStatus.BAD_REQUEST)
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .bodyValue(body))
-          .orElseGet(() -> ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+      try {
+        var responseBody = buildErrorResponse(HttpStatus.BAD_REQUEST, message, pd -> {
+          pd.setTitle("Malformed confirmation-id");
+          pd.setType(URI.create("http://notification-service/malformed-confirmation-id"));
+        });
+        return ServerResponse.status(HttpStatus.BAD_REQUEST)
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(responseBody);
+      } catch (JsonProcessingException ex) {
+        // should never happen!!!
+        log.error("JSON PROCESSING ERROR: response could not be properly built", e);
+        
+        return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+      }
     }
   }
 
@@ -145,42 +162,36 @@ public class BookingConfirmationHandler {
 
   //region JSON marshalling logic
 
-  private Optional<String> buildBookingConfirmedJson(BookingConfirmation confirmation) {
+  /**
+   * Build json response for successful confirmation
+   */
+  private String buildBookingConfirmedJson(BookingConfirmation confirmation)
+      throws JsonProcessingException {
     var template = "Booking [%d] successfully confirmed at [%s] for for event [%d]";
     var message = String.format(template, confirmation.getBookingId(),
         confirmation.getConfirmationDateTime(),
         confirmation.getEventId());
     var props = Map.of("status", "success", "message", message);
-
-    try {
-      return Optional.ofNullable(
-          objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(props));
-    } catch (Exception ex) {
-      log.error("Unable to marshal to json", ex);
-      return Optional.empty();
-    }
+    return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(props);
   }
 
-  /// Build rfc9457-compliant json error response
-  private Optional<String> buildErrorResponse(HttpStatus status, String message,
-      Consumer<ProblemDetail> handler) {
+  /**
+   * Build rfc9457-compliant JSON PROCESSING ERROR: response
+   */
+  private String buildErrorResponse(HttpStatus status, String message,
+      Consumer<ProblemDetail> handler) throws JsonProcessingException {
     var problem = ProblemDetail.forStatusAndDetail(status, message);
     handler.accept(problem);
-
-    try {
-      return Optional.ofNullable(
-          objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(problem));
-    } catch (JsonProcessingException ex) {
-      log.error("Unable to marshal to json", ex);
-      return Optional.empty();
-    }
+    return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(problem);
   }
 
   //endregion JSON marshalling logic
 
   //region Confirmation Logic
 
-  /// Logic to handle both confirmation success or failure due to expiration behavior
+  /**
+   * Logic to handle both confirmation success or failure due to expiration behavior
+   */
   private Mono<ServerResponse> handleConfirmationLogic(BookingConfirmation confirmation,
       String confirmationString) {
 
@@ -194,13 +205,13 @@ public class BookingConfirmationHandler {
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(notificationTimeoutDuration)
-          .retryWhen(defaultRepositoryRetry)
+          .retryWhen(defaultRepositoryRetry) // retries for timeouts only
           .onErrorResume(
               ex -> handleConfirmationRepositoryTimeout(ex,
                   "saving confirmed booking confirmation for token [%s]".formatted(
                       confirmationString)))
+          // post booking-confirmed message to kafka topic
           .flatMap(savedConfirmation -> {
-            // post to confirmation to kafka channel
             log.debug(
                 "Booking confirmation [{}] successfully saved. Relaying success to BOOKING_CONFIRMED topic",
                 savedConfirmation);
@@ -208,19 +219,20 @@ public class BookingConfirmationHandler {
             return messagePostingService.postBookingConfirmedMessage(message)
                 .then(Mono.just(savedConfirmation));
           })
-          .flatMap(savedConfirmation ->
-              buildBookingConfirmedJson(confirmation)
-                  .map(json ->
-                      ServerResponse.ok()
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .bodyValue(json))
-                  .orElseGet(() ->
-                      // fallback if json marshalling fails
-                      ServerResponse.ok()
-                          .contentType(MediaType.TEXT_PLAIN)
-                          .bodyValue(
-                              "Booking has been confirmed for event " + confirmation.getEventId())
-                  ));
+          // build/return OK/200 ServerResponse
+          .flatMap(savedConfirmation -> {
+            try {
+              var json = buildBookingConfirmedJson(savedConfirmation);
+              return ServerResponse.ok()
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .bodyValue(json);
+            } catch (JsonProcessingException e) {
+              // should never happen!!!
+              log.error("JSON PROCESSING ERROR: response could not be properly built", e);
+
+              return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+          });
     } else {
 
       var expiredConfirmation = confirmation.toBuilder()
@@ -236,11 +248,12 @@ public class BookingConfirmationHandler {
           .subscribeOn(Schedulers.boundedElastic())
           .log()
           .timeout(notificationTimeoutDuration)
-          .retryWhen(defaultRepositoryRetry)
+          .retryWhen(defaultRepositoryRetry) // retries for timeouts only
           .onErrorResume(
               ex -> handleConfirmationRepositoryTimeout(ex,
                   "saving expired booking confirmation for token [%s]".formatted(
                       confirmationString)))
+          // post booking expired message to kafka topic
           .flatMap(bookingConfirmation -> {
             log.debug("Expired booking saved [{}]. Relaying failure to BOOKING_EXPIRED topic",
                 bookingConfirmation);
@@ -248,22 +261,34 @@ public class BookingConfirmationHandler {
             return messagePostingService.postBookingExpiredMessage(message)
                 .then(Mono.just(bookingConfirmation));
           })
-          .flatMap(_ignored ->
-              buildErrorResponse(HttpStatus.BAD_REQUEST, errorMessage, pd -> {
+          // build/return BAD_REQUEST/400 Server Response
+          .flatMap(_ignored -> {
+            try {
+              var response = buildErrorResponse(HttpStatus.BAD_REQUEST, errorMessage, pd -> {
                 pd.setTitle("Booking confirmation expired");
                 pd.setType(URI.create("http://notification-service/booking-confirmation-expired"));
-              })
-                  .map(msg -> ServerResponse.badRequest()
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .bodyValue(msg)
-                  ).orElseGet(() -> ServerResponse.badRequest()
-                      .contentType(MediaType.TEXT_PLAIN)
-                      .bodyValue("Booking has been expired for event " + confirmation.getEventId())
-                  )
-          );
+              });
+              return ServerResponse.badRequest()
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .bodyValue(response);
+            } catch (JsonProcessingException e) {
+              // should never happen!!!
+              log.error("JSON PROCESSING ERROR: response could not be properly built", e);
+
+              return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+          });
     }
   }
 
+  /**
+   * Time-based confirmation validation test.
+   *
+   * @param confirmation record holding confirmationDateTime and durationInMinutes fields used for
+   *                     logic
+   * @return True if current time is before confirmationDateTime+durationInMinutes time. Otherwise,
+   * false
+   */
   private boolean confirmBooking(BookingConfirmation confirmation) {
     var now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
     var expirationTime = confirmation.getConfirmationDateTime()
@@ -274,21 +299,31 @@ public class BookingConfirmationHandler {
 
   //endregion Confirmation Logic
 
+  /**
+   * Helper method for building/returning SERVICE_UNAVAILABLE/503 ServerResponse
+   */
   private Mono<ServerResponse> handleServiceUnavailableResponse() {
     var message = "Service Unavailable. Please try again later.";
-    return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, message, pd -> {
-      pd.setTitle("Service Unavailable");
-      pd.setType(URI.create("http://notification-service/service-unavailable"));
-    })
-        .map(body -> ServerResponse
-            .status(HttpStatus.SERVICE_UNAVAILABLE)
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(body))
-        .orElseGet(() -> ServerResponse.status(HttpStatus.SERVICE_UNAVAILABLE)
-            .contentType(MediaType.TEXT_PLAIN)
-            .bodyValue(message));
+    try {
+      var response = buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, message, pd -> {
+        pd.setTitle("Service Unavailable");
+        pd.setType(URI.create("http://notification-service/service-unavailable"));
+      });
+      return ServerResponse
+          .status(HttpStatus.SERVICE_UNAVAILABLE)
+          .contentType(MediaType.APPLICATION_JSON)
+          .bodyValue(response);
+    } catch (JsonProcessingException e) {
+      // should never happen!!!
+      log.error("JSON PROCESSING ERROR: response could not be properly built", e);
+      
+      return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
   }
 
+  /**
+   * Helper method for dealing with errors that may be due to Timeout/RetryExhausted errors
+   */
   private Mono<BookingConfirmation> handleConfirmationRepositoryTimeout(Throwable ex,
       String subMessage) {
     String message;
@@ -298,13 +333,11 @@ public class BookingConfirmationHandler {
     } else {
       message = "attempting to fetch confirmation for token [%s].".formatted(subMessage);
     }
-    return Mono.error(new ConfirmationTimedOutException(
-        provideTimeoutErrorMessage(message), ex));
-  }
+    var timeoutMessage = String.format("Booking Confirmation timed out [over %d milliseconds] %s",
+        notificationTimeoutDuration.toMillis(), message);
 
-  private String provideTimeoutErrorMessage(String subMessage) {
-    return String.format("Booking Confirmation timed out [over %d milliseconds] %s",
-        notificationTimeoutDuration.toMillis(), subMessage);
+    return Mono.error(new ConfirmationTimedOutException(
+        timeoutMessage, ex));
   }
 
   //endregion Helper Methods
