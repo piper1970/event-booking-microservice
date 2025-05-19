@@ -40,6 +40,13 @@ services:
     ports:
       - "5432:5432"
 
+  redis:
+    image: redis:alpine3.21
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass lnYM2Hr0DWg8qSqsZvm5CWekE
+
   zipkin:
     image: openzipkin/zipkin:3
     restart: always

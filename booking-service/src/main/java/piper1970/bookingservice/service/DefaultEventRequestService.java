@@ -4,6 +4,8 @@ import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.circuitbreaker.resilience4j.ReactiveResilience4JCircuitBreakerFactory;
+import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -26,13 +28,16 @@ import reactor.util.retry.Retry;
 public class DefaultEventRequestService implements EventRequestService {
 
   private final WebClient.Builder webClientBuilder;
+  private final ReactiveCircuitBreaker circuitBreaker;
   private final Long eventTimeoutInMilliseconds;
   private final Duration eventTimeoutDuration;
   private final Retry defaultEventServiceRetry;
 
   public DefaultEventRequestService(WebClient.Builder webClientBuilder,
+      ReactiveResilience4JCircuitBreakerFactory circuitBreakerFactory,
       @Value("${event-request-service.timeout.milliseconds}") Long eventTimeoutInMilliseconds,
       @Qualifier("event-service") Retry defaultEventServiceRetry) {
+    circuitBreaker = circuitBreakerFactory.create("event-request-service");
     this.webClientBuilder = webClientBuilder;
     this.eventTimeoutInMilliseconds = eventTimeoutInMilliseconds;
     this.eventTimeoutDuration = Duration.ofMillis(eventTimeoutInMilliseconds);
@@ -70,7 +75,13 @@ public class DefaultEventRequestService implements EventRequestService {
           }
           // let everything else pass through
           return Mono.error(ex);
-        });
+        }).transform(mono -> circuitBreaker.run(mono, this::handleOpenCircuit));
+  }
+
+  private Mono<EventDto> handleOpenCircuit(Throwable throwable) {
+    var errorMessage = "Circuit Breaker: Open State";
+    log.warn(errorMessage, throwable);
+    return Mono.error(new EventRequestServiceUnavailableException(errorMessage, throwable));
   }
 
   private Mono<? extends Throwable> handle400Response(ClientResponse clientResponse) {

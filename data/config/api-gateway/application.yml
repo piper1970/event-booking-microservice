@@ -14,6 +14,11 @@ oauth2:
   provider:
     base-uri: http://localhost:9090/realms/piper1970
 
+management:
+  health:
+    redis:
+      enabled: true
+
 spring:
   r2dbc.url: r2dbc:h2:mem:///authentication
 
@@ -38,10 +43,23 @@ spring:
           jwk-set-uri: "${oauth2.provider.base-uri}/protocol/openid-connect/certs"
           issuer-uri: ${oauth2.provider.base-uri}
 
+  # redis - for rate-limiting
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:lnYM2Hr0DWg8qSqsZvm5CWekE}
+
   # Routing
   cloud:
     gateway:
       default-filters:
+        - name: RequestRateLimiter
+          args:
+            key-resolver: "#{@hostAddressResolver}"
+            redis-rate-limiter.replenishRate: 20
+            redis-rate-limiter.burstCapacity: 40
+            redis-rate-limiter.requestedTokens: 1
         - TokenRelay=
         - RemoveRequestHeader=Cookie
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin

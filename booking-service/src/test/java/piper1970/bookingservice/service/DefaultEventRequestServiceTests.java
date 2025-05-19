@@ -3,6 +3,9 @@ package piper1970.bookingservice.service;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,7 +24,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestClassOrder;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cloud.circuitbreaker.resilience4j.ReactiveResilience4JCircuitBreakerFactory;
+import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.Builder;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
@@ -30,12 +39,14 @@ import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.exceptions.EventForbiddenException;
 import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import reactor.util.retry.Retry;
 
 @DisplayName("EventRequestServiceTest")
 @TestClassOrder(OrderAnnotation.class)
 @Order(2)
+@ExtendWith(MockitoExtension.class)
 class DefaultEventRequestServiceTests {
 
   private DefaultEventRequestService requestService;
@@ -43,6 +54,12 @@ class DefaultEventRequestServiceTests {
   private static final Long timeoutInMillis = 2000L;
   private static final String token = "token";
   private static final int eventId = 1;
+
+  @Mock
+  private ReactiveResilience4JCircuitBreakerFactory mockCircuitBreakerFactory;
+
+  @Mock
+  private ReactiveCircuitBreaker mockCircuitBreaker;
 
   private final Retry retry = Retry.backoff(3, Duration.ofMillis(500L))
       .filter(throwable -> throwable instanceof TimeoutException)
@@ -65,10 +82,11 @@ class DefaultEventRequestServiceTests {
 
   @BeforeEach
   void setUp() {
+    mockCircuitBreaker();
     String baseUrl = mockWebServer.baseUrl();
     Builder clientBuilder = WebClient.builder()
         .baseUrl(baseUrl);
-    requestService = new DefaultEventRequestService(clientBuilder, timeoutInMillis, retry);
+    requestService = new DefaultEventRequestService(clientBuilder, mockCircuitBreakerFactory, timeoutInMillis, retry);
   }
 
   /// ## TEST SCENARIOS
@@ -210,5 +228,11 @@ class DefaultEventRequestServiceTests {
         .eventDateTime(LocalDateTime.now().plusDays(1))
         .durationInMinutes(90)
         .build();
+  }
+
+  private void mockCircuitBreaker() {
+    when(mockCircuitBreakerFactory.create(anyString())).thenReturn(mockCircuitBreaker);
+    when(mockCircuitBreaker.run(ArgumentMatchers.<Mono<EventDto>>any(), any()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
   }
 }

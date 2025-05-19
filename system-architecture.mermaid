@@ -15,6 +15,7 @@ graph TB
         EventDB[(Postgres - Event DB)]
         BookingDB[(Postgres - Booking DB)]
         NotificationDB[(Postgres - Notification DB)]
+        Cache[(Redis - API Gateway)]
     end
     
     subgraph Messaging
@@ -39,6 +40,7 @@ graph TB
     Gateway --> EventService
     Gateway --> BookingService
     Gateway --> NotificationService
+    Gateway --> Cache
 
     Gateway --> Keycloak
     EventService --> Keycloak
