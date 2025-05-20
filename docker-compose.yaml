@@ -11,6 +11,8 @@ volumes:
     name: "event-service-kafka-logs-volume"
   schema-registry-data:
     name: "event-service-schema-registry-volume"
+  grafana-data:
+    name: "event-service-grafana-data"
 
 services:
 
@@ -57,7 +59,7 @@ services:
   keycloak:
     image: keycloak/keycloak:26.1
     ports:
-      - "9090:8080"
+      - "8180:8080"
     environment:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
@@ -137,6 +139,30 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./data/prometheus/prometheus-local.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  # See https://hub.docker.com/r/grafana/grafana for initial user/pass requirements
+  grafana:
+    image: grafana/grafana:12.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - ./data/grafana:/etc/grafana/provisioning/datasources
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_USERS_ALLOW_SIGN_UP=false
 
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.5.0
