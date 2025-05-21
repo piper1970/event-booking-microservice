@@ -5,6 +5,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.MustacheFactory;
+import io.micrometer.core.instrument.Counter;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -113,11 +114,15 @@ public class NotificationConfig {
       MessagePostingService messagePostingService,
       Clock clock,
       @Value("${confirmation-handler.retries.max:2}") long maxRetries,
-      @Qualifier("repository") Retry defaultRepositoryRetry) {
+      @Qualifier("repository") Retry defaultRepositoryRetry,
+      @Qualifier("confirmations") Counter confirmationSuccessCounter,
+      @Qualifier("expirations") Counter expirationsCounter) {
     return new BookingConfirmationHandler(
         bookingConfirmationRepository,
         messagePostingService,
         objectMapper,
+        confirmationSuccessCounter,
+        expirationsCounter,
         clock,
         notificationTimeoutDuration,
         maxRetries,

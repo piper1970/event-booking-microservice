@@ -6,6 +6,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.Counter;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -50,6 +51,9 @@ class SchedulingServiceTests {
   private MessagePostingService messagePostingService;
 
   @Mock
+  private Counter expirationCounter;
+
+  @Mock
   private TransactionalOperator transactionalOperator;
 
   private final Clock clock = Clock.systemUTC();
@@ -60,7 +64,7 @@ class SchedulingServiceTests {
     initializeDatabase();
     staleDataDurationInHours = 6;
     schedulingService = new SchedulingService(bookingConfirmationRepository,
-        messagePostingService, transactionalOperator, clock, staleDataDurationInHours, 10);
+        messagePostingService, transactionalOperator, expirationCounter, clock, staleDataDurationInHours, 10);
   }
 
   @Test

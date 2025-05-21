@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Counter;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -53,6 +54,12 @@ class BookingConfirmationHandlerTests {
   private MessagePostingService mockPostingService;
 
   @Mock
+  private Counter confirmationSuccessCounter;
+
+  @Mock
+  private Counter expiredCounter;
+
+  @Mock
   private ServerRequest mockServerRequest;
 
   private final Clock clock = Clock.systemUTC();
@@ -86,6 +93,8 @@ class BookingConfirmationHandlerTests {
         mockRepository,
         mockPostingService,
         new ObjectMapper(),
+        confirmationSuccessCounter,
+        expiredCounter,
         clock,
         notificationTimeoutDuration,
         maxRetries,

@@ -2,6 +2,7 @@ package piper1970.notificationservice.routehandler;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Counter;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -39,17 +40,24 @@ public class BookingConfirmationHandler {
   private final ObjectMapper objectMapper;
   private final Clock clock;
   private final Duration notificationTimeoutDuration;
+  private final Counter confirmationCounter;
+  private final Counter expiredCounter;
   private final long maxRetries;
   private final Retry defaultRepositoryRetry;
 
   public BookingConfirmationHandler(BookingConfirmationRepository bookingConfirmationRepository,
-      MessagePostingService messagePostingService, ObjectMapper objectMapper, Clock clock,
+      MessagePostingService messagePostingService, ObjectMapper objectMapper,
+      Counter confirmationCounter,
+      Counter expiredCounter,
+      Clock clock,
       Duration notificationTimeoutDuration,
       long maxRetries,
       Retry defaultRepositoryRetry) {
     this.bookingConfirmationRepository = bookingConfirmationRepository;
     this.messagePostingService = messagePostingService;
     this.objectMapper = objectMapper;
+    this.confirmationCounter = confirmationCounter;
+    this.expiredCounter = expiredCounter;
     this.clock = clock;
     this.notificationTimeoutDuration = notificationTimeoutDuration;
     this.maxRetries = maxRetries;
@@ -219,6 +227,7 @@ public class BookingConfirmationHandler {
             return messagePostingService.postBookingConfirmedMessage(message)
                 .then(Mono.just(savedConfirmation));
           })
+          .doOnSuccess(_confirmation -> confirmationCounter.increment())
           // build/return OK/200 ServerResponse
           .flatMap(savedConfirmation -> {
             try {
@@ -261,6 +270,7 @@ public class BookingConfirmationHandler {
             return messagePostingService.postBookingExpiredMessage(message)
                 .then(Mono.just(bookingConfirmation));
           })
+          .doOnSuccess(_confirmation -> expiredCounter.increment())
           // build/return BAD_REQUEST/400 Server Response
           .flatMap(_ignored -> {
             try {

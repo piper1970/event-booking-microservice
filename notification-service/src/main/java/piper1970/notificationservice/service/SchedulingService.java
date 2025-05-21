@@ -1,10 +1,12 @@
 package piper1970.notificationservice.service;
 
+import io.micrometer.core.instrument.Counter;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,12 +28,14 @@ public class SchedulingService {
   private final BookingConfirmationRepository bookingConfirmationRepository;
   private final MessagePostingService messagePostingService;
   private final TransactionalOperator transactionalOperator;
+  private final Counter expirationCounter;
   private final Clock clock;
   private final long staleDataDurationInHours;
   private final long maxRetries;
 
   public SchedulingService(BookingConfirmationRepository bookingConfirmationRepository,
       MessagePostingService messagePostingService, TransactionalOperator transactionalOperator,
+      @Qualifier("expirations") Counter expirationCounter,
       Clock clock,
       @Value("${scheduler.stale.data.duration.hours:6}") long staleDataDurationInHours,
       @Value("${scheduler.expired.confirmations.max.retries:10}") long maxRetries) {
@@ -41,6 +45,7 @@ public class SchedulingService {
     this.clock = clock;
     this.staleDataDurationInHours = staleDataDurationInHours;
     this.maxRetries = maxRetries;
+    this.expirationCounter = expirationCounter;
   }
 
   /**
@@ -78,7 +83,10 @@ public class SchedulingService {
           // post booking-expired message to kafka
           .flatMap(this::postExpiredConfirmationMessageToKafka)
           .count()
-          .doOnNext(count -> log.info("{} expired confirmations have been processed", count))
+          .doOnNext(count -> {
+            log.info("{} expired confirmations have been processed", count);
+            expirationCounter.increment(count);
+          })
           // IMPORTANT: make sure blocked duration is less thant shedlock lockAtLeastFor duration
           .block(Duration.ofMinutes(4));
     }catch(RuntimeException e){
