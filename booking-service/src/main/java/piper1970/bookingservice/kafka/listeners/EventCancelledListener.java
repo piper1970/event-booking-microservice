@@ -1,5 +1,8 @@
 package piper1970.bookingservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -7,7 +10,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import piper1970.bookingservice.domain.Booking;
@@ -25,6 +27,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.kafka.sender.KafkaSender;
 import reactor.util.retry.Retry;
 
 @Component
@@ -32,27 +35,30 @@ import reactor.util.retry.Retry;
 public class EventCancelledListener extends DiscoverableListener {
 
   public static final String SERVICE_NAME = "booking-service";
-  private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  private final KafkaSender<Integer, Object> kafkaSender;
   private final BookingRepository bookingRepository;
   private final TransactionalOperator transactionalOperator;
   private final Duration timeoutDuration;
   private final Retry defaultRepositoryRetry;
   private Disposable subscription;
+  private final Clock clock;
 
   public EventCancelledListener(
       ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       DeadLetterTopicProducer deadLetterTopicProducer,
-      ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
+      KafkaSender<Integer, Object> kafkaSender,
       BookingRepository bookingRepository,
       TransactionalOperator transactionalOperator,
       @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis,
-      @Qualifier("repository") Retry defaultRepositoryRetry) {
+      @Qualifier("repository") Retry defaultRepositoryRetry,
+      Clock clock) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
-    this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
+    this.kafkaSender = kafkaSender;
     this.bookingRepository = bookingRepository;
     this.transactionalOperator = transactionalOperator;
     timeoutDuration = Duration.ofMillis(timeoutMillis);
     this.defaultRepositoryRetry = defaultRepositoryRetry;
+    this.clock = clock;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -85,14 +91,12 @@ public class EventCancelledListener extends DiscoverableListener {
           BookingStatus.IN_PROGRESS,
           BookingStatus.CONFIRMED))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .map(booking -> booking.withBookingStatus(BookingStatus.CANCELLED))
           .collectList()
           .flatMapMany(bookingList ->
               bookingRepository.saveAll(bookingList)
                   .subscribeOn(Schedulers.boundedElastic())
-                  .log()
                   .timeout(timeoutDuration)
                   .doOnNext(updatedBooking -> log.info("Cancelled booking saved: [{}]", updatedBooking))
                   .map(this::toBookingId)
@@ -104,9 +108,9 @@ public class EventCancelledListener extends DiscoverableListener {
             buMsg.setEventId(eventId);
             buMsg.setMessage(message.getMessage());
             buMsg.setBookings(bookings);
-            return reactiveKafkaProducerTemplate.send(Topics.BOOKINGS_CANCELLED, buMsg)
+            return kafkaSender.send(createSenderMono(Topics.BOOKINGS_CANCELLED, eventId, buMsg, clock))
                 .subscribeOn(Schedulers.boundedElastic())
-                .log()
+                .single()
                 .timeout(timeoutDuration)
                 .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
                 .map(_senderResult -> record);

@@ -61,7 +61,6 @@ public class DefaultEventRequestService implements EventRequestService {
         .onStatus(HttpStatusCode::is4xxClientError, this::handle400Response)
         .bodyToMono(EventDto.class)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .doOnNext(eventDto -> log.debug("Event [{}] has been retrieved", eventId)).doOnError(throwable -> log.error("Event [{}] could not be retrieved", eventId, throwable))
         .timeout(eventTimeoutDuration)
         .retryWhen(defaultEventServiceRetry) // only retries for timeouts

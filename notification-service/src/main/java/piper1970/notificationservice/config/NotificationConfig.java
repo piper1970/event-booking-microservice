@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.MustacheFactory;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -19,7 +21,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -39,7 +40,10 @@ import piper1970.notificationservice.kafka.listener.options.BaseListenerOptions;
 import piper1970.notificationservice.repository.BookingConfirmationRepository;
 import piper1970.notificationservice.routehandler.BookingConfirmationHandler;
 import piper1970.notificationservice.service.MessagePostingService;
+import reactor.kafka.receiver.MicrometerConsumerListener;
 import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.sender.KafkaSender;
+import reactor.kafka.sender.MicrometerProducerListener;
 import reactor.kafka.sender.SenderOptions;
 import reactor.util.retry.Retry;
 
@@ -148,7 +152,6 @@ public class NotificationConfig {
 
   //region Kafka Setup
 
-
   //region Kafka Topic Creation
 
   @Bean
@@ -204,15 +207,19 @@ public class NotificationConfig {
   //region Producer
 
   @Bean
-  ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate(KafkaProperties kafkaProperties) {
+  KafkaSender<Integer, Object> kafkaSender(KafkaProperties kafkaProperties, ObservationRegistry observationRegistry,
+      MeterRegistry meterRegistry) {
     Map<String, Object> propertiesMap = kafkaProperties.buildProducerProperties();
-    return new ReactiveKafkaProducerTemplate<>(SenderOptions.create(propertiesMap));
+    var senderOptions = SenderOptions.<Integer, Object>create(propertiesMap)
+        .producerListener(new MicrometerProducerListener(meterRegistry))
+        .withObservation(observationRegistry);
+    return KafkaSender.create(senderOptions);
   }
 
   @Bean
-  DeadLetterTopicProducer deadLetterTopicProducer(ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      @Value("${kafka.dlt.suffix:-ns-dlt}") String deadLetterTopicSuffix) {
-    return new DeadLetterTopicProducer(reactiveKafkaProducerTemplate, deadLetterTopicSuffix);
+  DeadLetterTopicProducer deadLetterTopicProducer(KafkaSender<Integer, Object> kafkaSender,
+      @Value("${kafka.dlt.suffix:-ns-dlt}") String deadLetterTopicSuffix, Clock clock) {
+    return new DeadLetterTopicProducer(kafkaSender, deadLetterTopicSuffix, clock);
   }
 
   //endregion Producer
@@ -247,8 +254,11 @@ public class NotificationConfig {
 
 
   @Bean
-  public ReceiverOptions<Integer, Object> receiverOptions(KafkaProperties kafkaProperties) {
-    return ReceiverOptions.create(kafkaProperties.buildConsumerProperties());
+  public ReceiverOptions<Integer, Object> receiverOptions(KafkaProperties kafkaProperties, ObservationRegistry observationRegistry,
+      MeterRegistry meterRegistry) {
+    return ReceiverOptions.<Integer, Object>create(kafkaProperties.buildConsumerProperties())
+        .consumerListener(new MicrometerConsumerListener(meterRegistry))
+        .withObservation(observationRegistry);
   }
 
   @Bean

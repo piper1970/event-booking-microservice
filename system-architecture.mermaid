@@ -17,6 +17,11 @@ graph TB
         NotificationDB[(Postgres - Notification DB)]
         Cache[(Redis - API Gateway)]
     end
+
+    subgraph Monitoring
+        Prometheus[(Prometheus - Metrics)]
+        Grafana[(Grafana - Metrics UI)]
+    end
     
     subgraph Messaging
         Kafka[Kafka Message Broker]
@@ -43,9 +48,17 @@ graph TB
     Gateway --> Cache
 
     Gateway --> Keycloak
+    BookingService --> Keycloak
     EventService --> Keycloak
     NotificationService --> Keycloak
-    
+
+    Gateway --> Prometheus
+    BookingService --> Prometheus
+    EventService --> Prometheus
+    NotificationService --> Prometheus
+
+    Prometheus --> Grafana
+
     EventService --> EventDB
     BookingService --> BookingDB
     NotificationService --> NotificationDB
@@ -72,3 +85,5 @@ graph TB
     style Config fill:#ff9,stroke:#333
     style Kafka fill:#dfd,stroke:#333
     style Keycloak fill:#fdd,stroke:#333
+    style Prometheus fill:#dfd,stroke:#333
+    style Grafana fill:#ff9,stroke:#333

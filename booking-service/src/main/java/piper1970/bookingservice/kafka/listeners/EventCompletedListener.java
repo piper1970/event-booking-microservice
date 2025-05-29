@@ -72,7 +72,6 @@ public class EventCompletedListener extends DiscoverableListener {
       // For handling bookings that have already been confirmed -> status changes to complete
       var completedFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(BookingStatus.CONFIRMED))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .map(booking -> booking.withBookingStatus(BookingStatus.COMPLETED));
@@ -80,7 +79,6 @@ public class EventCompletedListener extends DiscoverableListener {
       // For handling bookings that have not yet been confirmed -> status changes to cancelled
       var cancelledFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(BookingStatus.IN_PROGRESS))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .map(booking -> booking.withBookingStatus(BookingStatus.CANCELLED));
@@ -91,7 +89,6 @@ public class EventCompletedListener extends DiscoverableListener {
           .flatMap(booking ->
               bookingRepository.save(booking)
                   .subscribeOn(Schedulers.boundedElastic())
-                  .log()
                   .timeout(timeoutDuration)
                   .retryWhen(defaultRepositoryRetry)
           ).count()

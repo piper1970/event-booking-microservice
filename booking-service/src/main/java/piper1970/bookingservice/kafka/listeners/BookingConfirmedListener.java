@@ -66,14 +66,12 @@ public class BookingConfirmedListener extends DiscoverableListener {
     if (record.value() instanceof BookingConfirmed message) {
       return bookingRepository.findById(message.getBooking().getId())
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .filter(booking -> BookingStatus.IN_PROGRESS == booking.getBookingStatus())
           .flatMap(
               booking -> bookingRepository.save(booking.withBookingStatus(BookingStatus.CONFIRMED))
                   .subscribeOn(Schedulers.boundedElastic())
-                  .log()
                   .timeout(timeoutDuration)
                   .retryWhen(defaultRepositoryRetry)
                   .doOnNext(updatedBooking -> log.info("Confirmed booking saved: [{}]", updatedBooking))

@@ -65,13 +65,11 @@ public class BookingExpiredListener extends DiscoverableListener {
     if(record.value() instanceof BookingExpired message) {
       return bookingRepository.findById(message.getBooking().getId())
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .filter(booking -> BookingStatus.IN_PROGRESS == booking.getBookingStatus())
           .flatMap(booking -> bookingRepository.save(booking.withBookingStatus(BookingStatus.CANCELLED))
               .subscribeOn(Schedulers.boundedElastic())
-              .log()
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
               .doOnNext(updatedBooking ->

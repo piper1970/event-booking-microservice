@@ -1,5 +1,8 @@
 package piper1970.bookingservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -7,7 +10,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.stereotype.Component;
 import piper1970.bookingservice.domain.BookingStatus;
 import piper1970.bookingservice.repository.BookingRepository;
@@ -24,6 +26,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.kafka.sender.KafkaSender;
 import reactor.util.retry.Retry;
 
 @Component
@@ -31,28 +34,31 @@ import reactor.util.retry.Retry;
 public class EventChangedListener extends DiscoverableListener {
 
   public static final String SERVICE_NAME = "booking-service";
-  private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  private final KafkaSender<Integer, Object> kafkaSender;
   private final BookingRepository bookingRepository;
   private final Duration timeoutDuration;
   private final Retry defaultRepositoryRetry;
   private final Retry defaultKafkaRetry;
+  private final Clock clock;
   private Disposable subscription;
 
   public EventChangedListener(
       ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       DeadLetterTopicProducer deadLetterTopicProducer,
-      ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
+      KafkaSender<Integer, Object> kafkaSender,
       BookingRepository bookingRepository,
       @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis,
       @Qualifier("repository") Retry defaultRepositoryRetry,
-      @Qualifier("kafka") Retry defaultKafkaRetry
+      @Qualifier("kafka") Retry defaultKafkaRetry,
+      Clock clock
       ) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
-    this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
+    this.kafkaSender = kafkaSender;
     this.bookingRepository = bookingRepository;
     timeoutDuration = Duration.ofMillis(timeoutMillis);
     this.defaultRepositoryRetry = defaultRepositoryRetry;
     this.defaultKafkaRetry = defaultKafkaRetry;
+    this.clock = clock;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -85,7 +91,6 @@ public class EventChangedListener extends DiscoverableListener {
           BookingStatus.CANCELLED,
           BookingStatus.COMPLETED))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .map(this::toBookingId)
@@ -96,9 +101,9 @@ public class EventChangedListener extends DiscoverableListener {
             buMsg.setEventId(eventId);
             buMsg.setMessage(message.getMessage());
             buMsg.setBookings(bookings);
-            return reactiveKafkaProducerTemplate.send(Topics.BOOKINGS_UPDATED, buMsg)
+            return kafkaSender.send(createSenderMono(Topics.BOOKINGS_UPDATED, eventId, buMsg, clock))
                 .subscribeOn(Schedulers.boundedElastic())
-                .log()
+                .single()
                 .timeout(timeoutDuration)
                 .retryWhen(defaultKafkaRetry)
                 .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,7 +33,6 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
 import piper1970.eventservice.common.bookings.messages.BookingCancelled;
@@ -55,6 +55,8 @@ import piper1970.eventservice.service.ReactiveKafkaMessagePostingService;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.sender.KafkaSender;
+import reactor.kafka.sender.SenderRecord;
 import reactor.test.StepVerifier;
 import reactor.util.retry.Retry;
 
@@ -87,13 +89,17 @@ public class EventServiceApplicationTests {
   private ReactiveKafkaMessagePostingService reactiveKafkaMessagePostingService;
 
   @Autowired
-  ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
-
-  @Autowired
   private ReactiveKafkaReceiverFactory receiverFactory;
 
   @Autowired
+  private KafkaSender<Integer, Object> kafkaSender;
+
+
+  @Autowired
   private DeadLetterTopicProducer dltProducer;
+
+  @Autowired
+  private Clock clock;
 
   @Value("${event-repository.timout.milliseconds}")
   private Integer timeoutInMilliseconds;
@@ -108,9 +114,10 @@ public class EventServiceApplicationTests {
   void setupListeners() {
     discoverableListeners.add(new BookingCancelledListener(receiverFactory,
         eventRepository, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry));
-    discoverableListeners.add(new BookingConfirmedListener(receiverFactory, eventRepository,
-        reactiveKafkaProducerTemplate, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry,
-        defaultKafkaRetry));
+    discoverableListeners.add(
+        new BookingConfirmedListener(receiverFactory, eventRepository,
+            kafkaSender, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry,
+            defaultKafkaRetry, clock));
 
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
@@ -157,8 +164,9 @@ public class EventServiceApplicationTests {
     message.setBooking(new BookingId(27, "test_user@test.com", "test_user"));
     message.setEventId(savedEvent.getId());
     message.setMessage("test-message");
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_CANCELLED, savedEvent.getId(), message))
+    kafkaSender.send(Mono.just(SenderRecord.create(
+            new ProducerRecord<>(Topics.BOOKING_CANCELLED, savedEvent.getId(), message), null)))
+        .then()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -193,8 +201,9 @@ public class EventServiceApplicationTests {
     message.setBooking(new BookingId(27, "test_user@test.com", "test_user"));
     message.setEventId(savedEvent.getId());
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_CONFIRMED, savedEvent.getId(), message))
+    kafkaSender.send(Mono.just(SenderRecord.create(
+            new ProducerRecord<>(Topics.BOOKING_CONFIRMED, savedEvent.getId(), message), null)))
+        .then()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -230,8 +239,9 @@ public class EventServiceApplicationTests {
     message.setBooking(new BookingId(bookingId, "test_user@test.com", "test_user"));
     message.setEventId(savedEvent.getId());
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_CONFIRMED, savedEvent.getId(), message))
+    kafkaSender.send(Mono.just(SenderRecord.create(
+            new ProducerRecord<>(Topics.BOOKING_CONFIRMED, savedEvent.getId(), message), null)))
+        .then()
         .block(timeoutDuration);
 
     var receiver = receiverFactory.getReceiver(Topics.BOOKING_EVENT_UNAVAILABLE);

@@ -1,5 +1,6 @@
 package piper1970.bookingservice.config;
 
+import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
@@ -19,11 +20,12 @@ public class WebClientConfig {
 
   @Bean
   @LoadBalanced
-  public WebClient.Builder webClientBuilder() {
+  public WebClient.Builder webClientBuilder(ObservationRegistry registry) {
 
     log.debug("Setting up web client with base uri {}", apiUri);
 
     return WebClient.builder()
+        .observationRegistry(registry)
         .baseUrl(apiUri);
   }
 }

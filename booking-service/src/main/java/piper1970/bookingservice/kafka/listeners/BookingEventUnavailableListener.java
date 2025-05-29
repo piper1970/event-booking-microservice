@@ -64,7 +64,6 @@ public class BookingEventUnavailableListener extends DiscoverableListener {
     log.debug("BookingEventUnavailableListener::handleIndividualRequest started");
     if(record.value() instanceof BookingEventUnavailable message) {
       return bookingRepository.findById(message.getBooking().getId())
-          .log()
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
@@ -72,7 +71,6 @@ public class BookingEventUnavailableListener extends DiscoverableListener {
               || BookingStatus.CONFIRMED == booking.getBookingStatus())
           .flatMap(booking -> bookingRepository.save(booking.withBookingStatus(BookingStatus.CANCELLED))
               .subscribeOn(Schedulers.boundedElastic())
-              .log()
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
               .doOnNext(updatedBooking -> log.warn("Booking [{}] for event [{}] has been cancelled due to unavailability",

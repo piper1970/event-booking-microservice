@@ -59,12 +59,10 @@ public class SchedulingService {
     try{
       eventRepository.findByEventStatusIn(List.of(EventStatus.AWAITING, EventStatus.IN_PROGRESS))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .filter(this::isCompleted)
           .flatMap(event ->
               eventRepository.save(event.withEventStatus(EventStatus.COMPLETED))
                   .subscribeOn(Schedulers.boundedElastic())
-                  .log()
           )
           // add transaction behavior for optimistic locking via version field
           .as(transactionalOperator::transactional)
@@ -101,11 +99,9 @@ public class SchedulingService {
     try{
       eventRepository.findByEventStatusIn(List.of(EventStatus.AWAITING))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .filter(this::isInProgress)
           .flatMap(event -> eventRepository.save(event.withEventStatus(EventStatus.IN_PROGRESS))
               .subscribeOn(Schedulers.boundedElastic())
-              .log()
           )
           // add transaction behavior for optimistic locking via version field
           .as(transactionalOperator::transactional)
@@ -127,7 +123,6 @@ public class SchedulingService {
     message.setEventId(event.getId());
     return messagePostingService.postEventCompletedMessage(message)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         // send back single value so count() can be properly used downstream
         .then(Mono.just(1));
   }

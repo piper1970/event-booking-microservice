@@ -1,5 +1,8 @@
 package piper1970.bookingservice.config;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -9,12 +12,14 @@ import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import piper1970.eventservice.common.kafka.TopicCreater;
 import piper1970.eventservice.common.kafka.reactive.DeadLetterTopicProducer;
 import piper1970.eventservice.common.kafka.reactive.ReactiveKafkaReceiverFactory;
 import piper1970.eventservice.common.kafka.topics.Topics;
+import reactor.kafka.receiver.MicrometerConsumerListener;
 import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.sender.KafkaSender;
+import reactor.kafka.sender.MicrometerProducerListener;
 import reactor.kafka.sender.SenderOptions;
 
 @Configuration(proxyBeanMethods = false)
@@ -103,15 +108,19 @@ public class KafkaConfig {
   //region Kafka Producer
 
   @Bean
-  ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate(KafkaProperties kafkaProperties) {
+  KafkaSender<Integer, Object> kafkaSender(KafkaProperties kafkaProperties, ObservationRegistry observationRegistry,
+      MeterRegistry meterRegistry) {
     Map<String, Object> propertiesMap = kafkaProperties.buildProducerProperties();
-    return new ReactiveKafkaProducerTemplate<>(SenderOptions.create(propertiesMap));
+    var senderOptions = SenderOptions.<Integer, Object>create(propertiesMap)
+        .withObservation(observationRegistry)
+        .producerListener(new MicrometerProducerListener(meterRegistry));
+    return KafkaSender.create(senderOptions);
   }
 
   @Bean
-  DeadLetterTopicProducer deadLetterTopicProducer(ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
-      @Value("${kafka.dlt.suffix:-bs-dlt}") String deadLetterTopicSuffix) {
-    return new DeadLetterTopicProducer(reactiveKafkaProducerTemplate, deadLetterTopicSuffix);
+  DeadLetterTopicProducer deadLetterTopicProducer(KafkaSender<Integer, Object> kafkaSender,
+      @Value("${kafka.dlt.suffix:-bs-dlt}") String deadLetterTopicSuffix, Clock clock) {
+    return new DeadLetterTopicProducer(kafkaSender, deadLetterTopicSuffix, clock);
   }
 
   //endregion Kafka Producer
@@ -119,12 +128,15 @@ public class KafkaConfig {
   //region Kafka Consumer
 
   @Bean
-  public ReceiverOptions<Integer, Object> receiverOptions(KafkaProperties kafkaProperties) {
-    return ReceiverOptions.create(kafkaProperties.buildConsumerProperties());
+  public ReceiverOptions<Integer, Object> receiverOptions(KafkaProperties kafkaProperties, ObservationRegistry observationRegistry,
+      MeterRegistry meterRegistry) {
+    return ReceiverOptions.<Integer, Object>create(kafkaProperties.buildConsumerProperties())
+        .withObservation(observationRegistry)
+        .consumerListener(new MicrometerConsumerListener(meterRegistry));
   }
 
   @Bean
-  public ReactiveKafkaReceiverFactory reactiveKafkaConsumerFactory(ReceiverOptions<Integer, Object> receiverOptions) {
+  public ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory(ReceiverOptions<Integer, Object> receiverOptions) {
     var topics = List.of(Topics.BOOKING_CONFIRMED, Topics.BOOKING_EXPIRED,
         Topics.EVENT_CHANGED, Topics.EVENT_CANCELLED, Topics.BOOKING_EVENT_UNAVAILABLE, Topics.EVENT_COMPLETED);
     return new ReactiveKafkaReceiverFactory(receiverOptions, topics);

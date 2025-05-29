@@ -1,8 +1,10 @@
 package piper1970.eventservice.service;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.stereotype.Service;
 import piper1970.eventservice.common.events.messages.EventCancelled;
 import piper1970.eventservice.common.events.messages.EventChanged;
@@ -11,13 +13,15 @@ import piper1970.eventservice.common.kafka.KafkaHelper;
 import piper1970.eventservice.common.kafka.topics.Topics;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.kafka.sender.KafkaSender;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ReactiveKafkaMessagePostingService implements MessagePostingService{
 
-  private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  private final KafkaSender<Integer, Object> kafkaSender;
+  private final Clock clock;
   private static final String SERVICE_NAME = "event-service";
 
   @Override
@@ -25,10 +29,10 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
     try{
       var eventId = message.getEventId();
       log.debug("Posting EVENT_CANCELLED message [{}]", eventId);
-      return reactiveKafkaProducerTemplate.send(Topics.EVENT_CANCELLED, eventId, message)
+      return kafkaSender.send(createSenderMono(Topics.EVENT_CANCELLED, eventId, message, clock))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
-          .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+          .single()
+          .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .doOnError(throwable -> log.error("Error sending EVENT_CANCELLED message: {}", throwable.getMessage(), throwable))
           .then();
     }catch(Exception e){
@@ -42,10 +46,10 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
     try{
       var eventId = message.getEventId();
       log.debug("Posting EVENT_CHANGED message [{}]", eventId);
-      return reactiveKafkaProducerTemplate.send(Topics.EVENT_CHANGED, eventId, message)
+      return kafkaSender.send(createSenderMono(Topics.EVENT_CHANGED, eventId, message, clock))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
-          .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+          .single()
+          .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .doOnError(throwable -> log.error("Error sending EVENT_CHANGED message: {}", throwable.getMessage(), throwable))
           .then();
     }catch(Exception e){
@@ -59,10 +63,10 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
     try{
       var eventId = message.getEventId();
       log.debug("Posting EVENT_COMPLETED message [{}]", eventId);
-      return reactiveKafkaProducerTemplate.send(Topics.EVENT_COMPLETED, eventId, message)
+      return kafkaSender.send(createSenderMono(Topics.EVENT_COMPLETED, eventId, message, clock))
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
-          .doOnSuccess(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+          .single()
+          .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
           .doOnError(throwable -> log.error("Error sending EVENT_COMPLETED message: {}", throwable.getMessage(), throwable))
           .then();
     }catch(Exception e){

@@ -64,11 +64,9 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Flux<BookingDto> findAllBookings() {
-    log.debug("Finding all bookings called");
 
     return bookingRepository.findAll()
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(bookingTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryFluxTimeout(ex, "finding all bookings"))
@@ -78,11 +76,9 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Flux<BookingDto> findBookingsByUsername(String username) {
-    log.debug("Find bookings called by username [{}]", username);
 
     return bookingRepository.findByUsername(username)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(bookingTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryFluxTimeout(ex,
@@ -93,11 +89,9 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> findBookingById(Integer id) {
-    log.debug("Find booking called for id [{}]", id);
 
     return bookingRepository.findById(id)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(bookingTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .onErrorResume(
@@ -108,11 +102,9 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> findBookingByIdAndUsername(Integer id, String username) {
-    log.debug("Find booking called for id [{}] by user [{}]", id, username);
 
     return bookingRepository.findByIdAndUsername(id, username)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(bookingTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex,
@@ -125,7 +117,6 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> createBooking(BookingCreateRequest createRequest, String token) {
-    log.debug("Create booking [{}] called with token [{}]", createRequest, token);
 
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
         .switchIfEmpty(Mono.error(
@@ -136,15 +127,16 @@ public class DefaultBookingWebService implements BookingWebService {
         .switchIfEmpty(Mono.error(new BookingCreationException(
             "Unable to create booking for event that has already started")))
         .flatMap(dto -> {
+          var eventId = dto.getId();
+          var username = createRequest.getUsername();
               var booking = Booking.builder()
-                  .eventId(createRequest.getEventId())
-                  .username(createRequest.getUsername())
+                  .eventId(eventId)
+                  .username(username)
                   .email(createRequest.getEmail())
                   .bookingStatus(BookingStatus.IN_PROGRESS)
                   .build();
-              log.debug("Saving [{}] to repository", booking);
+              log.debug("Saving booking for user [{}] at event [{}] to repository", username, eventId);
               return bookingRepository.save(booking)
-                  .log()
                   .subscribeOn(Schedulers.boundedElastic())
                   .timeout(bookingTimeoutDuration)
                   .retryWhen(defaultRepositoryRetry)
@@ -165,12 +157,9 @@ public class DefaultBookingWebService implements BookingWebService {
 
   @Override
   public Mono<BookingDto> cancelBooking(Integer id, String username, String token) {
-    log.debug("Cancel booking has been called from [{}] on booking [{}] with token [{}]", username,
-        id, token);
 
     return bookingRepository.findByIdAndUsername(id, username)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(bookingTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryTimeout(ex,
@@ -195,7 +184,6 @@ public class DefaultBookingWebService implements BookingWebService {
               event.getId());
           return bookingRepository.save(booking.withBookingStatus(BookingStatus.CANCELLED))
               .subscribeOn(Schedulers.boundedElastic())
-              .log()
               .timeout(bookingTimeoutDuration)
               .retryWhen(defaultRepositoryRetry)
               .onErrorResume(ex -> handleRepositoryTimeout(ex,

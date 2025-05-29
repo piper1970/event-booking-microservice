@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
 import static piper1970.notificationservice.kafka.listener.BookingCancelledListener.BOOKING_CANCELLED_MESSAGE_SUBJECT;
 import static piper1970.notificationservice.kafka.listener.BookingCreatedListener.BOOKING_HAS_BEEN_CREATED_SUBJECT;
 import static piper1970.notificationservice.kafka.listener.BookingEventUnavailableListener.BOOKING_EVENT_UNAVAILABLE_SUBJECT;
@@ -20,9 +21,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -47,7 +46,6 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.annotation.DirtiesContext;
@@ -76,6 +74,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.sender.KafkaSender;
 import reactor.test.StepVerifier;
 import reactor.util.retry.Retry;
 
@@ -88,7 +87,6 @@ import reactor.util.retry.Retry;
 @DirtiesContext
 @TestClassOrder(OrderAnnotation.class)
 @Order(1)
-@Slf4j
 public class NotificationServiceApplicationTests {
 
   //region Properties Used
@@ -112,7 +110,7 @@ public class NotificationServiceApplicationTests {
   BookingConfirmationRepository repository;
 
   @Autowired
-  ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  KafkaSender<Integer, Object> kafkaSender;
 
   @Autowired
   private Clock clock;
@@ -164,15 +162,12 @@ public class NotificationServiceApplicationTests {
 
   @BeforeEach
   void setUp() {
-    log.info("BeforeEach: Setting up");
     when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
     doNothing().when(javaMailSender).send(any(MimeMessage.class));
 
     // clear database
     repository.deleteAll()
-        .log()
         .block();
-    log.info("BeforeEach: Database Deleted");
   }
 
   @AfterEach
@@ -220,13 +215,10 @@ public class NotificationServiceApplicationTests {
     message.setEventId(eventId);
     message.setBooking(new BookingId(bookingId, email, username));
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_CREATED, bookingId, message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_CREATED, bookingId, message, clock))
+        .single()
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .block(timeoutDuration);
-
-    log.info("consumeBookingCreatedMessage: BOOKING_CREATED sent");
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
         .untilAsserted(() -> {
@@ -262,10 +254,9 @@ public class NotificationServiceApplicationTests {
     message.setEventId(1);
     message.setBooking(new BookingId(2, "test_user@test.com", "test_user"));
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_EVENT_UNAVAILABLE, bookingId, message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, bookingId, message, clock))
+        .single()
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -285,10 +276,9 @@ public class NotificationServiceApplicationTests {
     message.setEventId(1);
     message.setBooking(new BookingId(2, "test_user@test.com", "test_user"));
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_CANCELLED, bookingId, message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_CANCELLED, bookingId, message, clock))
+        .single()
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -310,10 +300,9 @@ public class NotificationServiceApplicationTests {
     );
     var message = new BookingsCancelled(bookingIds, eventId, "Cancellation Message");
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKINGS_CANCELLED, eventId, message))
+    kafkaSender.send(createSenderMono(Topics.BOOKINGS_CANCELLED, eventId, message, clock))
+        .single()
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -330,10 +319,9 @@ public class NotificationServiceApplicationTests {
     );
     var message = new BookingsUpdated(bookingIds, eventId, "Update Message");
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKINGS_UPDATED, eventId, message))
+    kafkaSender.send(createSenderMono(Topics.BOOKINGS_UPDATED, eventId, message, clock))
+        .single()
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -348,7 +336,6 @@ public class NotificationServiceApplicationTests {
   private Mono<ConsumerRecord<Integer, Object>> getReceiverAsMono(
       KafkaReceiver<Integer, Object> receiver) {
     return receiver.receiveAtmostOnce()
-        .log()
         .single();
   }
 

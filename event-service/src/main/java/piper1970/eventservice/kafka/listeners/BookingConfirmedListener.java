@@ -1,12 +1,14 @@
 package piper1970.eventservice.kafka.listeners;
 
+import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+
+import java.time.Clock;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
@@ -20,32 +22,36 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
+import reactor.kafka.sender.KafkaSender;
 import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
-public class BookingConfirmedListener extends DiscoverableListener{
+public class BookingConfirmedListener extends DiscoverableListener {
 
   private final EventRepository eventRepository;
-  private final ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  private final KafkaSender<Integer, Object> kafkaSender;
   private final Duration timeoutDuration;
   private final Retry defaultRepositoryRetry;
   private final Retry defaultKafkaRetry;
+  private final Clock clock;
   private Disposable subscription;
 
   public BookingConfirmedListener(ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       EventRepository eventRepository,
-      ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate,
+      KafkaSender<Integer, Object> kafkaSender,
       DeadLetterTopicProducer deadLetterTopicProducer,
       @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds,
       @Qualifier("repository") Retry defaultRepositoryRetry,
-      @Qualifier("kafka") Retry defaultKafkaRetry) {
+      @Qualifier("kafka") Retry defaultKafkaRetry,
+      Clock clock) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.eventRepository = eventRepository;
-    this.reactiveKafkaProducerTemplate = reactiveKafkaProducerTemplate;
+    this.kafkaSender = kafkaSender;
     timeoutDuration = Duration.ofMillis(timeoutInMilliseconds);
     this.defaultRepositoryRetry = defaultRepositoryRetry;
     this.defaultKafkaRetry = defaultKafkaRetry;
+    this.clock = clock;
   }
 
   @EventListener(ApplicationReadyEvent.class)
@@ -82,15 +88,14 @@ public class BookingConfirmedListener extends DiscoverableListener{
       log.debug("Consuming from BOOKING_CONFIRMED topic [{}]", eventId);
       return eventRepository.findById(eventId)
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .filter(event -> event.getAvailableBookings() > 0)
           .switchIfEmpty(Mono.defer(() -> {
             log.warn("Event [{}] has no available bookings left. Sending message to BOOKING_EVENT_UNAVAILABLE topic", eventId);
             var buMsg = new BookingEventUnavailable(message.getBooking(), eventId);
-            return reactiveKafkaProducerTemplate.send(Topics.BOOKING_EVENT_UNAVAILABLE, eventId, buMsg)
-                .log()
+            return kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, eventId, buMsg, clock))
+                .single()
                 .timeout(timeoutDuration)
                 .retryWhen(defaultKafkaRetry)
                 .onErrorResume(err -> {
@@ -101,7 +106,6 @@ public class BookingConfirmedListener extends DiscoverableListener{
           }))
           .flatMap(event -> eventRepository.save(event.withAvailableBookings(event.getAvailableBookings() - 1))
               .subscribeOn(Schedulers.boundedElastic())
-              .log()
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
               .map(evt -> record)

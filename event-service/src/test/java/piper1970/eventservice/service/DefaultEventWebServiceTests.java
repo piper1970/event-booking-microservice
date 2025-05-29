@@ -143,12 +143,12 @@ class DefaultEventWebServiceTests {
   //region Get Event Scenarios
 
   /// ## GET EVENT SCENARIOS
-  /// - repo does not find event with given id -> returns Mono.empty()
+  /// - repo does not find event with given id -> returns 404
   /// - repo takes too long -> throws EventTimeoutException Mono
   /// - repo finds event with given id -> returns event
 
   @Test
-  @DisplayName("getEvent should return empty Mono when event with given id not in repo")
+  @DisplayName("getEvent should return 404 Mono Error when event with given id not in repo")
   void getEvent_nothing_found() {
     when(eventRepository.findById(eventId)).thenReturn(Mono.empty());
 
@@ -156,7 +156,7 @@ class DefaultEventWebServiceTests {
         args -> args.getArgument(0));
 
     StepVerifier.create(webService.getEvent(eventId))
-        .verifyComplete();
+        .verifyError(EventNotFoundException.class);
   }
 
   @Test

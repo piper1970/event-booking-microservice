@@ -33,7 +33,6 @@ public abstract class DiscoverableListener implements DisposableBean, AutoClosea
   protected Flux<ReceiverRecord<Integer, Object>> buildFluxRequest() {
     return createReceiver()
         .receive()
-        .log()
         .subscribeOn(Schedulers.boundedElastic())
         .concatMap(this::handleIndividualRequest);
   }

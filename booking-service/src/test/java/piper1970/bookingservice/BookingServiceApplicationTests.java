@@ -3,15 +3,16 @@ package piper1970.bookingservice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.fail;
+import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +32,6 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
@@ -64,6 +64,7 @@ import piper1970.eventservice.common.notifications.messages.BookingExpired;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.sender.KafkaSender;
 import reactor.test.StepVerifier;
 import reactor.util.retry.Retry;
 
@@ -91,7 +92,7 @@ class BookingServiceApplicationTests {
   BookingRepository bookingRepository;
 
   @Autowired
-  ReactiveKafkaProducerTemplate<Integer, Object> reactiveKafkaProducerTemplate;
+  KafkaSender<Integer, Object> kafkaSender;
 
   @Autowired
   private ReactiveKafkaReceiverFactory receiverFactory;
@@ -113,6 +114,9 @@ class BookingServiceApplicationTests {
   @Value("${booking-repository.timout.milliseconds}")
   private Long timeoutMillis;
 
+  @Autowired
+  private Clock clock;
+
   private final List<DiscoverableListener> discoverableListeners = new ArrayList<>();
 
   //endregion Properties Used
@@ -128,11 +132,11 @@ class BookingServiceApplicationTests {
     discoverableListeners.add(new BookingEventUnavailableListener(receiverFactory, dltProducer,
         bookingRepository, timeoutMillis,defaultRepositoryRetry));
     discoverableListeners.add(new EventChangedListener(receiverFactory, dltProducer,
-        reactiveKafkaProducerTemplate,
-        bookingRepository, timeoutMillis, defaultRepositoryRetry, defaultKafkaRetry));
+        kafkaSender,
+        bookingRepository, timeoutMillis, defaultRepositoryRetry, defaultKafkaRetry, clock));
     discoverableListeners.add(new EventCancelledListener(receiverFactory, dltProducer,
-        reactiveKafkaProducerTemplate,
-        bookingRepository, transactionalOperator, timeoutMillis, defaultRepositoryRetry));
+        kafkaSender,
+        bookingRepository, transactionalOperator, timeoutMillis, defaultRepositoryRetry, clock));
 
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
@@ -282,8 +286,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_CONFIRMED, savedBooking.getId(), message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_CONFIRMED, savedBooking.getId(), message, clock))
+        .single()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -317,8 +321,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_EXPIRED, savedBooking.getId(), message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_EXPIRED, savedBooking.getId(), message, clock))
+        .single()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -352,8 +356,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock))
+        .single()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -389,8 +393,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock))
+        .single()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -425,8 +429,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock))
+        .single()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))
@@ -477,8 +481,8 @@ class BookingServiceApplicationTests {
         .block(timeoutDuration);
 
     var message = new EventChanged(1, "Test Event Changed Message");
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.EVENT_CHANGED, 1, message))
+    kafkaSender.send(createSenderMono(Topics.EVENT_CHANGED, 1, message, clock))
+        .single()
         .block(timeoutDuration);
 
     var receiver = receiverFactory.getReceiver(Topics.BOOKINGS_UPDATED);
@@ -535,8 +539,8 @@ class BookingServiceApplicationTests {
         .block(timeoutDuration);
 
     var message = new EventCancelled(1, "Test Event Changed Message");
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.EVENT_CANCELLED, 1, message))
+    kafkaSender.send(createSenderMono(Topics.EVENT_CANCELLED, 1, message, clock))
+        .single()
         .block(timeoutDuration);
 
     var receiver = receiverFactory.getReceiver(Topics.BOOKINGS_CANCELLED);
@@ -590,8 +594,8 @@ class BookingServiceApplicationTests {
         .block(timeoutDuration);
 
     var message = new EventCompleted(1, "Test Event Completed Message");
-    reactiveKafkaProducerTemplate.send(
-            new ProducerRecord<>(Topics.EVENT_COMPLETED, 1, message))
+    kafkaSender.send(createSenderMono(Topics.EVENT_COMPLETED, 1, message, clock))
+        .single()
         .block(timeoutDuration);
 
     Awaitility.await().atMost(timeoutDuration.multipliedBy(10))

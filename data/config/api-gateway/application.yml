@@ -14,11 +14,6 @@ oauth2:
   provider:
     base-uri: http://localhost:8180/realms/piper1970
 
-management:
-  health:
-    redis:
-      enabled: true
-
 spring:
   r2dbc.url: r2dbc:h2:mem:///authentication
 
@@ -77,10 +72,6 @@ spring:
           predicates:
             - Path=/api/notifications/**,/api/notifications
 
-# Configuration for /info endpoint
-info:application:
-  name: Api Gateway
-  description: Centralized gateway for access to all microservices used in Event-Booking Service
 
 
 

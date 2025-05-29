@@ -125,7 +125,6 @@ public class BookingCreatedListener extends AbstractListener {
 
       return bookingConfirmationRepository.save(dbConfirmation)
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(notificationTimeoutDuration)
           .doOnNext(confirmation -> log.info("Booking confirmation saved [{}]", confirmation))
           .then(sendEmailMono)

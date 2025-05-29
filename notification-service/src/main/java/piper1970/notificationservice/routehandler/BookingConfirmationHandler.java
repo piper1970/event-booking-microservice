@@ -205,13 +205,14 @@ public class BookingConfirmationHandler {
 
     if (confirmBooking(confirmation)) {
 
+      log.debug("Booking confirmation [{}] successfully confirmed for user [{}]", confirmation.getBookingId(), confirmation.getBookingUser());
+
       var updatedConfirmation = confirmation.toBuilder()
           .confirmationStatus(ConfirmationStatus.CONFIRMED)
           .build();
 
       return bookingConfirmationRepository.save(updatedConfirmation)
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(notificationTimeoutDuration)
           .retryWhen(defaultRepositoryRetry) // retries for timeouts only
           .onErrorResume(
@@ -255,7 +256,6 @@ public class BookingConfirmationHandler {
 
       return bookingConfirmationRepository.save(expiredConfirmation)
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(notificationTimeoutDuration)
           .retryWhen(defaultRepositoryRetry) // retries for timeouts only
           .onErrorResume(

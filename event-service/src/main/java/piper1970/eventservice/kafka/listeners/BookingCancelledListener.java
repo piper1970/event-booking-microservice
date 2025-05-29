@@ -71,12 +71,10 @@ public class BookingCancelledListener extends DiscoverableListener{
     if(record.value() instanceof BookingCancelled message) {
       return eventRepository.findById(message.getEventId())
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .flatMap(event -> eventRepository.save(event.withAvailableBookings(event.getAvailableBookings() + 1))
               .subscribeOn(Schedulers.boundedElastic())
-              .log()
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
               .doOnNext((Event evt) -> log.info(

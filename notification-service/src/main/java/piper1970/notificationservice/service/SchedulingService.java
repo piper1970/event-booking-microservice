@@ -64,7 +64,6 @@ public class SchedulingService {
     try{
       bookingConfirmationRepository.findByConfirmationStatus(ConfirmationStatus.AWAITING_CONFIRMATION)
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           // check to see if the expiration window has past
           .filter(this::filterForExpiredConfirmations)
           // update record in repo with expired status
@@ -72,7 +71,6 @@ public class SchedulingService {
               bookingConfirmationRepository.save(confirmation.withConfirmationStatus(
                       ConfirmationStatus.EXPIRED))
                   .subscribeOn(Schedulers.boundedElastic())
-                  .log()
           )
           // add transaction behavior for optimistic locking via version field
           .as(transactionalOperator::transactional)
@@ -109,7 +107,6 @@ public class SchedulingService {
     try{
       bookingConfirmationRepository.deleteByConfirmationDateTimeBefore(deletionDateTime)
           .subscribeOn(Schedulers.boundedElastic())
-          .log()
           .doOnNext(deleteCount -> log.info("Deleted [{}] confirmation records that were older than {}:", deleteCount, deletionDateTime))
           // IMPORTANT: make sure blocked duration is less thant shedlock lockAtLeastFor duration
           .block(Duration.ofMinutes(4));
@@ -130,8 +127,6 @@ public class SchedulingService {
     booking.setUsername(expiredConfirmation.getBookingUser());
     bookingExpiredMessage.setBooking(booking);
     return messagePostingService.postBookingExpiredMessage(bookingExpiredMessage)
-        .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .then(Mono.just(1)); // for later count of posted messages
   }
 

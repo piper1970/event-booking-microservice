@@ -72,7 +72,6 @@ public class DefaultEventWebService implements EventWebService {
 
     return eventRepository.findAll()
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .onErrorResume(ex -> handleRepositoryFluxTimeout(ex,  "attempting to get all events"))
@@ -86,13 +85,13 @@ public class DefaultEventWebService implements EventWebService {
 
     return eventRepository.findById(id)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
+        .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found".formatted(id))))
         // ensure status is correct before returning to caller
         .flatMap(this::handlePossibleStatusUpdate)
         .timeout(eventsTimeoutDuration)
         .as(transactionalOperator::transactional)
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to get event"))
+        .onErrorResume(ex -> handleRepositoryException(ex, id, "attempting to get event"))
         .map(eventMapper::toDto)
         .doOnNext(this::logEventRetrieval);
   }
@@ -106,10 +105,9 @@ public class DefaultEventWebService implements EventWebService {
         .withEventStatus(EventStatus.AWAITING);
     return eventRepository.save(event)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryTimeout(ex, 0, "attempting to save event"))
+        .onErrorResume(ex -> handleRepositoryException(ex, 0, "attempting to save event"))
         .map(eventMapper::toDto)
         .doOnNext(dto -> log.debug("Event [{}] has been created", dto));
   }
@@ -122,17 +120,15 @@ public class DefaultEventWebService implements EventWebService {
 
     return eventRepository.findByIdAndFacilitator(id, facilitator)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to find event"))
+        .onErrorResume(ex -> handleRepositoryException(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found for facilitator [%s]".formatted(id, facilitator))))
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
         .flatMap(updatedEvent -> {
           var dto = eventMapper.toDto(updatedEvent);
           var message = createEventChangedMessage(dto);
           return messagePostingService.postEventChangedMessage(message)
-              .log()
               .subscribeOn(Schedulers.boundedElastic())
               .timeout(eventsTimeoutDuration)
               .retryWhen(defaultKafkaRetry)
@@ -149,10 +145,9 @@ public class DefaultEventWebService implements EventWebService {
 
     return eventRepository.findByIdAndFacilitator(id, facilitator)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryTimeout(ex, id, "attempting to find event"))
+        .onErrorResume(ex -> handleRepositoryException(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException(
             "Event [%d} run by [%s]not found".formatted(id, facilitator))))
         .filter(this::safeToCancel)
@@ -165,7 +160,6 @@ public class DefaultEventWebService implements EventWebService {
           var message = createEventCancelledMessage(dto);
           return messagePostingService.postEventCancelledMessage(message)
               .subscribeOn(Schedulers.boundedElastic())
-              .log()
               .timeout(eventsTimeoutDuration)
               .retryWhen(defaultKafkaRetry)
               .onErrorResume(ex -> handlePostingTimeout(ex, dto.getId(), "EVENT_CANCELLED"))
@@ -199,12 +193,11 @@ public class DefaultEventWebService implements EventWebService {
     var cancelledEvent = event.toBuilder().eventStatus(EventStatus.CANCELLED).build();
     return eventRepository.save(cancelledEvent)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .doOnNext(
             savedEvent -> log.debug("Event [{}] has been cancelled in the database", savedEvent.getId()))
-        .onErrorResume(ex -> handleRepositoryTimeout(ex, event.getId(), "save cancelled event"));
+        .onErrorResume(ex -> handleRepositoryException(ex, event.getId(), "save cancelled event"));
   }
 
   /// Handles logic for merging update with current request Updates can only happen if the event has
@@ -241,11 +234,10 @@ public class DefaultEventWebService implements EventWebService {
     }
     return eventRepository.save(event)
         .subscribeOn(Schedulers.boundedElastic())
-        .log()
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .doOnNext(dto -> log.debug("Event [{}] has been updated in the database", dto.getId()))
-        .onErrorResume(ex -> handleRepositoryTimeout(ex, event.getId(), "update event "));
+        .onErrorResume(ex -> handleRepositoryException(ex, event.getId(), "update event "));
   }
 
   private boolean safeToCancel(Event event) {
@@ -255,8 +247,11 @@ public class DefaultEventWebService implements EventWebService {
     return now.isBefore(cutoffTime);
   }
 
-  private Mono<Event> handleRepositoryTimeout(Throwable ex, Integer eventId, String subMessage) {
-    if(Exceptions.isRetryExhausted(ex)){
+  private Mono<Event> handleRepositoryException(Throwable ex, Integer eventId, String subMessage) {
+    if(ex instanceof EventNotFoundException) {
+      return Mono.error(ex);
+    }
+    else if(Exceptions.isRetryExhausted(ex)){
       return Mono.error(new EventTimeoutException(
           provideTimeoutErrorMessage("attempting to %s [%d]. Exhausted all retries".formatted(subMessage, eventId)), ex.getCause()));
     }

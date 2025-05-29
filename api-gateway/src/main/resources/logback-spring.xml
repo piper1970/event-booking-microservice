@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+  <springProfile name="!compose">
+
+    <property name="LOG_DIR" value="${user.dir}/logs"/>
+    <property name="LOG_FILE" value="api-gateway"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <withJansi>true</withJansi>
+      <encoder>
+        <pattern>%green(%d{HH:mm:ss.SSS}) %boldBlue([%thread])
+          %highlight(%-5level) %cyan(%logger{36}) - %msg %n
+        </pattern>
+      </encoder>
+    </appender>
+
+    <appender name="FILE"
+      class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>${LOG_DIR}/${LOG_FILE}.log</file>
+      <rollingPolicy
+        class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <!--rollover daily-->
+        <fileNamePattern>${LOG_DIR}/${LOG_FILE}-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+        <maxHistory>3</maxHistory>
+        <totalSizeCap>100MB</totalSizeCap>
+      </rollingPolicy>
+
+      <encoder
+        class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+        <providers>
+          <mdc/> <!-- MDC variables on the Thread will be written as JSON fields -->
+          <context/> <!--Outputs entries from logback's context -->
+          <version/> <!-- Logstash json format version, the @version field in the output -->
+          <logLevel/>
+          <loggerName/>
+
+          <pattern>
+            <pattern>
+              {
+              "serviceName": "api-gateway"
+              }
+            </pattern>
+          </pattern>
+
+          <threadName/>
+          <message/>
+          <logstashMarkers/>
+          <stackTrace/>
+        </providers>
+      </encoder>
+    </appender>
+
+    <root level="INFO">
+      <appender-ref ref="FILE"/>
+      <appender-ref ref="STDOUT"/>
+    </root>
+  </springProfile>
+
+</configuration>
