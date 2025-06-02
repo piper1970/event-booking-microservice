@@ -46,7 +46,7 @@ public class EventServiceConfig {
     http.csrf(CsrfSpec::disable)
         .cors(withDefaults())
         .authorizeExchange(exchange -> exchange
-            .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/api-docs", "/api-docs/**", "/swagger-ui/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
             .pathMatchers("api/admin/events/**", "/api/admin/events").hasAuthority("ADMIN")
             .anyExchange()

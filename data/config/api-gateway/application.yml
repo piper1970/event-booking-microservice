@@ -7,12 +7,7 @@ api:
 csrf:enabled: false
 cors:allowedOrigin: "*"
 
-oauth2:
-  client:
-    id: event-service-client
-    secret: event-service-client-secret
-  provider:
-    base-uri: http://localhost:8180/realms/piper1970
+oauth2.provider.base-uri: http://localhost:8180/realms/piper1970
 
 spring:
   r2dbc.url: r2dbc:h2:mem:///authentication
@@ -23,11 +18,11 @@ spring:
       client:
         registration:
           event-service-client:
-            client-name: ${oauth2.client.id}
+            client-name: ${OAUTH2_CLIENT_ID}
             provider: keycloak
             authorization-grant-type: authorization_code
-            client-id: ${oauth2.client.id}
-            client-secret: ${oauth2.client.secret}
+            client-id: ${OAUTH2_CLIENT_ID}
+            client-secret: ${OAUTH2_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope: openid, profile, roles
         provider:

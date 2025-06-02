@@ -58,7 +58,7 @@ public class ApiGatewayConfig {
     http.authorizeExchange(exchange -> {
       exchange
           .pathMatchers("/eureka/**").permitAll()
-          .pathMatchers(HttpMethod.GET, "/actuator/**", "/api/notifications/confirm/**").permitAll()
+          .pathMatchers(HttpMethod.GET, "/actuator/**", "/api/notifications/confirm/**", "/api-docs/**", "/swagger-ui/**").permitAll()
           .pathMatchers("/oauth2/**").permitAll()
           .anyExchange()
           .authenticated();

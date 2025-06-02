@@ -106,6 +106,13 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!-- OpenAPI/Swagger Api Documentation-->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+      <version>${springdoc.version}</version>
+    </dependency>
+
     <!--  Test Dependencies  -->
 
     <dependency>
