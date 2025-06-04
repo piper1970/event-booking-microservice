@@ -7,8 +7,6 @@ api:
 csrf:enabled: false
 cors:allowedOrigin: "*"
 
-oauth2.provider.base-uri: http://localhost:8180/realms/piper1970
-
 spring:
   r2dbc.url: r2dbc:h2:mem:///authentication
 

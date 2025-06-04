@@ -1,4 +1,4 @@
-package piper1970.bookingservice.config;
+package piper1970.eventservice.config;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
@@ -11,12 +11,12 @@ import io.swagger.v3.oas.annotations.servers.Server;
 
 @OpenAPIDefinition(
     servers = {
-        @Server(url = "http://localhost:8083")
+        @Server(url = "http://localhost:8081")
     },
     info = @Info(
-        title = "Booking Service",
+        title = "Event Service",
         version = "1.0",
-        description = "Restful service for booking requests to events"
+        description = "Restful service for creating and accessing events"
     )
 )
 @SecurityScheme(
