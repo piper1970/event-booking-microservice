@@ -1,5 +1,7 @@
 package piper1970.notificationservice.config;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.MustacheFactory;
@@ -17,9 +19,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity.CsrfSpec;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -92,6 +98,19 @@ public class NotificationConfig {
         .GET("/api/notifications/confirm/{confirmationString}",
             bookingConfirmationHandler::handleConfirmation)
         .build();
+  }
+
+  @Bean
+  public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+    http.csrf(CsrfSpec::disable)
+        .cors(withDefaults())
+        .authorizeExchange(exchange -> exchange
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/api/notifications/confirm/**")
+            .permitAll()
+            .anyExchange()
+            .denyAll());
+
+    return http.build();
   }
 
   @Bean
