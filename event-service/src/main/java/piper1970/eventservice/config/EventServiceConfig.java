@@ -46,9 +46,10 @@ public class EventServiceConfig {
     http.csrf(CsrfSpec::disable)
         .cors(withDefaults())
         .authorizeExchange(exchange -> exchange
-            .pathMatchers(HttpMethod.GET, "/actuator/**", "/api-docs", "/api-docs/**", "/swagger-ui/**").permitAll()
+            // passthrough for actuator and open-api/swagger
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/events/api-docs",
+                "/events/api-docs/**", "/events/swagger-ui/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
-            .pathMatchers("api/admin/events/**", "/api/admin/events").hasAuthority("ADMIN")
             .anyExchange()
             .authenticated())
         .oauth2ResourceServer(oauth2 ->

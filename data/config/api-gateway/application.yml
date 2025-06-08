@@ -7,7 +7,22 @@ api:
 csrf:enabled: false
 cors:allowedOrigin: "*"
 
+# OpenAPI/Swagger
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    config-url: /api-docs/swagger-config
+    urls:
+      - name: Event Service Gateway
+        url: /api-docs
+      - name: Booking Service
+        url: /bookings/api-docs
+      - name: Event Service
+        url: /events/api-docs
+
 spring:
+  # Database
   r2dbc.url: r2dbc:h2:mem:///authentication
 
   # Oauth2 security
@@ -55,11 +70,11 @@ spring:
         - id: booking-service
           uri: ${api.uri.booking-service}
           predicates:
-            - Path=/api/bookings/**,/api/bookings
+            - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
         - id: event-service
           uri: ${api.uri.event-service}
           predicates:
-            - Path=/api/events/**,/api/events
+            - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
         - id: notification-service
           uri: ${api.uri.notification-service}
           predicates:

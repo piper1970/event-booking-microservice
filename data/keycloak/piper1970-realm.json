@@ -685,7 +685,7 @@
     "enabled" : true,
     "alwaysDisplayInConsole" : false,
     "clientAuthenticatorType" : "client-secret",
-    "redirectUris" : [ "http://localhost:8080/*", "http://localhost:8081/swagger-ui/*", "http://localhost:8083/swagger-ui/*" ],
+    "redirectUris" : [ "http://localhost:8080/*", "http://localhost:8081/events/swagger-ui/*", "http://localhost:8083/bookings/swagger-ui/*" ],
     "webOrigins" : [ "http://localhost:8083", "http://localhost:8080", "http://localhost:8081" ],
     "notBefore" : 0,
     "bearerOnly" : false,

@@ -47,9 +47,10 @@ public class BookingServiceConfig {
     http.csrf(CsrfSpec::disable)
         .cors(withDefaults())
         .authorizeExchange(exchange -> exchange
-            .pathMatchers(HttpMethod.GET, "/actuator/**", "/api-docs", "/api-docs/**", "/swagger-ui/**").permitAll()
+            // passthrough for actuator and openapi/swagger
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/bookings/api-docs",
+                "/bookings/api-docs/**", "/bookings/swagger-ui/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
-            .pathMatchers("api/admin/bookings/**", "/api/admin/bookings").hasAuthority("ADMIN")
             .anyExchange()
             .authenticated()).oauth2ResourceServer(oauth2 ->
             oauth2.jwt(jwt ->
@@ -117,7 +118,7 @@ public class BookingServiceConfig {
   public Retry defaultEventServiceRetry(
       @Value("${event-service.retry.max.attempts:3}") long maxAttempts,
       @Value("${vent-service.duration.millis:500}") long durationInMillis,
-      @Value("${vent-service.jitter.factor:0.7D}")double jitterFactor
+      @Value("${event-service.jitter.factor:0.7D}")double jitterFactor
   ){
     return Retry.backoff(maxAttempts, Duration.ofMillis(durationInMillis))
         .filter(throwable -> throwable instanceof TimeoutException)
