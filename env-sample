@@ -1,0 +1,65 @@
+# Config Server
+#CONFIG_USERNAME=<optional, has defaults, used by event-service-config,api-gateway,booking-service,event-service,notification-service>
+#CONFIG_PASSWORD=<optional, has defaults, used same as above>
+
+# Discovery Service (Eureka)
+#DISCOVERY_USER=<optional, has defaults, used by all submodule services, in spring-profile=local_discovery>
+#DISCOVERY_PASSWORD=<optional, has defaults, used by all submodule services, in spring-profile=local_discovery>
+
+# Keycloak
+#KC_ADMIN=<optional, has defaults, used in keycloak and postgres containers>
+#KC_ADMIN_PASSWORD=<optional, has defaults, used in keycloak and postgres containers>
+
+#OAUTH2_CLIENT_ID=<optional, has defaults, used in keycloak container, openapi/swagger, api-gateway, booking-service, event-service, and notification-service>
+# secret must be manually set in the keycloak console
+# see https://help.zerto.com/bundle/Linux.ZVM.HTML.10.0_U1/page/Creating_Keycloak_Credentials.htm for example
+#OAUTH2_CLIENT_SECRET=<non-optional, has defaults, used in keycloak container, openapi/swagger, api-gateway, booking-service, event-service, and notification-service>
+
+# Postgres
+#PG_PASSWORD=<optional, has defaults, used in postgres and keycloak containers>
+
+# Bookings DB
+#BOOKINGS_ADMIN_DB_USER=<optional, has defaults, used in booking service>
+#BOOKINGS_ADMIN_DB_PASSWORD=<optional, has defaults, used in booking service>
+##BOOKINGS_DB_USER=<optional, has defaults, used in booking service>
+#BOOKINGS_DB_PASSWORD=<optional, has defaults, used in booking service>
+
+# Events DB
+#EVENTS_ADMIN_DB_USER=<optional, has defaults, used in event service>
+#EVENTS_ADMIN_DB_PASSWORD=<optional, has defaults, used in event service>
+#EVENTS_DB_USER=<optional, has defaults, used in event service>
+#EVENTS_DB_PASSWORD=<optional, has defaults, used in event service>
+
+#Notifications DB
+#NOTIFICATIONS_ADMIN_DB_USER=<optional, has defaults, used in notification service>
+#NOTIFICATIONS_ADMIN_DB_PASSWORD=<optional, has defaults, used in notification service>
+#NOTIFICATIONS_DB_USER=<optional, has defaults, used in notification service>
+#NOTIFICATIONS_DB_PASSWORD=<optional, has defaults, used in notification service>
+
+# Mail Server
+# See https://docs.spring.io/spring-framework/reference/integration/email.html
+#MAIL_HOST=<non-optional, used in notification service, needed for mail service>
+#MAIL_PORT=<non-optional, used in notification service, needed for mail service>
+#MAIL_USERNAME=<non-optional, used in notification service, needed for mail service>
+#MAIL_PASSWORD=<non-optional, used in notification service, needed for mail service>
+#MAIL_MESSAGE_FROM=<non-optional, used in notification service, needed for mail service>
+
+# REDIS
+#REDIS_PASSWORD=<optional, used by redis container and api-gateway>
+#REDIS_PORT=<optional, used by redis container and api-gateway, defaults to 6379>
+#REDIS_HOST=<optional, points to redis container and api-gateway, defaults to localhost>
+
+#ELK
+#ELASTIC_PASSWORD=<optional, used by multiple ELK containers>
+#KIBANA_PASSWORD=<optional, used by multiple ELK containers>
+#ELK_STACK_VERSION=<optional, used in all elk containers, defaults to 9.0.1>
+#ELK_CLUSTER_NAME=<optional, used in elasticsearch container, defaults to event-service-docker-cluster>
+#ELASTIC_LICENSE=<optional, used in elasticsearch container, defaults to basic>
+#ES_PORT=<optional, used in elasticsearch container, defaults to 127.0.0.1:9200 (recommended for local testing) >
+#KIBANA_PORT=<optional, used in kibana container, defaults to 5601>
+#ES_MEM_LIMIT=<optional, used in elasticsearch container, defaults to 1073741824>
+#KB_MEM_LIMIT=<optional, used in kibana container, defaults to 1073741824>
+#LS_MEM_LIMIT=<optional, used in logstash container, defaults to 536870912>
+#KIBANA_ENCRYPTION_KEY=<non-optional, used in kibana container.  must be at least 32 characters long>
+
+

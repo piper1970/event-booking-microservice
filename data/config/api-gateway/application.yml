@@ -7,14 +7,22 @@ api:
 csrf:enabled: false
 cors:allowedOrigin: "*"
 
-oauth2:
-  client:
-    id: event-service-client
-    secret: event-service-client-secret
-  provider:
-    base-uri: http://localhost:8180/realms/piper1970
+# OpenAPI/Swagger
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    config-url: /api-docs/swagger-config
+    urls:
+      - name: Event Service Gateway
+        url: /api-docs
+      - name: Booking Service
+        url: /bookings/api-docs
+      - name: Event Service
+        url: /events/api-docs
 
 spring:
+  # Database
   r2dbc.url: r2dbc:h2:mem:///authentication
 
   # Oauth2 security
@@ -23,11 +31,11 @@ spring:
       client:
         registration:
           event-service-client:
-            client-name: ${oauth2.client.id}
+            client-name: ${OAUTH2_CLIENT_ID:event-service-client}
             provider: keycloak
             authorization-grant-type: authorization_code
-            client-id: ${oauth2.client.id}
-            client-secret: ${oauth2.client.secret}
+            client-id: ${OAUTH2_CLIENT_ID:event-service-client}
+            client-secret: ${OAUTH2_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope: openid, profile, roles
         provider:
@@ -41,13 +49,29 @@ spring:
   # redis - for rate-limiting
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_password}
 
   # Routing
   cloud:
     gateway:
+      globalcors:
+        cors-configuration:
+          '[/**]':
+            allowed-origins:
+              - "http://localhost:${server.port}" # Gateway URL
+              - "http://localhost:8180" # Keycloak URL
+              - "http://localhost:8888"
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - OPTIONS
+              - HEAD
+            allowed-headers: "*"
+            allow-credentials: true
       default-filters:
         - name: RequestRateLimiter
           args:
@@ -62,11 +86,11 @@ spring:
         - id: booking-service
           uri: ${api.uri.booking-service}
           predicates:
-            - Path=/api/bookings/**,/api/bookings
+            - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
         - id: event-service
           uri: ${api.uri.event-service}
           predicates:
-            - Path=/api/events/**,/api/events
+            - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
         - id: notification-service
           uri: ${api.uri.notification-service}
           predicates:

@@ -1,7 +1,5 @@
 package piper1970.eventservice.config;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -22,7 +20,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
 import piper1970.eventservice.common.validation.validators.CustomFutureValidator;
@@ -42,13 +40,15 @@ public class EventServiceConfig {
   }
 
   @Bean
-  public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+  public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http,
+      CorsConfigurationSource corsConfigurationSource) {
     http.csrf(CsrfSpec::disable)
-        .cors(withDefaults())
+        .cors(cors -> cors.configurationSource(corsConfigurationSource)) // for Swagger Access via Api Endpoint
         .authorizeExchange(exchange -> exchange
-            .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
+            // passthrough for actuator and open-api/swagger
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/events/api-docs",
+                "/events/api-docs/**", "/events/swagger-ui/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
-            .pathMatchers("api/admin/events/**", "/api/admin/events").hasAuthority("ADMIN")
             .anyExchange()
             .authenticated())
         .oauth2ResourceServer(oauth2 ->
@@ -59,19 +59,19 @@ public class EventServiceConfig {
   }
 
   @Bean
-  public CorsWebFilter corsWebFilter() {
+  public CorsConfigurationSource corsConfigurationSource() {
 
     CorsConfiguration config = new CorsConfiguration();
     config.setAllowCredentials(true);
-    config.addAllowedOrigin("*");
-    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    config.addAllowedOriginPattern("*");
+    config.addAllowedHeader("*");
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     config.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);
 
-    return new CorsWebFilter(source);
+    return source;
   }
 
   @Bean

@@ -1,9 +1,18 @@
 package piper1970.bookingservice.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -26,10 +35,43 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/api/bookings")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Booking Controller")
 public class BookingController {
 
   private final BookingWebService bookingWebService;
 
+  @Operation(
+      summary = "Get all personal bookings for events that you've made",
+      responses = {
+          @ApiResponse(
+              responseCode = "200",
+              description = "found all personal bookings",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      array = @ArraySchema(schema = @Schema(implementation = BookingDto.class))
+                  )
+              }),
+          @ApiResponse(
+              responseCode = "401",
+              description = "Unauthorized. Click the Authorize button to use OAuth2 authorization",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "403",
+              description = "Forbidden. This section is not accessible with your current role",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          )
+      }
+  )
   @GetMapping
   @PreAuthorize("hasAuthority('MEMBER')")
   public Flux<BookingDto> getAllBookings(@AuthenticationPrincipal JwtAuthenticationToken token) {
@@ -41,10 +83,51 @@ public class BookingController {
     return bookingWebService.findBookingsByUsername(username);
   }
 
+  @Operation(
+      summary = "Get personal booking for event by id",
+      responses = {
+          @ApiResponse(
+              responseCode = "200",
+              description = "found personal booking",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      schema = @Schema(implementation = BookingDto.class)
+                  )
+              }),
+          @ApiResponse(
+              responseCode = "404",
+              description = "personal booking not found for given id",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "401",
+              description = "Unauthorized. Click the Authorize button to use OAuth2 authorization",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "403",
+              description = "Forbidden. This section is not accessible with your current role",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          )
+      }
+  )
   @GetMapping("/{id}")
   @PreAuthorize("hasAuthority('MEMBER')") // need to ensure proper user
   public Mono<BookingDto> getBookingById(@AuthenticationPrincipal JwtAuthenticationToken token,
-      @PathVariable Integer id) {
+      @Parameter(description = "id of booking to retrieve") @PathVariable Integer id) {
 
     var username = TokenUtilities.getUserFromToken(token);
 
@@ -53,11 +136,70 @@ public class BookingController {
     return bookingWebService.findBookingByIdAndUsername(id, username);
   }
 
+  @Operation(
+      summary = "Create new booking for given event id",
+      responses = {
+          @ApiResponse(
+              responseCode = "201",
+              description = "booking created for event",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      schema = @Schema(implementation = BookingDto.class)
+                  )
+              }),
+          @ApiResponse(
+              responseCode = "404",
+              description = "event not found for given eventId field",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "422",
+              description = "Attempt to create booking for event already in progress not allowed",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "401",
+              description = "Unauthorized. Click the Authorize button to use OAuth2 authorization",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "403",
+              description = "Forbidden. This section is not accessible with your current role",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          )
+      }
+  )
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasAuthority('MEMBER')")
   public Mono<BookingDto> createBooking(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
-      @Valid @RequestBody BookingCreateRequest createRequest) {
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          description = "json create-booking request",
+          content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @Schema(implementation = BookingCreateRequest.class),
+              examples = @ExampleObject(value = """
+                  {"eventId": 27}
+                  """
+              )
+          )
+      ) @Valid @RequestBody BookingCreateRequest createRequest) {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
     var email = TokenUtilities.getEmailFromToken(jwtToken);
@@ -74,11 +216,62 @@ public class BookingController {
     return bookingWebService.createBooking(createRequest, token);
   }
 
+  @Operation(
+      summary = "cancel personal booking to event",
+      responses = {
+          @ApiResponse(
+              responseCode = "200",
+              description = "booking has been successfully cancelled",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      schema = @Schema(implementation = BookingDto.class)
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "404",
+              description = "booking not found for given id",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "409",
+              description = "cannot cancel booking because event has already started",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "401",
+              description = "Unauthorized. Click the Authorize button to use OAuth2 authorization",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          ),
+          @ApiResponse(
+              responseCode = "403",
+              description = "Forbidden. This section is not accessible with your current role",
+              content = {
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE
+                  )
+              }
+          )
+      }
+  )
   @PatchMapping("/{id}/cancel")
   @ResponseStatus(HttpStatus.OK)
   @PreAuthorize("hasAuthority('MEMBER')")
   public Mono<BookingDto> cancel(@AuthenticationPrincipal JwtAuthenticationToken jwtToken,
-      @PathVariable Integer id) {
+      @Parameter(description = "id of booking to cancel") @PathVariable Integer id) {
 
     var user = TokenUtilities.getUserFromToken(jwtToken);
 

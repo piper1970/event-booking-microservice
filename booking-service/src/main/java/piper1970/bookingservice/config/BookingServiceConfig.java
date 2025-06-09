@@ -1,7 +1,5 @@
 package piper1970.bookingservice.config;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -22,7 +20,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import piper1970.eventservice.common.oauth2.extractors.GrantedAuthoritiesExtractor;
 import piper1970.eventservice.common.validation.validators.CustomFutureValidator;
@@ -43,13 +41,17 @@ public class BookingServiceConfig {
   }
 
   @Bean
-  public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+  public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http,
+      CorsConfigurationSource corsConfigurationSource) {
     http.csrf(CsrfSpec::disable)
-        .cors(withDefaults())
+        .cors(cors ->
+          cors.configurationSource(corsConfigurationSource)
+        )
         .authorizeExchange(exchange -> exchange
-            .pathMatchers(HttpMethod.GET, "/actuator/**").permitAll()
+            // passthrough for actuator and openapi/swagger
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/bookings/api-docs",
+                "/bookings/api-docs/**", "/bookings/swagger-ui/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
-            .pathMatchers("api/admin/bookings/**", "/api/admin/bookings").hasAuthority("ADMIN")
             .anyExchange()
             .authenticated()).oauth2ResourceServer(oauth2 ->
             oauth2.jwt(jwt ->
@@ -59,18 +61,18 @@ public class BookingServiceConfig {
   }
 
   @Bean
-  public CorsWebFilter corsWebFilter() {
+  public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
     config.setAllowCredentials(true);
-    config.addAllowedOrigin("*");
-    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    config.addAllowedOriginPattern("*");
+    config.addAllowedHeader("*");
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     config.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);
 
-    return new CorsWebFilter(source);
+    return source;
   }
 
   @Bean
@@ -117,7 +119,7 @@ public class BookingServiceConfig {
   public Retry defaultEventServiceRetry(
       @Value("${event-service.retry.max.attempts:3}") long maxAttempts,
       @Value("${vent-service.duration.millis:500}") long durationInMillis,
-      @Value("${vent-service.jitter.factor:0.7D}")double jitterFactor
+      @Value("${event-service.jitter.factor:0.7D}")double jitterFactor
   ){
     return Retry.backoff(maxAttempts, Duration.ofMillis(durationInMillis))
         .filter(throwable -> throwable instanceof TimeoutException)

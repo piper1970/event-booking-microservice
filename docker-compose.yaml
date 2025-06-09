@@ -57,8 +57,8 @@ services:
     image: redis:alpine3.21
     restart: always
     ports:
-      - '6379:6379'
-    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
+      - '${REDIS_PORT:-6379}:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD:-redis_password}
 
   zipkin:
     image: openzipkin/zipkin:3
@@ -77,8 +77,8 @@ services:
       KC_DB_PASSWORD: ${PG_PASSWORD:-postgres_password}
       KC_DB_URL_HOST: postgres
       KC_DB_URL_DATABASE: keycloak
-      KEYCLOAK_ADMIN: ${KC_ADMIN:-keycloak_admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-keycloak_password}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN:-keycloak_admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-keycloak_password}
       KC_HTTP_PORT: 8080
       KC_HTTP_RELATIVE_PATH: /
       KC_HTTP_ENABLED: true
@@ -181,22 +181,18 @@ services:
 ## Taken from docs at https://www.elastic.co/blog/getting-started-with-the-elastic-stack-and-docker-compose (with some mods) ##
   # Initialize Certs Separately
   setup-elk-certs-job:
-    image: elasticsearch:${ELK_STACK_VERSION}
+    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
     volumes:
       - elk-certs:/usr/share/elasticsearch/config/certs
       - ./data/certs/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD:-kibana_password}
     networks:
       - elk
     command: >
       bash -c '
-        if [ x${ELASTIC_PASSWORD} == x ]; then
-          echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
-          exit 1;
-        elif [ x${KIBANA_PASSWORD} == x ]; then
-          echo "Set the KIBANA_PASSWORD environment variable in the .env file";
-          exit 1;
-        fi;
         if [ ! -f config/certs/ca.zip ]; then
           echo "Creating CA";
           bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
@@ -218,21 +214,21 @@ services:
     depends_on:
       setup-elk-certs-job:
         condition: service_completed_successfully
-    image: elasticsearch:${ELK_STACK_VERSION}
+    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
     labels:
       co.elastic.logs/module: elasticsearch
     volumes:
       - elk-certs:/usr/share/elasticsearch/config/certs
       - es01-data:/usr/share/elasticsearch/data
     ports:
-      - ${ES_PORT}:9200
+      - ${ES_PORT:-127.0.0.1:9200}:9200
     networks:
       - elk
     environment:
       - node.name=es01
-      - cluster.name=${ELK_CLUSTER_NAME}
+      - cluster.name=${ELK_CLUSTER_NAME:-event-service-docker-cluster}
       - discovery.type=single-node
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
       - bootstrap.memory_lock=true
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -244,9 +240,9 @@ services:
       - xpack.security.transport.ssl.certificate=certs/es01/es01.crt
       - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
       - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.license.self_generated.type=${ELASTIC_LICENSE}
+      - xpack.license.self_generated.type=${ELASTIC_LICENSE:-basic}
       - xpack.ml.use_auto_machine_memory_percent=true
-    mem_limit: ${ES_MEM_LIMIT}
+    mem_limit: ${ES_MEM_LIMIT:-1073741824}
     ulimits:
       memlock:
         soft: -1
@@ -266,11 +262,14 @@ services:
     depends_on:
       es01:
         condition: service_healthy
-    image: elasticsearch:${ELK_STACK_VERSION}
+    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
     volumes:
       - elk-certs:/usr/share/elasticsearch/config/certs
     networks:
       - elk
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - KIBANA_PASSWORD={KIBANA_PASSWORD:-kibana_password}
     command: >
       bash -c '
         echo "Setting kibana_system password";
@@ -284,7 +283,7 @@ services:
         condition: service_healthy
       setup_kibana_user-job:
         condition: service_completed_successfully
-    image: kibana:${ELK_STACK_VERSION}
+    image: kibana:${ELK_STACK_VERSION:-9.0.1}
     labels:
       co.elastic.logs/module: kibana
     networks:
@@ -293,17 +292,17 @@ services:
       - elk-certs:/usr/share/kibana/config/certs
       - kibana-data:/usr/share/kibana/data
     ports:
-      - ${KIBANA_PORT}:5601
+      - ${KIBANA_PORT:-5601}:5601
     environment:
       - SERVERNAME=kibana
       - ELASTICSEARCH_HOSTS=https://es01:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-kibana_password}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
       - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
-    mem_limit: ${KB_MEM_LIMIT}
+    mem_limit: ${KB_MEM_LIMIT:-1073741824}
     healthcheck:
       test:
         [
@@ -320,7 +319,7 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
-    image: logstash:${ELK_STACK_VERSION}
+    image: logstash:${ELK_STACK_VERSION:-9.0.1}
     labels:
       co.elastic.logs/module: logstash
     networks:
@@ -334,9 +333,9 @@ services:
     environment:
       - xpack.monitoring.enabled=false
       - ELASTIC_USER=elastic
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
       - ELASTIC_HOSTS=https://es01:9200
-    mem_limit: ${LS_MEM_LIMIT}
+    mem_limit: ${LS_MEM_LIMIT:-536870912}
 
 # Optional kafka Control Center UI
 #  control-center:

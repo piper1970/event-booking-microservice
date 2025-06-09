@@ -3,6 +3,7 @@ package piper1970.notificationservice.kafka.listener;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ import reactor.util.retry.Retry;
 public class BookingCreatedListener extends AbstractListener {
 
   public static final String BOOKING_HAS_BEEN_CREATED_SUBJECT = "RE: Booking has been created";
+  private static final DateTimeFormatter EXPIRATION_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMMM dd, uuuu '@' hh:mm:ss a");
   private final BookingConfirmationRepository bookingConfirmationRepository;
   private final String confirmationUrl;
   private final Integer confirmationInMinutes;
@@ -82,7 +84,8 @@ public class BookingCreatedListener extends AbstractListener {
   }
 
   record BookingCreatedMessage(String username, String bookingLink,
-                               String eventLink, String confirmationLink) {
+                               String eventLink, String confirmationLink,
+                               String formattedExpirationDate) {
 
     public static String template() {
       return "booking-created.mustache";
@@ -96,12 +99,14 @@ public class BookingCreatedListener extends AbstractListener {
       var confirmToken = UUID.randomUUID();
       var confirmLink = confirmationUrl + "/" + confirmToken;
       log.debug("Consuming from BOOKING_CREATED topic. Confirm link created [{}]", confirmLink);
+      var confirmationDateTime = LocalDateTime.now(clock);
 
       var bookingId = Objects.requireNonNull(message.getBooking());
       BookingCreatedMessage props = new BookingCreatedMessage(
           bookingId.getUsername().toString(), buildBookingLink(bookingId.getId()),
           buildEventLink(message.getEventId()),
-          confirmLink
+          confirmLink,
+          confirmationDateTime.plusMinutes(confirmationInMinutes).format(EXPIRATION_DATE_TIME_FORMATTER)
       );
 
       var template = BookingCreatedMessage.template();
@@ -118,7 +123,7 @@ public class BookingCreatedListener extends AbstractListener {
           .confirmationString(confirmToken)
           .bookingEmail(bookingId.getEmail().toString())
           .bookingUser(bookingId.getUsername().toString())
-          .confirmationDateTime(LocalDateTime.now(clock))
+          .confirmationDateTime(confirmationDateTime)
           .durationInMinutes(confirmationInMinutes)
           .confirmationStatus(ConfirmationStatus.AWAITING_CONFIRMATION)
           .build();
