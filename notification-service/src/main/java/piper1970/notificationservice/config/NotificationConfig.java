@@ -138,8 +138,9 @@ public class NotificationConfig {
   public CorsWebFilter corsWebFilter() {
     CorsConfiguration config = new CorsConfiguration();
     config.setAllowCredentials(true);
-    config.addAllowedOrigin("*");
-    config.setAllowedMethods(List.of("GET"));
+    config.addAllowedOriginPattern("*");
+    config.addAllowedHeader("*");
+    config.setAllowedMethods(List.of("GET", "OPTIONS"));
     config.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
