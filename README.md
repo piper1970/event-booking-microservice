@@ -57,9 +57,9 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 
 ## Architecture Diagrams
 
-For a system-architecture diagram, see [System Architecture](./data/diagrams/system-architecture.mermaid).
+A system-architecture diagram can be found at [System Architecture](./data/diagrams/system-architecture.mermaid).
 
-For message-flow diagram, see [Message Flow](./data/diagrams/message-flow-diagram.mermaid).
+A message-flow diagram can be found at [Message Flow](./data/diagrams/message-flow-diagram.mermaid).
 
 ## Accessing API via Swagger
 
@@ -128,29 +128,26 @@ The following command will run all integration tests:
 
 **Note:** *these tests take some time*
 
-### Setting Up Databases For Each Service
+### Initializing the Postgres database tables.
 
-The postgres container in the docker-compose file runs the initialization bash shell scripts from the
-_./data/scripts_ directory.  Once done, it closes the container. The container will need to
-be restarted again.
-
-I suggest just doing the following command sequence initially to ensure the needed
-databases are set up prior to running the other containers:
-1. `docker compose up postgres -d` (_prime the database engine_)
-2. `docker compose down`
-3. `docker compose up -d`
+The postgres container in the docker-compose file runs the initialization shell scripts from the local
+_./data/scripts_ directory, initializing all databases and users needed both for keycloak and the three main microservices. 
+See [Database Initialization Scripts](./data/scripts).
 
 ### Setting Up Keycloak
 
-Initially, _keycloak_ is set to import settings from the file _./data/keycloak/piper1970-realm.json_.
+Initially, _keycloak_ is set to import settings from the file _./data/keycloak/piper1970-realm.json_. See [Imported Keycloak Realm](./data/keycloak/piper1970-realm.json).
 
 However, after the first run of the _keycloak_ container, it should rely on
-the _postgres_ database that holds the settings.
+the _postgres_ database that holds the settings.  
+Before running the system, credentials need to be made for the client, _**event-service-client**_, in the _**piper1970**_ realm.  
+Once the credentials have been made, they need to be stored in _**OAUTH2_CLIENT_SECRET**_ property in the _.env_ file in the project directory.
 
-__IMPORTANT__: Before running entire system, a client secret needs to be created for the primary client,
-_event-service-client_.  See [Defining user credentials](https://www.keycloak.org/docs/latest/server_admin/index.html#ref-user-credentials_server_administration_guide)
-for instructions on how to assign a client secret.
-Once this secret has been created, the **OAUTH2_CLIENT_SECRET** property in the _.env_ file needs to be set with the new value.
+See [Defining user credentials](https://www.keycloak.org/docs/latest/server_admin/index.html#ref-user-credentials_server_administration_guide)
+for instructions on how to assign a client secret.  
+
+To access the keycloak server, go to _**http://localhost:8180**_ and login with credentials stored in _.env_ file (_**KC_ADMIN**_ and _**KC_ADMIN_PASSWORD**_).  
+
 
 #### Current KeyCloak Setup
 
@@ -203,7 +200,7 @@ depending on which system you are running under. Run them from the project direc
 #### For Mac/Linux users (using Bash):
 - `export $(sed '/^$/d' .env | sed '/^#/d' | xargs)`
 
-#### For Windows Users (using Powershell)
+#### For Windows Users (using Powershell):
 - `Get-Content .env | Where-Object {$_ -match '\S' -and $_ -notmatch '^#'} | ForEach-Object {$name,$value = $_ -split '=',2; Set-Item "env:$name" $value}`
 
 Assuming all external containers are running via docker compose,
@@ -220,7 +217,7 @@ Also, consider using different shells for each service, with environment variabl
 4. event-service (using Eureka client for local discovery)
    1. `java -jar -Dspring.profiles.active=local_discovery ./event-service/target/event-service-0.0.1-SNAPSHOT.jar`
 5. notification-service (using Eureka client for local discovery)
-   1.`java -jar -Dspring.profiles.active=local_discovery ./notification-service/target/notification-service-0.0.1-SNAPSHOT.jar`
+   1. `java -jar -Dspring.profiles.active=local_discovery ./notification-service/target/notification-service-0.0.1-SNAPSHOT.jar`
 6. api-gateway (using Eureka client for local discovery)
    1. `java -jar -Dspring.profiles.active=local_discovery ./api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar`
 
