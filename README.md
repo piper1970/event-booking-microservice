@@ -18,20 +18,20 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 - **Resilience Patterns**: Circuit breaker, retries, and timeouts
 
 ## Services Overview
-1. **event-service**: Manages event information and creation
+1. **event-service**: Manages event information, creation and management
 2. **booking-service**: Handles booking requests associated with event-service events
-4. **notification-service**: Sends mock booking confirmation emails and other notification emails
-5. **event-service-gateway**: Routes client requests to appropriate services
-6. **discovery-server**: Provides service discovery for microservices
-7. **event-service-config**: Centralized configuration
+3. **notification-service**: Sends booking confirmations and other notifications via email
+4. **event-service-gateway**: API Frontend that routes client requests to appropriate services
+5. **discovery-server**: Provides service discovery for microservices
+6. **event-service-config**: Provides centralized configuration
 
 ## External Services Employed
 1. **postgres**: backend rdbms database system
 2. **redis**: low-latency caching used for rate-limiting in api-gateway
 3. **zipkin**: distributed log tracing across microservices
-4. **keycloak**: oauth2/openid authentication and authorization
+4. **keycloak**: oauth2/openid authentication and authorization server
 5. **kafka**: message broker for asynchronous microservice communication
-6. **schema-registry**: centralized schema management for kafka 
+6. **schema-registry**: centralized schema management server for kafka 
 7. **zookeeper**: kafka dependency for distributed configuration management
 8. **prometheus**: metrics monitoring
 9. **grafana**: visualization of metrics
@@ -52,12 +52,14 @@ This system a demonstrates a comprehensive event-driven microservices architectu
 - **TestContainers**: Usage of docker containers during integration tests
 - **Resilience4J**: Circuit breaking and fault tolerance
 - **Prometheus/Grafana**: Monitoring and Visualization
+- **Logstash/ElasticSearch/Kibana(ELK)**: Centralized log aggregation and searching
 - **OpenAPI/Swagger**: API Documentation and Test Access
 
 ## Architecture Diagrams
 
-For system-architecture diagrams, see [System Architecture](./data/diagrams/system-architecture.mermaid)
-For message-flow diagram, see [Message Flow](./data/diagrams/message-flow-diagram.mermaid)
+For a system-architecture diagram, see [System Architecture](./data/diagrams/system-architecture.mermaid).
+
+For message-flow diagram, see [Message Flow](./data/diagrams/message-flow-diagram.mermaid).
 
 ## Accessing API via Swagger
 
@@ -91,8 +93,7 @@ then the environmental properties will need to be set in the shell environment b
 The __.env__ file gets ignored by _git_, so there should be no worries over leaked properties.
 When running
 
-The following environmental variables need to be set prior to running the full app:
-- **CONFIG_USERNAME** : used by _event-service-config_, _api-gateway_, _booking-service_,
+See the __env-sample__ file in root directory for all possible environmental properties to use
 
 ### Building Maven Artifacts
 
@@ -151,7 +152,6 @@ _event-service-client_.  See [Defining user credentials](https://www.keycloak.or
 for instructions on how to assign a client secret.
 Once this secret has been created, the **OAUTH2_CLIENT_SECRET** property in the _.env_ file needs to be set with the new value.
 
-
 #### Current KeyCloak Setup
 
 The realm in use, piper1970, has 3 default users (user/pass are the same):
@@ -185,8 +185,44 @@ Once done running the application, it called be closed with the following:
 
 `docker compose down`
 
+## Running microservices locally
 
+_**Important**_: due to failfast logic tied to centralized configuration access, 
+other than the _discovery-server_ and _event-service-config_ modules, all other services
+may immediately fail until the _event-service-config_ is up and running.  
+This behavior is normal.  
+Just keep trying again until the microservice starts up normally.
 
+### Setting up environment from _.env_ file 
+
+Docker-Compose automatically extracts environment variables from the _.env_ file.  
+All microservices need to also be using the environment variables from the _.env_ file to stay in sync.  
+The following commands will load the environment variables from _.env_ into a shell environment,
+depending on which system you are running under. Run them from the project directory:
+
+#### For Mac/Linux users (using Bash):
+- `export $(sed '/^$/d' .env | sed '/^#/d' | xargs)`
+
+#### For Windows Users (using Powershell)
+- `Get-Content .env | Where-Object {$_ -match '\S' -and $_ -notmatch '^#'} | ForEach-Object {$name,$value = $_ -split '=',2; Set-Item "env:$name" $value}`
+
+Assuming all external containers are running via docker compose,
+the following commands should be run, in the given order, from the project directory.  
+For Windows users, make sure to adjust the paths to use backslashes instead of forward slashes.  
+Also, consider using different shells for each service, with environment variables set in each shell individually. It makes it much easier.
+
+1. discovery-server (running Eureka server for local discovery)
+   1. `java -jar -Dspring.profiles.active=local_discovery ./discovery-server/target/discovery-server-0.1.1-SNAPSHOT.jar`
+2. event-service-config (using profile `native` to using filesystem-based config backend)
+   1. `java -jar -Dspring.profiles.active=native,local_discovery ./event-service-config/target/event-service-config-0.0.1-SNAPSHOT.jar`
+3. booking-service (using Eureka client for local discovery)
+   1. `java -jar -Dspring.profiles.active=local_discovery ./booking-service/target/booking-service-0.0.1-SNAPSHOT.jar`
+4. event-service (using Eureka client for local discovery)
+   1. `java -jar -Dspring.profiles.active=local_discovery ./event-service/target/event-service-0.0.1-SNAPSHOT.jar`
+5. notification-service (using Eureka client for local discovery)
+   1.`java -jar -Dspring.profiles.active=local_discovery ./notification-service/target/notification-service-0.0.1-SNAPSHOT.jar`
+6. api-gateway (using Eureka client for local discovery)
+   1. `java -jar -Dspring.profiles.active=local_discovery ./api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar`
 
 
 
