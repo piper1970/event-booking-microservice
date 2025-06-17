@@ -1,0 +1,363 @@
+networks:
+  elk-full:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    name: "event-service-postgres-volume"
+  zookeeper-data:
+    name: "event-service-zookeeper-volume"
+  zookeeper-log:
+    name: "event-service-zookeeper-log-volume"
+  kafka-data:
+    name: "event-service-kafka-volume"
+  kafka-logs:
+    name: "event-service-kafka-logs-volume"
+  schema-registry-data:
+    name: "event-service-schema-registry-volume"
+  grafana-data:
+    name: "event-service-grafana-data"
+  elk-certs:
+    name: "event-service-elasticsearch-certs"
+  es01-data:
+    name: "event-service-elasticsearch-1-data"
+  kibana-data:
+    name: "event-service-kibana-data"
+  logstash-data:
+    name: "event-service-logstash-data"
+
+services:
+
+  #### External Services ####
+
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-postgres_password}
+      # needed for initdb shell scripts
+      KC_ADMIN: ${KC_ADMIN:-keycloak_admin}
+      KC_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-keycloak_password}
+      NOTIFICATIONS_ADMIN_DB_USER: ${NOTIFICATIONS_ADMIN_DB_USER:-notifications_admin_user}
+      NOTIFICATIONS_ADMIN_DB_PASSWORD: ${NOTIFICATIONS_ADMIN_DB_PASSWORD:-notifications_admin_password}
+      NOTIFICATIONS_DB_USER: ${NOTIFICATIONS_DB_USER:-notifications_user}
+      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:-notifications_password}
+      EVENTS_ADMIN_DB_USER: ${EVENTS_ADMIN_DB_USER:-events_admin_user}
+      EVENTS_ADMIN_DB_PASSWORD: ${EVENTS_ADMIN_DB_PASSWORD:-events_admin_password}
+      EVENTS_DB_USER: ${EVENTS_DB_USER:-events_user}
+      EVENTS_DB_PASSWORD: ${EVENTS_DB_PASSWORD:-events_password}
+      BOOKINGS_ADMIN_DB_USER: ${BOOKINGS_ADMIN_DB_USER:-bookings_admin_user}
+      BOOKINGS_ADMIN_DB_PASSWORD: ${BOOKINGS_ADMIN_DB_PASSWORD:-bookings_admin_password}
+      BOOKINGS_DB_USER: ${BOOKINGS_DB_USER:-bookings_user}
+      BOOKINGS_DB_PASSWORD: ${BOOKINGS_DB_PASSWORD:-bookings_password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./data/scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:alpine3.21
+    restart: always
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD:-redis_password}
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    restart: always
+    shm_size: 128mb
+    ports:
+      - "9411:9411"
+
+  keycloak:
+    image: keycloak/keycloak:26.1
+    ports:
+      - "8180:8080"
+    environment:
+      KC_DB: postgres
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: ${PG_PASSWORD:-postgres_password}
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN:-keycloak_admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-keycloak_password}
+      KC_HTTP_PORT: 8080
+      KC_HTTP_RELATIVE_PATH: /
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+    volumes:
+      - ./data/keycloak/:/opt/keycloak/data/import/
+    command:
+      - start-dev
+      - --import-realm
+    depends_on:
+      - postgres
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.9.0
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.9.0
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+      - kafka-logs:/tmp/kafka-logs
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.9.0
+    hostname: schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "9091:8081"
+    volumes:
+      - schema-registry-data:/usr/bin/confluent
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: curl --output /dev/null --silent --head --fail http://schema-registry:8081/subjects
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./data/prometheus/prometheus-local.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  # See https://hub.docker.com/r/grafana/grafana for initial user/pass requirements
+  grafana:
+    image: grafana/grafana:12.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - ./data/grafana:/etc/grafana/provisioning/datasources
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_USERS_ALLOW_SIGN_UP=false
+  
+
+#### Setup for ELK Logging Services ####
+
+## Taken from docs at https://www.elastic.co/blog/getting-started-with-the-elastic-stack-and-docker-compose (with some mods) ##
+  # Initialize Certs Separately
+  setup-elk-certs-job:
+    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
+    volumes:
+      - elk-certs:/usr/share/elasticsearch/config/certs
+      - ./data/certs/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
+    user: "0"
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD:-kibana_password}
+    networks:
+      - elk-full
+    command: >
+      bash -c '
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Creating CA";
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs";
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        echo "Setting file permissions";
+        chown -R 1000:0 config/certs;
+        # find . -type d -exec chmod 750 \{\} \;
+        # find . -type f -exec chmod 604 \{\} \;
+        echo "Done creating certs";
+      '
+
+
+  es01:
+    depends_on:
+      setup-elk-certs-job:
+        condition: service_completed_successfully
+    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
+    labels:
+      co.elastic.logs/module: elasticsearch
+    volumes:
+      - elk-certs:/usr/share/elasticsearch/config/certs
+      - es01-data:/usr/share/elasticsearch/data
+    ports:
+      - ${ES_PORT:-127.0.0.1:9200}:9200
+    networks:
+      - elk-full
+    environment:
+      - node.name=es01
+      - cluster.name=${ELK_CLUSTER_NAME:-event-service-docker-cluster}
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es01/es01.key
+      - xpack.security.http.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es01/es01.key
+      - xpack.security.transport.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${ELASTIC_LICENSE:-basic}
+      - xpack.ml.use_auto_machine_memory_percent=true
+    mem_limit: ${ES_MEM_LIMIT:-1073741824}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  # Need to setup kibana_user in elasticsearch through dedicated container, so 'command:...' doesn't interfere with logic of other containers
+  setup_kibana_user-job:
+    depends_on:
+      es01:
+        condition: service_healthy
+    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
+    volumes:
+      - elk-certs:/usr/share/elasticsearch/config/certs
+    networks:
+      - elk-full
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - KIBANA_PASSWORD={KIBANA_PASSWORD:-kibana_password}
+    command: >
+      bash -c '
+        echo "Setting kibana_system password";
+        until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
+        echo "All done!";
+      '
+
+
+  kibana:
+    depends_on:
+      es01:
+        condition: service_healthy
+      setup_kibana_user-job:
+        condition: service_completed_successfully
+    image: kibana:${ELK_STACK_VERSION:-9.0.1}
+    labels:
+      co.elastic.logs/module: kibana
+    networks:
+      - elk-full
+    volumes:
+      - elk-certs:/usr/share/kibana/config/certs
+      - kibana-data:/usr/share/kibana/data
+    ports:
+      - ${KIBANA_PORT:-5601}:5601
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-kibana_password}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+    mem_limit: ${KB_MEM_LIMIT:-1073741824}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  logstash:
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: logstash:${ELK_STACK_VERSION:-9.0.1}
+    labels:
+      co.elastic.logs/module: logstash
+    networks:
+      - elk-full
+    volumes:
+      - elk-certs:/usr/share/logstash/certs
+      - logstash-data:/usr/share/logstash/ingest_data/
+      - "./data/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
+      - "./logs/:/usr/share/logstash/ingest_data/"
+    command: logstash -f /usr/share/logstash/pipeline/logstash.conf
+    environment:
+      - xpack.monitoring.enabled=false
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - ELASTIC_HOSTS=https://es01:9200
+    mem_limit: ${LS_MEM_LIMIT:-536870912}
+
+
+  #### SPRING SERVICES ####
+  discovery-server:
+    image: local_image/discovery-server
+    build:
+      context: ./discovery-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=local_discovery,compose
+      - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
+      - DISCOVERY_USER=${DISCOVERY_USER}
+    healthcheck:
+      test: "curl --fail http://${DISCOVERY_USER}:${DISCOVERY_PASSWORD}@localhost:8089/actuator/health || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
