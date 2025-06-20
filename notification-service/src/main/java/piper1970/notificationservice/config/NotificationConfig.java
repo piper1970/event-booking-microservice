@@ -10,9 +10,11 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +23,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -154,6 +157,13 @@ public class NotificationConfig {
   //region Kafka Setup
 
   //region Kafka Topic Creation
+
+  @Bean
+  public KafkaAdmin admin(KafkaProperties kafkaProperties) {
+    Map<String, Object> config = new HashMap<>();
+    config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
+    return new KafkaAdmin(config);
+  }
 
   @Bean
   TopicCreater topicCreater() {

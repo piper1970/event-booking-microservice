@@ -5,9 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 
-@Profile("local_discovery")
+@Profile({"compose", "local_discovery"})
 @Configuration
 @EnableDiscoveryClient
 @Order(2)
-public class LocalDiscovery {
+public class DiscoveryConfig {
 }

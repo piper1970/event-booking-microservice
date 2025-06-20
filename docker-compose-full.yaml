@@ -1,6 +1,14 @@
 networks:
-  elk-full:
+  elk:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  full:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24
 
 volumes:
   postgres-data:
@@ -33,6 +41,8 @@ services:
   postgres:
     image: postgres:15
     restart: always
+    networks:
+      - full
     environment:
       POSTGRES_PASSWORD: ${PG_PASSWORD:-postgres_password}
       # needed for initdb shell scripts
@@ -59,6 +69,8 @@ services:
   redis:
     image: redis:alpine3.21
     restart: always
+    networks:
+      - full
     ports:
       - '${REDIS_PORT:-6379}:6379'
     command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD:-redis_password}
@@ -69,11 +81,16 @@ services:
     shm_size: 128mb
     ports:
       - "9411:9411"
+    networks:
+      - full
+
 
   keycloak:
     image: keycloak/keycloak:26.1
     ports:
       - "8180:8080"
+    networks:
+      - full
     environment:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
@@ -102,6 +119,8 @@ services:
     volumes:
       - zookeeper-data:/var/lib/zookeeper/data
       - zookeeper-log:/var/lib/zookeeper/log
+    networks:
+      - full
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
     healthcheck:
@@ -117,10 +136,12 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
       - kafka-logs:/tmp/kafka-logs
+    networks:
+      - full
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -137,6 +158,8 @@ services:
   schema-registry:
     image: confluentinc/cp-schema-registry:7.9.0
     hostname: schema-registry
+    networks:
+      - full
     depends_on:
       kafka:
         condition: service_healthy
@@ -162,6 +185,8 @@ services:
       - "9090:9090"
     volumes:
       - ./data/prometheus/prometheus-local.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - full
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
 
@@ -172,6 +197,8 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
+    networks:
+      - full
     volumes:
       - ./data/grafana:/etc/grafana/provisioning/datasources
       - grafana-data:/var/lib/grafana
@@ -189,11 +216,11 @@ services:
       - elk-certs:/usr/share/elasticsearch/config/certs
       - ./data/certs/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
+    networks:
+      - elk
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
       - KIBANA_PASSWORD=${KIBANA_PASSWORD:-kibana_password}
-    networks:
-      - elk-full
     command: >
       bash -c '
         if [ ! -f config/certs/ca.zip ]; then
@@ -221,13 +248,13 @@ services:
     image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
     labels:
       co.elastic.logs/module: elasticsearch
+    networks:
+      - elk
     volumes:
       - elk-certs:/usr/share/elasticsearch/config/certs
       - es01-data:/usr/share/elasticsearch/data
     ports:
       - "${ES_PORT:-127.0.0.1:9200}:9200"
-    networks:
-      - elk-full
     environment:
       - node.name=es01
       - cluster.name=${ELK_CLUSTER_NAME:-event-service-docker-cluster}
@@ -267,10 +294,10 @@ services:
       es01:
         condition: service_healthy
     image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
+    networks:
+      - elk
     volumes:
       - elk-certs:/usr/share/elasticsearch/config/certs
-    networks:
-      - elk-full
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
       - KIBANA_PASSWORD={KIBANA_PASSWORD:-kibana_password}
@@ -291,7 +318,7 @@ services:
     labels:
       co.elastic.logs/module: kibana
     networks:
-      - elk-full
+      - elk
     volumes:
       - elk-certs:/usr/share/kibana/config/certs
       - kibana-data:/usr/share/kibana/data
@@ -327,13 +354,12 @@ services:
     labels:
       co.elastic.logs/module: logstash
     networks:
-      - elk-full
+      - full
+      - elk
     volumes:
       - elk-certs:/usr/share/logstash/certs
-      - logstash-data:/usr/share/logstash/ingest_data/
-      - "./data/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
-      - "./logs/:/usr/share/logstash/ingest_data/"
-    command: logstash -f /usr/share/logstash/pipeline/logstash.conf
+      - "./data/logstash/logstash-compose.conf:/usr/share/logstash/pipeline/logstash-compose.conf:ro"
+    command: logstash -f /usr/share/logstash/pipeline/logstash-compose.conf
     environment:
       - xpack.monitoring.enabled=false
       - ELASTIC_USER=elastic
@@ -349,6 +375,8 @@ services:
       context: ./discovery-server
       dockerfile: Dockerfile
     restart: unless-stopped
+    networks:
+      - full
     environment:
       - SPRING_PROFILES_ACTIVE=local_discovery,compose
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -365,8 +393,12 @@ services:
       context: ./event-service-config
       dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "8888:8888"
+    networks:
+      - full
     environment:
-      - SPRING_PROFILES_ACTIVE=native,local_discovery,compose
+      - SPRING_PROFILES_ACTIVE=native,compose
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -380,6 +412,41 @@ services:
       retries: 3
     depends_on:
       discovery-server:
+        condition: service_healthy
+
+
+  notification-service:
+    image: local_image/notification-service
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - full
+    environment:
+      - SPRING_PROFILES_ACTIVE=compose
+      - CONFIG_USERNAME=${CONFIG_USERNAME}
+      - CONFIG_PASSWORD=${CONFIG_PASSWORD}
+      - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
+      - DISCOVERY_USER=${DISCOVERY_USER}
+      - OAUTH2_CLIENT_ID=${OAUTH2_CLIENT_ID}
+      - OAUTH2_CLIENT_SECRET=${OAUTH2_CLIENT_SECRET}
+      - NOTIFICATIONS_DB_USER=${NOTIFICATIONS_DB_USER}
+      - NOTIFICATIONS_DB_PASSWORD=${NOTIFICATIONS_DB_PASSWORD}
+      - NOTIFICATIONS_ADMIN_DB_USER=${NOTIFICATIONS_ADMIN_DB_USER}
+      - NOTIFICATIONS_ADMIN_DB_PASSWORD=${NOTIFICATIONS_ADMIN_DB_PASSWORD}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_MESSAGE_FROM=${MAIL_MESSAGE_FROM}
+    healthcheck:
+      test: "curl --output /dev/null --silent --head --fail http://localhost:8084/actuator/health || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      event-service-config:
         condition: service_healthy
 
 
