@@ -36,15 +36,11 @@ spring:
             authorization-grant-type: authorization_code
             client-id: ${OAUTH2_CLIENT_ID:event-service-client}
             client-secret: ${OAUTH2_CLIENT_SECRET}
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: "${oauth2.issuer.uri}/login/oauth2/code/{registrationId}"
             scope: openid, profile, roles
         provider:
           keycloak:
-            issuer-uri: ${oauth2.provider.base-uri}
-      resourceserver:
-        jwt:
-          jwk-set-uri: "${oauth2.provider.base-uri}/protocol/openid-connect/certs"
-          issuer-uri: ${oauth2.provider.base-uri}
+            issuer-uri: ${oauth2.issuer.uri}
 
   # redis - for rate-limiting
   data:
@@ -62,7 +58,7 @@ spring:
             allowed-origins:
               - "http://localhost:${server.port}" # Gateway URL
               - "http://localhost:8180" # Keycloak URL
-              - "http://localhost:8888"
+              - "http://localhost:8888" # Config URL
             allowed-methods:
               - GET
               - POST

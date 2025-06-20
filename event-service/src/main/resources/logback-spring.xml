@@ -63,4 +63,52 @@
     </root>
   </springProfile>
 
+  <springProfile name="compose">
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%green(%d{HH:mm:ss.SSS}) %boldBlue([%thread])
+        %highlight(%-5level) %cyan(%logger{36}) - %msg %n
+      </pattern>
+    </encoder>
+  </appender>
+
+  <appender name="STASH"
+    class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+    <destination>logstash:5044</destination>
+    <encoder
+      class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+      <providers>
+        <mdc/> <!-- MDC variables on the Thread will be written as JSON fields -->
+        <context/> <!--Outputs entries from logback's context -->
+        <version/> <!-- Logstash json format version, the @version field in the output -->
+        <logLevel/>
+        <loggerName/>
+
+        <pattern>
+          <pattern>
+            {
+            "serviceName": "event-service"
+            }
+          </pattern>
+        </pattern>
+
+        <threadName/>
+        <message/>
+        <logstashMarkers/>
+        <stackTrace/>
+      </providers>
+    </encoder>
+  </appender>
+
+  <logger name="piper1970.notification" level="DEBUG">
+    <appender-ref ref="STASH"/>
+    <appender-ref ref="STDOUT"/>
+  </logger>
+
+  <root level="INFO">
+    <appender-ref ref="STASH"/>
+    <appender-ref ref="STDOUT"/>
+  </root>
+</springProfile>
+
 </configuration>
