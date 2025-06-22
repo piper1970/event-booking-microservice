@@ -100,7 +100,7 @@
     </encoder>
   </appender>
 
-  <logger name="piper1970.notification" level="DEBUG">
+  <logger name="piper1970.eventservice" level="DEBUG">
     <appender-ref ref="STASH"/>
     <appender-ref ref="STDOUT"/>
   </logger>
