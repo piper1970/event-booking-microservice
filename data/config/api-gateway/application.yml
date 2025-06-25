@@ -1,9 +1,3 @@
-api:
-  uri:
-    booking-service: http://localhost:8083
-    event-service: http://localhost:8081
-    notification-service: http://localhost:8084
-
 csrf:enabled: false
 cors:allowedOrigin: "*"
 
@@ -25,29 +19,29 @@ spring:
   # Database
   r2dbc.url: r2dbc:h2:mem:///authentication
 
+  # redis - for rate-limiting
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD}
+
   # Oauth2 security
   security:
     oauth2:
       client:
         registration:
           event-service-client:
-            client-name: ${OAUTH2_CLIENT_ID:event-service-client}
+            client-name: ${OAUTH2_CLIENT_ID}
             provider: keycloak
             authorization-grant-type: authorization_code
-            client-id: ${OAUTH2_CLIENT_ID:event-service-client}
+            client-id: ${OAUTH2_CLIENT_ID}
             client-secret: ${OAUTH2_CLIENT_SECRET}
-            redirect-uri: "${oauth2.issuer.uri}/login/oauth2/code/{registrationId}"
+            redirect-uri: http://localhost:8180/realms/piper1970
             scope: openid, profile, roles
         provider:
           keycloak:
-            issuer-uri: ${oauth2.issuer.uri}
-
-  # redis - for rate-limiting
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:redis_password}
+            issuer-uri: http://localhost:8180/realms/piper1970
 
   # Routing
   cloud:
@@ -80,15 +74,15 @@ spring:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
       routes:
         - id: booking-service
-          uri: ${api.uri.booking-service}
+          uri: http://booking-service:8083
           predicates:
             - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
         - id: event-service
-          uri: ${api.uri.event-service}
+          uri: http://event-service:8081
           predicates:
             - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
         - id: notification-service
-          uri: ${api.uri.notification-service}
+          uri: http://notification-service:8084
           predicates:
             - Path=/api/notifications/**,/api/notifications
 

@@ -11,28 +11,28 @@ networks:
         - subnet: 172.20.1.0/24
 
 volumes:
-  postgres-data:
-    name: "event-service-postgres-volume"
-  zookeeper-data:
-    name: "event-service-zookeeper-volume"
-  zookeeper-log:
-    name: "event-service-zookeeper-log-volume"
-  kafka-data:
-    name: "event-service-kafka-volume"
-  kafka-logs:
-    name: "event-service-kafka-logs-volume"
-  schema-registry-data:
-    name: "event-service-schema-registry-volume"
-  grafana-data:
-    name: "event-service-grafana-data"
-  elk-certs:
-    name: "event-service-elasticsearch-certs"
-  es01-data:
-    name: "event-service-elasticsearch-1-data"
-  kibana-data:
-    name: "event-service-kibana-data"
-  logstash-data:
-    name: "event-service-logstash-data"
+  postgres-data-full:
+    name: "event-service-postgres-full-volume"
+  zookeeper-data-full:
+    name: "event-service-zookeeper-full-volume"
+  zookeeper-log-full:
+    name: "event-service-zookeeper-log-full-volume"
+  kafka-data-full:
+    name: "event-service-kafka-full-volume"
+  kafka-logs-full:
+    name: "event-service-kafka-logs-full-volume"
+  schema-registry-data-full:
+    name: "event-service-schema-registry-full-volume"
+  grafana-data-full:
+    name: "event-service-grafana-full-data"
+  elk-certs-full:
+    name: "event-service-elasticsearch-full-certs"
+  es01-data-full:
+    name: "event-service-elasticsearch-1-full-data"
+  kibana-data-full:
+    name: "event-service-kibana-full-data"
+  logstash-data-full:
+    name: "event-service-logstash-full-data"
 
 services:
 
@@ -44,24 +44,24 @@ services:
     networks:
       - full
     environment:
-      POSTGRES_PASSWORD: ${PG_PASSWORD:-postgres_password}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
       # needed for initdb shell scripts
-      KC_ADMIN: ${KC_ADMIN:-keycloak_admin}
-      KC_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-keycloak_password}
-      NOTIFICATIONS_ADMIN_DB_USER: ${NOTIFICATIONS_ADMIN_DB_USER:-notifications_admin_user}
-      NOTIFICATIONS_ADMIN_DB_PASSWORD: ${NOTIFICATIONS_ADMIN_DB_PASSWORD:-notifications_admin_password}
-      NOTIFICATIONS_DB_USER: ${NOTIFICATIONS_DB_USER:-notifications_user}
-      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:-notifications_password}
-      EVENTS_ADMIN_DB_USER: ${EVENTS_ADMIN_DB_USER:-events_admin_user}
-      EVENTS_ADMIN_DB_PASSWORD: ${EVENTS_ADMIN_DB_PASSWORD:-events_admin_password}
-      EVENTS_DB_USER: ${EVENTS_DB_USER:-events_user}
-      EVENTS_DB_PASSWORD: ${EVENTS_DB_PASSWORD:-events_password}
-      BOOKINGS_ADMIN_DB_USER: ${BOOKINGS_ADMIN_DB_USER:-bookings_admin_user}
-      BOOKINGS_ADMIN_DB_PASSWORD: ${BOOKINGS_ADMIN_DB_PASSWORD:-bookings_admin_password}
-      BOOKINGS_DB_USER: ${BOOKINGS_DB_USER:-bookings_user}
-      BOOKINGS_DB_PASSWORD: ${BOOKINGS_DB_PASSWORD:-bookings_password}
+      KC_ADMIN: ${KC_ADMIN}
+      KC_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      NOTIFICATIONS_ADMIN_DB_USER: ${NOTIFICATIONS_ADMIN_DB_USER}
+      NOTIFICATIONS_ADMIN_DB_PASSWORD: ${NOTIFICATIONS_ADMIN_DB_PASSWORD}
+      NOTIFICATIONS_DB_USER: ${NOTIFICATIONS_DB_USER}
+      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD}
+      EVENTS_ADMIN_DB_USER: ${EVENTS_ADMIN_DB_USER}
+      EVENTS_ADMIN_DB_PASSWORD: ${EVENTS_ADMIN_DB_PASSWORD}
+      EVENTS_DB_USER: ${EVENTS_DB_USER}
+      EVENTS_DB_PASSWORD: ${EVENTS_DB_PASSWORD}
+      BOOKINGS_ADMIN_DB_USER: ${BOOKINGS_ADMIN_DB_USER}
+      BOOKINGS_ADMIN_DB_PASSWORD: ${BOOKINGS_ADMIN_DB_PASSWORD}
+      BOOKINGS_DB_USER: ${BOOKINGS_DB_USER}
+      BOOKINGS_DB_PASSWORD: ${BOOKINGS_DB_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-full:/var/lib/postgresql/data
       - ./data/scripts:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
@@ -71,9 +71,7 @@ services:
     restart: always
     networks:
       - full
-    ports:
-      - '${REDIS_PORT:-6379}:6379'
-    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD:-redis_password}
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
 
   zipkin:
     image: openzipkin/zipkin:3
@@ -86,7 +84,7 @@ services:
 
 
   keycloak:
-    image: keycloak/keycloak:26.1
+    image: quay.io/keycloak/keycloak:26.1
     ports:
       - "8180:8080"
     networks:
@@ -94,16 +92,17 @@ services:
     environment:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
-      KC_DB_PASSWORD: ${PG_PASSWORD:-postgres_password}
+      KC_DB_PASSWORD: ${PG_PASSWORD}
       KC_DB_URL_HOST: postgres
       KC_DB_URL_DATABASE: keycloak
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN:-keycloak_admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-keycloak_password}
-      KC_HTTP_PORT: 8080
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
       KC_HTTP_RELATIVE_PATH: /
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
+#      KC_HOSTNAME_STRICT: false
+#      KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
       - ./data/keycloak/:/opt/keycloak/data/import/
     command:
@@ -114,11 +113,9 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.9.0
-    ports:
-      - "2181:2181"
     volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-log:/var/lib/zookeeper/log
+      - zookeeper-data-full:/var/lib/zookeeper/data
+      - zookeeper-log-full:/var/lib/zookeeper/log
     networks:
       - full
     environment:
@@ -131,11 +128,9 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.9.0
-    ports:
-      - "9092:9092"
     volumes:
-      - kafka-data:/var/lib/kafka/data
-      - kafka-logs:/tmp/kafka-logs
+      - kafka-data-full:/var/lib/kafka/data
+      - kafka-logs-full:/tmp/kafka-logs
     networks:
       - full
     environment:
@@ -163,10 +158,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    ports:
-      - "9091:8081"
     volumes:
-      - schema-registry-data:/usr/bin/confluent
+      - schema-registry-data-full:/usr/bin/confluent
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
@@ -181,10 +174,8 @@ services:
     image: prom/prometheus:v3.4.0
     container_name: prometheus
     restart: unless-stopped
-    ports:
-      - "9090:9090"
     volumes:
-      - ./data/prometheus/prometheus-local.yml:/etc/prometheus/prometheus.yml
+      - ./data/prometheus/prometheus-compose.yml:/etc/prometheus/prometheus.yml
     networks:
       - full
     command:
@@ -201,7 +192,7 @@ services:
       - full
     volumes:
       - ./data/grafana:/etc/grafana/provisioning/datasources
-      - grafana-data:/var/lib/grafana
+      - grafana-data-full:/var/lib/grafana
     environment:
       - GF_USERS_ALLOW_SIGN_UP=false
   
@@ -211,16 +202,16 @@ services:
 ## Taken from docs at https://www.elastic.co/blog/getting-started-with-the-elastic-stack-and-docker-compose (with some mods) ##
   # Initialize Certs Separately
   setup-elk-certs-job:
-    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
+    image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
-      - elk-certs:/usr/share/elasticsearch/config/certs
+      - elk-certs-full:/usr/share/elasticsearch/config/certs
       - ./data/certs/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
     networks:
       - elk
     environment:
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
-      - KIBANA_PASSWORD=${KIBANA_PASSWORD:-kibana_password}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD}
     command: >
       bash -c '
         if [ ! -f config/certs/ca.zip ]; then
@@ -245,21 +236,21 @@ services:
     depends_on:
       setup-elk-certs-job:
         condition: service_completed_successfully
-    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
+    image: elasticsearch:${ELK_STACK_VERSION}
     labels:
       co.elastic.logs/module: elasticsearch
     networks:
       - elk
     volumes:
-      - elk-certs:/usr/share/elasticsearch/config/certs
-      - es01-data:/usr/share/elasticsearch/data
+      - elk-certs-full:/usr/share/elasticsearch/config/certs
+      - es01-data-full:/usr/share/elasticsearch/data
     ports:
-      - "${ES_PORT:-127.0.0.1:9200}:9200"
+      - "127.0.0.1:9200:9200"
     environment:
       - node.name=es01
-      - cluster.name=${ELK_CLUSTER_NAME:-event-service-docker-cluster}
+      - cluster.name=${ELK_CLUSTER_NAME}
       - discovery.type=single-node
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - bootstrap.memory_lock=true
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -271,9 +262,9 @@ services:
       - xpack.security.transport.ssl.certificate=certs/es01/es01.crt
       - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
       - xpack.security.transport.ssl.verification_mode=certificate
-      - xpack.license.self_generated.type=${ELASTIC_LICENSE:-basic}
+      - xpack.license.self_generated.type=${ELASTIC_LICENSE}
       - xpack.ml.use_auto_machine_memory_percent=true
-    mem_limit: ${ES_MEM_LIMIT:-1073741824}
+    mem_limit: 1073741824
     ulimits:
       memlock:
         soft: -1
@@ -288,19 +279,19 @@ services:
       timeout: 10s
       retries: 120
 
-  # Need to setup kibana_user in elasticsearch through dedicated container, so 'command:...' doesn't interfere with logic of other containers
+  # Need to set up kibana_user in elasticsearch through dedicated container, so 'command:...' doesn't interfere with logic of other containers
   setup_kibana_user-job:
     depends_on:
       es01:
         condition: service_healthy
-    image: elasticsearch:${ELK_STACK_VERSION:-9.0.1}
+    image: elasticsearch:${ELK_STACK_VERSION}
     networks:
       - elk
     volumes:
-      - elk-certs:/usr/share/elasticsearch/config/certs
+      - elk-certs-full:/usr/share/elasticsearch/config/certs
     environment:
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
-      - KIBANA_PASSWORD={KIBANA_PASSWORD:-kibana_password}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - KIBANA_PASSWORD={KIBANA_PASSWORD}
     command: >
       bash -c '
         echo "Setting kibana_system password";
@@ -314,26 +305,26 @@ services:
         condition: service_healthy
       setup_kibana_user-job:
         condition: service_completed_successfully
-    image: kibana:${ELK_STACK_VERSION:-9.0.1}
+    image: kibana:${ELK_STACK_VERSION}
     labels:
       co.elastic.logs/module: kibana
     networks:
       - elk
     volumes:
-      - elk-certs:/usr/share/kibana/config/certs
-      - kibana-data:/usr/share/kibana/data
+      - elk-certs-full:/usr/share/kibana/config/certs
+      - kibana-data-full:/usr/share/kibana/data
     ports:
-      - "${KIBANA_PORT:-5601}:5601"
+      - "5601:5601"
     environment:
       - SERVERNAME=kibana
       - ELASTICSEARCH_HOSTS=https://es01:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-kibana_password}
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
       - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
-    mem_limit: ${KB_MEM_LIMIT:-1073741824}
+    mem_limit: 1073741824
     healthcheck:
       test:
         [
@@ -350,22 +341,22 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
-    image: logstash:${ELK_STACK_VERSION:-9.0.1}
+    image: logstash:${ELK_STACK_VERSION}
     labels:
       co.elastic.logs/module: logstash
     networks:
       - full
       - elk
     volumes:
-      - elk-certs:/usr/share/logstash/certs
-      - "./data/logstash/logstash-compose.conf:/usr/share/logstash/pipeline/logstash-compose.conf:ro"
-    command: logstash -f /usr/share/logstash/pipeline/logstash-compose.conf
+      - elk-certs-full:/usr/share/logstash/certs
+      - "./data/logstash/logstash-compose.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
+    command: logstash -f /usr/share/logstash/pipeline/logstash.conf
     environment:
       - xpack.monitoring.enabled=false
       - ELASTIC_USER=elastic
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_HOSTS=https://es01:9200
-    mem_limit: ${LS_MEM_LIMIT:-536870912}
+    mem_limit: 536870912
 
 
   #### SPRING SERVICES ####
@@ -393,8 +384,6 @@ services:
       context: ./event-service-config
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "8888:8888"
     networks:
       - full
     environment:
@@ -506,7 +495,46 @@ services:
       retries: 5
       start_period: 60s
     depends_on:
+      discovery-server:
+        condition: service_healthy
       event-service-config:
+        condition: service_healthy
+
+  api-gateway:
+    image: local_image/api-gateway
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - full
+    environment:
+      - SPRING_PROFILES_ACTIVE=compose
+      - CONFIG_USERNAME=${CONFIG_USERNAME}
+      - CONFIG_PASSWORD=${CONFIG_PASSWORD}
+      - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
+      - DISCOVERY_USER=${DISCOVERY_USER}
+      - OAUTH2_CLIENT_ID=${OAUTH2_CLIENT_ID}
+      - OAUTH2_CLIENT_SECRET=${OAUTH2_CLIENT_SECRET}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    healthcheck:
+      test: "curl --silent --fail http://localhost:8080/actuator/health | grep UP  || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      event-service-config:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+      event-service:
+        condition: service_healthy
+      notification-service:
         condition: service_healthy
 
 

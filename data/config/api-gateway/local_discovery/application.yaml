@@ -1,7 +1,25 @@
-api:
-  uri:
-    booking-service: lb://booking-service
-    event-service: lb://event-service
+# Routing
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: booking-service
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
+        - id: event-service
+          uri: lb://event-service
+          predicates:
+            - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**,/api/notifications
+
+
+
+
+
 
 
 

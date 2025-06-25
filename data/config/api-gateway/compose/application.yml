@@ -1,0 +1,39 @@
+# Redis (for ratelimiter)
+spring:
+  data:
+    redis:
+      host: redis
+
+  # Security
+  security:
+    oauth2:
+      client:
+        registration:
+          event-service-client:
+            redirect-uri: http://keycloak:8080/realms/piper1970
+        provider:
+          keycloak:
+            issuer-uri: http://keycloak:8080/realms/piper1970
+
+  # API Gateway
+  cloud:
+    gateway:
+      cors-configuration:
+        '[/**]':
+          allowed-origins:
+            - "http://localhost:${server.port}" # local Gateway URL
+            - "http://keycloak:8080" # Keycloak container
+            - "http://event-service-config:8888" # Config container
+    routes:
+      - id: booking-service
+        uri: lb://booking-service
+        predicates:
+          - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
+      - id: event-service
+        uri: lb://event-service
+        predicates:
+          - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
+      - id: notification-service
+        uri: lb://notification-service
+        predicates:
+          - Path=/api/notifications/**,/api/notifications
