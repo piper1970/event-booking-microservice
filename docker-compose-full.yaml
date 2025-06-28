@@ -101,8 +101,8 @@ services:
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
-#      KC_HOSTNAME_STRICT: false
-#      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HOSTNAME: http://keycloak:8180 # using external port, 8180
+      KC_HOSTNAME_STRICT: false
     volumes:
       - ./data/keycloak/:/opt/keycloak/data/import/
     command:
