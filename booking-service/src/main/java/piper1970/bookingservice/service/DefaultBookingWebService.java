@@ -176,6 +176,12 @@ public class DefaultBookingWebService implements BookingWebService {
   /// Handles logic of getting event from event-service, verifying timeframe, and sending
   /// appropriate kafka messages
   private Mono<BookingDto> handleCancellationLogic(Booking booking, String token) {
+
+    // Prevent multiple cancellations of same booking (can update state of the event's availableBookings field)
+    if(BookingStatus.CANCELLED == booking.getBookingStatus()) {
+      return Mono.error(new BookingCancellationException("Booking has already been cancelled"));
+    }
+
     return eventRequestService.requestEvent(booking.getEventId(), token)
         .filter(dto ->
             EventStatus.AWAITING == dto.getEventStatus())
