@@ -86,7 +86,7 @@ services:
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
-      - ./data/keycloak/:/opt/keycloak/data/import/
+      - ./data/keycloak/default/:/opt/keycloak/data/import/
     command:
       - start-dev
       - --import-realm

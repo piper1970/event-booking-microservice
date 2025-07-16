@@ -30,8 +30,8 @@ import io.swagger.v3.oas.annotations.servers.Server;
     bearerFormat = "JWT",
     in = SecuritySchemeIn.HEADER,
     flows = @OAuthFlows(authorizationCode = @OAuthFlow(
-        authorizationUrl = "${oauth2.resourceserver.auth.url}",
-        tokenUrl = "${oauth2.resourceserver.token.url}",
+        authorizationUrl = "${open-api.oauth2.resourceserver.auth.url}",
+        tokenUrl = "${open-api.oauth2.resourceserver.token.url}",
         scopes = {
             @OAuthScope(name = "openid", description = "openid scope")
         }
