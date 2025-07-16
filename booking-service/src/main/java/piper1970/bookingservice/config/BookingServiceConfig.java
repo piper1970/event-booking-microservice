@@ -49,8 +49,8 @@ public class BookingServiceConfig {
         )
         .authorizeExchange(exchange -> exchange
             // passthrough for actuator and openapi/swagger
-            .pathMatchers(HttpMethod.GET, "/actuator/**", "/bookings/api-docs",
-                "/bookings/api-docs/**", "/bookings/swagger-ui/**").permitAll()
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/v3/api-docs",
+                "/v3/api-docs/**","/v3/swagger-ui", "/v3/swagger-ui/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
             .anyExchange()
             .authenticated()).oauth2ResourceServer(oauth2 ->

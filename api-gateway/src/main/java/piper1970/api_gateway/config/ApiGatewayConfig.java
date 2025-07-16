@@ -60,9 +60,7 @@ public class ApiGatewayConfig {
           .pathMatchers("/eureka/**").permitAll()
           // passthrough on actuator, openapi/swagger and open/api swagger for events and bookings
           .pathMatchers(HttpMethod.GET, "/actuator/**", "/api/notifications/confirm/**",
-              "/api-docs/","/api-docs/**", "/swagger-ui/**",
-              "/bookings/api-docs", "/bookings/api-docs/**",
-              "/events/api-docs"," /events/api-docs/**").permitAll()
+              "/v3/api-docs", "/v3/api-docs/**", "/v3/swagger-ui", "/v3/swagger-ui/**").permitAll()
           .pathMatchers("/oauth2/**").permitAll()
           .anyExchange()
           .authenticated();

@@ -46,8 +46,8 @@ public class EventServiceConfig {
         .cors(cors -> cors.configurationSource(corsConfigurationSource)) // for Swagger Access via Api Endpoint
         .authorizeExchange(exchange -> exchange
             // passthrough for actuator and open-api/swagger
-            .pathMatchers(HttpMethod.GET, "/actuator/**", "/events/api-docs",
-                "/events/api-docs/**", "/events/swagger-ui/**").permitAll()
+            .pathMatchers(HttpMethod.GET, "/actuator/**", "/v3/api-docs",
+                "/v3/api-docs/**", "/v3/swagger-ui", "/v3/swagger-ui/**").permitAll()
             .pathMatchers(HttpMethod.OPTIONS, "*").permitAll()
             .anyExchange()
             .authenticated())
