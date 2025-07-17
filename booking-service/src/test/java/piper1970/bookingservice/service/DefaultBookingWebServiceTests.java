@@ -476,8 +476,6 @@ class DefaultBookingWebServiceTests {
   @DisplayName("cancelBooking should throw BookingCancellationException if the booking event is in progress")
   void cancelBooking_validation_fails_booking_already_cancelled() {
 
-    mockClock();
-
     var booking = createBooking(BookingParams.of(bookingId, eventId, token))
         .withBookingStatus(BookingStatus.CANCELLED);
 
