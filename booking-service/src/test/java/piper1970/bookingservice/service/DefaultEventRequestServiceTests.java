@@ -37,6 +37,7 @@ import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableException;
 import piper1970.eventservice.common.events.dto.EventDto;
 import piper1970.eventservice.common.exceptions.EventForbiddenException;
+import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
 import piper1970.eventservice.common.exceptions.UnknownCauseException;
 import reactor.core.publisher.Mono;
@@ -95,8 +96,7 @@ class DefaultEventRequestServiceTests {
   /// - webClient returns Forbidden(403) response status -> returns Mono with ForbiddenException
   /// - webClient returns Unauthorized(401) response status -> returns Mono with
   /// UnauthorizedException
-  /// - webClient returns Not_Found(404) -> returns empty Mong -> error handling propagates to
-  /// caller for this
+  /// - webClient returns Not_Found(404) -> returns error Mono with EventNotFoundException
   /// - webclient returns other 400-ish response status -> returns Mono with UnknownCauseException
   /// - webClient times out -> returns Mono with EventRequestServiceTimeoutException
   /// - webClient returns no errors -> Mono with Event returned to caller
@@ -147,7 +147,7 @@ class DefaultEventRequestServiceTests {
   }
 
   @Test
-  @DisplayName("requestEvent should empty Mono if call to webClient returns status code 404 (Not Found)")
+  @DisplayName("requestEvent should return EventNotFound exception if call to webClient returns status code 404 (Not Found)")
   void requestEvent_webClientReturns404() {
     var bToken = "Bearer " + token;
 
@@ -158,7 +158,7 @@ class DefaultEventRequestServiceTests {
     );
 
     StepVerifier.create(requestService.requestEvent(eventId, token))
-        .verifyComplete();
+        .verifyError(EventNotFoundException.class);
   }
 
   @Test
