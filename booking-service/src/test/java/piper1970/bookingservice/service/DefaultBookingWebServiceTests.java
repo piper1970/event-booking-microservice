@@ -414,6 +414,7 @@ class DefaultBookingWebServiceTests {
   /// - can't find booking -> throws BookingNotFoundException
   /// - timeout when trying to find booking -> throws BookingTimeoutException
   /// - validation failure - event still in progress -> throws BookingCancellationException
+  /// - validation failure - booking already cancelled -> throws BookingCancellationException
   /// - call to event-request-service returns error -> error passes through to caller
   /// - timeout when trying to delete booking -> throws BookingTimeoutException
   /// - successfully found and delete booking without failing validations -> returns void
@@ -450,7 +451,7 @@ class DefaultBookingWebServiceTests {
   }
 
   @Test
-  @DisplayName("cancelBooking should throw BookingDeletionException if the booking event is in progress")
+  @DisplayName("cancelBooking should throw BookingCancellationException if the booking event is in progress")
   void cancelBooking_validation_fails_event_still_in_progress() {
 
     mockClock();
@@ -464,6 +465,22 @@ class DefaultBookingWebServiceTests {
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
+
+    when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
+
+    StepVerifier.create(webService.cancelBooking(bookingId, username, token))
+        .verifyError(BookingCancellationException.class);
+  }
+
+  @Test
+  @DisplayName("cancelBooking should throw BookingCancellationException if the booking event is in progress")
+  void cancelBooking_validation_fails_booking_already_cancelled() {
+
+    var booking = createBooking(BookingParams.of(bookingId, eventId, token))
+        .withBookingStatus(BookingStatus.CANCELLED);
+
+    when(bookingRepository.findByIdAndUsername(bookingId, username))
+        .thenReturn(Mono.just(booking));
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 

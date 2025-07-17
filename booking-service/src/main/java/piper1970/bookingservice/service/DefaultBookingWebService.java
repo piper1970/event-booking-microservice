@@ -20,7 +20,6 @@ import piper1970.eventservice.common.bookings.messages.BookingCancelled;
 import piper1970.eventservice.common.bookings.messages.BookingCreated;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.events.status.EventStatus;
-import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.exceptions.KafkaPostingException;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
@@ -119,13 +118,13 @@ public class DefaultBookingWebService implements BookingWebService {
   public Mono<BookingDto> createBooking(BookingCreateRequest createRequest, String token) {
 
     return eventRequestService.requestEvent(createRequest.getEventId(), token)
-        .switchIfEmpty(Mono.error(
-            new EventNotFoundException(createEventNotFountMessage(createRequest.getEventId()))))
+        // don't book requests if event is already in progress or completed/cancelled
         .filter(dto ->
             dto.getAvailableBookings() >= 1
                 && EventStatus.AWAITING == dto.getEventStatus())
         .switchIfEmpty(Mono.error(new BookingCreationException(
             "Unable to create booking for event that has already started")))
+        // save booking from event request to db
         .flatMap(dto -> {
           var eventId = dto.getId();
           var username = createRequest.getUsername();
@@ -143,6 +142,7 @@ public class DefaultBookingWebService implements BookingWebService {
                   .onErrorResume(ex -> handleRepositoryTimeout(ex, "saving book"));
             }
         )
+        // post kafka booking-created message
         .flatMap(booking -> {
           var dto = bookingMapper.entityToDto(booking);
           var bookingCreatedMessage = createBookingCreatedMessage(dto);
@@ -176,6 +176,12 @@ public class DefaultBookingWebService implements BookingWebService {
   /// Handles logic of getting event from event-service, verifying timeframe, and sending
   /// appropriate kafka messages
   private Mono<BookingDto> handleCancellationLogic(Booking booking, String token) {
+
+    // Prevent multiple cancellations of same booking (can update state of the event's availableBookings field)
+    if(BookingStatus.CANCELLED == booking.getBookingStatus()) {
+      return Mono.error(new BookingCancellationException("Booking has already been cancelled"));
+    }
+
     return eventRequestService.requestEvent(booking.getEventId(), token)
         .filter(dto ->
             EventStatus.AWAITING == dto.getEventStatus())
@@ -278,10 +284,6 @@ public class DefaultBookingWebService implements BookingWebService {
   private String provideTimeoutErrorMessage(String subMessage) {
     return String.format("Booking repository timed out [over %d milliseconds] %s",
         bookingRepositoryTimeoutInMilliseconds, subMessage);
-  }
-
-  private String createEventNotFountMessage(Integer eventId) {
-    return String.format("Event [%d] not found", eventId);
   }
 
   private BookingId dtoToBookingId(BookingDto dto) {
