@@ -1,13 +1,11 @@
-package piper1970.notificationservice.config;
+package piper1970.eventservice.config;
 
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.annotation.Order;
 
-@Profile("local_discovery")
+@Profile({"local_discovery", "compose"})
 @Configuration
 @EnableDiscoveryClient
-@Order(2)
-public class LocalDiscovery {
+public class DiscoveryConfig {
 }

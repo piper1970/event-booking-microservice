@@ -1,0 +1,57 @@
+api:
+  uri:
+    booking-service: lb://booking-service
+    event-service: lb://event-service
+    notification-service: lb://notification-service
+
+# Redis (for ratelimiter)
+spring:
+  data:
+    redis:
+      host: redis
+
+  # Security
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            jwk-set-uri: http://keycloak:8080/realms/piper1970/protocol/openid-connect/certs # must be 8080
+            authorization-uri: http://keycloak:8180/realms/piper1970/protocol/openid-connect/auth # must be 8180
+            token-uri: http://keycloak:8080/realms/piper1970/protocol/openid-connect/token # must be 8080
+            user-info-uri: http://keycloak:8080/realms/piper1970/protocol/openid-connect/userinfo  # must be 8080
+
+  # API Gateway
+  cloud:
+    gateway:
+      cors-configuration:
+        '[/**]':
+          allowed-origins:
+            - "http://localhost:${server.port}" # local Gateway URL
+            - "http://keycloak:8080" # Keycloak container
+            - "http://event-service-config:8888" # Config container
+    routes:
+      - id: booking-service
+        uri: ${api.uri.booking-service}
+        predicates:
+          - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
+      - id: event-service
+        uri: ${api.uri.event-service}
+        predicates:
+          - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
+      - id: notification-service
+        uri: ${api.uri.notification-service}
+        predicates:
+          - Path=/api/notifications/**,/api/notifications
+      - id: booking-service-openapi
+        uri: ${api.uri.booking-service}
+        predicates:
+          - Path=/v3/api-docs/bookings
+        filters:
+          - RewritePath=/v3/api-docs/bookings,/v3/api-docs
+      - id: event-service-openapi
+        uri: ${api.uri.event-service}
+        predicates:
+          - Path=/v3/api-docs/events
+        filters:
+          - RewritePath=/v3/api-docs/events,/v3/api-docs

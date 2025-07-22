@@ -18,5 +18,4 @@ public class OpenApiConfig {
         .version("1.0")
         .description("API Gateway for Event Service and Booking Service"));
   }
-
 }

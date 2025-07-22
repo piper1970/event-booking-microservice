@@ -10,20 +10,29 @@ cors:allowedOrigin: "*"
 # OpenAPI/Swagger
 springdoc:
   api-docs:
-    path: /api-docs
+    path: /v3/api-docs
   swagger-ui:
-    config-url: /api-docs/swagger-config
+    path: /v3/swagger-ui/index.html
+    config-url: /v3/api-docs/swagger-config
+    urlsPrimaryName: Event Service Gateway
     urls:
       - name: Event Service Gateway
-        url: /api-docs
+        url: /v3/api-docs
       - name: Booking Service
-        url: /bookings/api-docs
+        url: /v3/api-docs/bookings
       - name: Event Service
-        url: /events/api-docs
+        url: /v3/api-docs/events
 
 spring:
   # Database
   r2dbc.url: r2dbc:h2:mem:///authentication
+
+  # redis - for rate-limiting
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD}
 
   # Oauth2 security
   security:
@@ -31,27 +40,20 @@ spring:
       client:
         registration:
           event-service-client:
-            client-name: ${OAUTH2_CLIENT_ID:event-service-client}
+            client-name: ${OAUTH2_CLIENT_ID}
             provider: keycloak
             authorization-grant-type: authorization_code
-            client-id: ${OAUTH2_CLIENT_ID:event-service-client}
+            client-id: ${OAUTH2_CLIENT_ID}
             client-secret: ${OAUTH2_CLIENT_SECRET}
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
             scope: openid, profile, roles
         provider:
           keycloak:
-            issuer-uri: ${oauth2.provider.base-uri}
-      resourceserver:
-        jwt:
-          jwk-set-uri: "${oauth2.provider.base-uri}/protocol/openid-connect/certs"
-          issuer-uri: ${oauth2.provider.base-uri}
-
-  # redis - for rate-limiting
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:redis_password}
+            jwk-set-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/certs
+            authorization-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/auth
+            token-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/token
+            user-info-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/userinfo
+            user-name-attribute: sub
 
   # Routing
   cloud:
@@ -62,7 +64,7 @@ spring:
             allowed-origins:
               - "http://localhost:${server.port}" # Gateway URL
               - "http://localhost:8180" # Keycloak URL
-              - "http://localhost:8888"
+              - "http://localhost:8888" # Config URL
             allowed-methods:
               - GET
               - POST
@@ -95,6 +97,18 @@ spring:
           uri: ${api.uri.notification-service}
           predicates:
             - Path=/api/notifications/**,/api/notifications
+        - id: booking-service-openapi
+          uri: ${api.uri.booking-service}
+          predicates:
+            - Path=/v3/api-docs/bookings
+          filters:
+            - RewritePath=/v3/api-docs/bookings,/v3/api-docs
+        - id: event-service-openapi
+          uri: ${api.uri.event-service}
+          predicates:
+            - Path=/v3/api-docs/events
+          filters:
+            - RewritePath=/v3/api-docs/events,/v3/api-docs
 
 
 

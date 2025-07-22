@@ -9,6 +9,8 @@ COPY --from=builder snapshot-dependencies/ ./
 COPY --from=builder spring-boot-loader/ ./
 COPY --from=builder application/ ./
 
+RUN mkdir -p /data/config
+
 EXPOSE 8888
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

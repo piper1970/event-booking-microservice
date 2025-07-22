@@ -1,12 +1,12 @@
-package piper1970.eventserviceconfig.config;
+package piper1970.api_gateway.config;
 
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
-@Profile("local_discovery")
+@Profile({"local_discovery", "compose"})
 @Configuration
 @EnableDiscoveryClient
-public class LocalDiscovery {
+public class DiscoveryConfig {
 
 }
