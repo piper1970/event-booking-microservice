@@ -61,16 +61,32 @@ A system-architecture diagram can be found at [System Architecture](./data/diagr
 
 A message-flow diagram can be found at [Message Flow](./data/diagrams/message-flow-diagram.mermaid).
 
-## Accessing API via Swagger
+---
+## Basic Application Flow
 
-Swagger provides documentation for the system and easy access to try out the endpoints.
+- All API access goes through the api, at address `http://localhost:8080`
+- Events get created and accessed via the event-service api
+  - The basic access point for accessing events is at `http://localhost:8080/api/events`
+  - Events can be created, retrieved, updated, and cancelled, using `POST`, `GET`, `PUT`, and `PATCH` methods
+  - In order to modify an event, the user must be the owner of the event, and have the role `PERFORMER`.
+  - In order to view an event, the user must be registered as a `MEMBER`.
+  - Anyone who signs up via the OAuth2 server automatically is given `MEMBER` access
+- If someone wishes to book an event, this is handled by the booking-service api
+  - The basic access point for the booking service is at `http://localhost:8080/api/bookings`
+  - Bookings can be created, viewed, updated, and cancelled, using `POST`, `GET`, `PUT`, and `PATCH` methods.
+  - Only the creator of the booking can access it.
+  - Creating a booking triggers a notification email with a unique url to confirm the booking.
+  - Bookings must be confirmed within the hour, or the slot is lost.
+  - If an event is booked which does not have an available slot, the booking will be cancelled.
+- Creating users to play with system
+  - The OAuth2 Server (Keycloak) allows for users to signup while accessing the login page.
+    - The signup page asks for name and email information.  There is no verification process for the email.
+  - The new user will be given `MEMBER` access rights, which allow the user to view events and make bookings.
+  - When the new user attempts to book an event, an email will be sent out to the provided email address for confirmation.
+  - In order to bump a user to `PERFORMER` status, the Keycloak Admin will need to manually make the change.
+    - The keycloak console can be reached at `http://localhost:8180` with the credential _KC_ADMIN_ and _KC_ADMIN_PASSWORD_ provided in the _.env_ file 
 
-To use the Swagger UI while the system is running, go to [Swagger UI](http://localhost:8080/swagger-ui/index.html).
-
-**Note**.  This feature should only be used for non-production settings.  To disable,
-Add `springdoc.api-docs.enabled=false` and `springdoc.swagger-ui.enabled=false` to booking-service,
-event-service, and api-gateway in a property files setup for production.
-
+---
 
 ## Setting Up Project
 
@@ -136,15 +152,14 @@ See [Database Initialization Scripts](./data/scripts).
 
 ### Setting Up Keycloak
 
-Initially, _keycloak_ is set to import settings from the file _./data/keycloak/piper1970-realm.json_. See [Imported Keycloak Realm](./data/keycloak/piper1970-realm.json).
+ _keycloak_ is set up to import realm settings from a file in a _./data/keycloak/_ subdirectory. 
 
-However, after the first run of the _keycloak_ container, it should rely on
-the _postgres_ database that holds the settings.  
-Before running the system, credentials need to be made for the client, _**event-service-client**_, in the _**piper1970**_ realm.  
-Once the credentials have been made, they need to be stored in _**OAUTH2_CLIENT_SECRET**_ property in the _.env_ file in the project directory.
+Depending on whether the microservices are run locally or fully dockerized, the import settings are slightly different, which effect the issued JWT token.
+Because of this, different import are used in each setting.
 
-See [Defining user credentials](https://www.keycloak.org/docs/latest/server_admin/index.html#ref-user-credentials_server_administration_guide)
-for instructions on how to assign a client secret.  
+- When running against _docker-compose.yaml_, the import file is _./data/keycloak/default/all_realms.json_.
+
+- When running against _docker-compose-full.yaml_, the import file is _./data/keycloak/compose/all_realms.json_.
 
 To access the keycloak server, go to _**http://localhost:8180**_ and login with credentials stored in _.env_ file (_**KC_ADMIN**_ and _**KC_ADMIN_PASSWORD**_).  
 
@@ -208,6 +223,8 @@ the following commands should be run, in the given order, from the project direc
 For Windows users, make sure to adjust the paths to use backslashes instead of forward slashes.  
 Also, consider using different shells for each service, with environment variables set in each shell individually. It makes it much easier.
 
+### Launching all microservices manually
+The following microservices should be launched in this order.
 1. discovery-server (running Eureka server for local discovery)
    1. `java -jar -Dspring.profiles.active=local_discovery ./discovery-server/target/discovery-server-0.1.1-SNAPSHOT.jar`
 2. event-service-config (using profile `native` to using filesystem-based config backend)
@@ -220,6 +237,62 @@ Also, consider using different shells for each service, with environment variabl
    1. `java -jar -Dspring.profiles.active=local_discovery ./notification-service/target/notification-service-0.0.1-SNAPSHOT.jar`
 6. api-gateway (using Eureka client for local discovery)
    1. `java -jar -Dspring.profiles.active=local_discovery ./api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar`
+
+
+### Running Docker Compose
+
+The _docker-compose.yml_ file is set up to run external services, such as databases, oauth2 servers, kafka, etc.
+
+
+To start up the service, run `docker compose up -d`.  
+
+Once done, and all local services have stopped, run `docker compose down` to shut down all the docker services.
+
+
+
+## Running entire system within Docker via Docker Compose
+
+### Prepping the environment
+_**Important**_: due to naming issues with OAuth2 JWT tokens distributed by Keycloak,
+an alias - `127.0.0.1 keycloak` - needs to be added to end of the _**hosts**_ file.
+---
+For __Windows__, the _host_ file can be found at '__C:\Windows\System32\drivers\etc\hosts__'.
+
+For __Linux__, the _host_ file can be found at '__/etc/hosts__'.
+
+For __Mac OS__, the _host_ file can be found at '__/private/etc/hosts__'.
+
+### Building & Running Entire System within Docker
+
+To run the entire system from within a Docker-Compose environment, you must first ensure
+all the jar files are available in their respective target directories.  
+
+See [Building Maven Artifacts](#building-maven-artifacts) for 
+building the jar files.
+
+Once the jar files have been built, run the following command from the root directory: 
+`docker compose -f docker-compose-full.yaml up -d`.
+
+Once everything is up and running, you can access the api at `http://localhost8080`, either via Swagger or Postman (or _curl_ if you are masochistic)
+
+Once done, run `docker compose -f docker-compose-full.yaml down` to stop all the services.
+
+___
+
+## Accessing the API via Swagger
+
+Swagger provides documentation for the system and easy access to try out the endpoints.
+
+To use the Swagger UI while the system is running, go to [http://localhost:8080/v3/swagger-ui/index.html](http://localhost:8080/v3/swagger-ui/index.html).
+
+
+## Accessing the API via Postman
+
+If you want to run this system using __Postman__, there are two JSON files in the _data/postman_ directory: one for local use and the other for with fully dockerized use.
+
+Both Postman configurations require the following properties to be set as secrets in an environment file: `oauth_client_id` and `oauth_client_secret`.
+
+Refer to the `OAUTH2_CLIENT_ID` and `OAUTH2_CLIENT_SECRET` properties in the `.env` file.
 
 
 
