@@ -273,13 +273,13 @@ building the jar files.
 Once the jar files have been built, run the following command from the root directory: 
 `docker compose -f docker-compose-full.yaml up -d`.
 
-Once everything is up and running, you can access the api at `http://localhost8080`, either via Swagger or Postman (or _curl_ if you are masochistic)
+Once everything is up and running, you can access the api at `http://localhost8080`, either via Swagger or Postman
 
 Once done, run `docker compose -f docker-compose-full.yaml down` to stop all the services.
 
 ___
 
-## Accessing the API via Swagger
+## Accessing the API via Swagger (preferred)
 
 Swagger provides documentation for the system and easy access to try out the endpoints.
 
@@ -287,6 +287,7 @@ To use the Swagger UI while the system is running, go to [http://localhost:8080/
 
 
 ## Accessing the API via Postman
+_**Note**_ I've experienced some delay using Postman that I did not experience with Swagger.
 
 If you want to run this system using __Postman__, there are two JSON files in the _data/postman_ directory: one for local use and the other for with fully dockerized use.
 
