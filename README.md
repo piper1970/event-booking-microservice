@@ -255,6 +255,7 @@ Once done, and all local services have stopped, run `docker compose down` to shu
 ### Prepping the environment
 _**Important**_: due to naming issues with OAuth2 JWT tokens distributed by Keycloak,
 an alias - `127.0.0.1 keycloak` - needs to be added to end of the _**hosts**_ file.
+
 ---
 For __Windows__, the _host_ file can be found at '__C:\Windows\System32\drivers\etc\hosts__'.
 
