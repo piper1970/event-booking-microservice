@@ -38,7 +38,7 @@
       </encoder>
     </appender>
 
-    <logger name="piper1970.notification" level="DEBUG">
+    <logger name="piper1970.notificationservice" level="DEBUG">
       <appender-ref ref="STASH"/>
       <appender-ref ref="STDOUT"/>
     </logger>
@@ -97,7 +97,7 @@
       </encoder>
     </appender>
 
-    <logger name="piper1970.notification" level="DEBUG">
+    <logger name="piper1970.notificationservice" level="DEBUG">
       <appender-ref ref="FILE"/>
       <appender-ref ref="STDOUT"/>
     </logger>

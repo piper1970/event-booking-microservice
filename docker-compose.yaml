@@ -23,8 +23,6 @@ volumes:
     name: "event-service-elasticsearch-1-data"
   kibana-data:
     name: "event-service-kibana-data"
-  logstash-data:
-    name: "event-service-logstash-data"
 
 services:
   postgres:
@@ -190,8 +188,6 @@ services:
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_PASSWORD=${KIBANA_PASSWORD}
-    networks:
-      - elk
     command: >
       bash -c '
         if [ ! -f config/certs/ca.zip ]; then
@@ -210,6 +206,8 @@ services:
         # find . -type f -exec chmod 604 \{\} \;
         echo "Done creating certs";
       '
+    networks:
+      - elk
 
   es01:
     depends_on:
@@ -266,8 +264,6 @@ services:
     image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
       - elk-certs:/usr/share/elasticsearch/config/certs
-    networks:
-      - elk
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_PASSWORD={KIBANA_PASSWORD}
@@ -277,6 +273,8 @@ services:
         until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
         echo "All done!";
       '
+    networks:
+      - elk
 
   kibana:
     depends_on:
@@ -327,7 +325,6 @@ services:
       - elk
     volumes:
       - elk-certs:/usr/share/logstash/certs
-      - logstash-data:/usr/share/logstash/ingest_data/
       - "./data/logstash/logstash-local.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
       - "./logs/:/usr/share/logstash/ingest_data/"
     command: logstash -f /usr/share/logstash/pipeline/logstash.conf
