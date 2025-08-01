@@ -11,6 +11,7 @@ networks:
         - subnet: 172.20.1.0/24
 
 volumes:
+
   postgres-data-full:
     name: "event-service-postgres-full-volume"
   zookeeper-data-full:
@@ -31,8 +32,6 @@ volumes:
     name: "event-service-elasticsearch-1-full-data"
   kibana-data-full:
     name: "event-service-kibana-full-data"
-  logstash-data-full:
-    name: "event-service-logstash-full-data"
 
 services:
 
@@ -81,7 +80,6 @@ services:
       - "9411:9411"
     networks:
       - full
-
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
@@ -195,7 +193,6 @@ services:
       - grafana-data-full:/var/lib/grafana
     environment:
       - GF_USERS_ALLOW_SIGN_UP=false
-  
 
 #### Setup for ELK Logging Services ####
 
@@ -207,8 +204,6 @@ services:
       - elk-certs-full:/usr/share/elasticsearch/config/certs
       - ./data/certs/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
-    networks:
-      - elk
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_PASSWORD=${KIBANA_PASSWORD}
@@ -230,7 +225,8 @@ services:
         # find . -type f -exec chmod 604 \{\} \;
         echo "Done creating certs";
       '
-
+    networks:
+      - elk
 
   es01:
     depends_on:
@@ -285,8 +281,6 @@ services:
       es01:
         condition: service_healthy
     image: elasticsearch:${ELK_STACK_VERSION}
-    networks:
-      - elk
     volumes:
       - elk-certs-full:/usr/share/elasticsearch/config/certs
     environment:
@@ -298,6 +292,8 @@ services:
         until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
         echo "All done!";
       '
+    networks:
+      - elk
 
   kibana:
     depends_on:
@@ -357,7 +353,6 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_HOSTS=https://es01:9200
     mem_limit: 536870912
-
 
   #### SPRING SERVICES ####
   discovery-server:
