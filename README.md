@@ -1,6 +1,6 @@
 # Event-Booking Service (POC, WIP)
 
-_A microservice-based event management and booking system, utilizing Spring Boot and Spring Cloud components._
+_Spring Boot & Kafka-based microservice for cloud-native event systems._
 
 This project is a POC, to demonstrate understanding of current Spring Boot and Spring Cloud development. 
 
