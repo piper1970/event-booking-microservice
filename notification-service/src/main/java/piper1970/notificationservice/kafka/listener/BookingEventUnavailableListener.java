@@ -58,12 +58,22 @@ public class BookingEventUnavailableListener extends AbstractListener {
     }
   }
 
+  /**
+   * Helper method to handle booking event unavailable messages.
+   *
+   * @param record ReceiverRecord containing BookingEventUnavailable message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
-  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
+  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
+      ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingEventUnavailableListener::handleIndividualRequest started");
-    if(record.value() instanceof BookingEventUnavailable message) {
+
+    if (record.value() instanceof BookingEventUnavailable message) {
       var bookingId = Objects.requireNonNull(message.getBooking());
-      log.debug("Consuming from BOOKING_EVENT_UNAVAILABLE topic for id [{}]", bookingId);
+
+      log.info("Consuming from BOOKING_EVENT_UNAVAILABLE topic for id [{}]", bookingId);
 
       final BookingEventUnavailableMessage props = new BookingEventUnavailableMessage(
           bookingId.getUsername().toString(),
@@ -71,16 +81,20 @@ public class BookingEventUnavailableListener extends AbstractListener {
 
       var template = BookingEventUnavailableMessage.template();
       return readerMono(template, props)
-          .doOnNext(email -> logMailDelivery(bookingId.getEmail(), email))
+          .doOnNext(email -> logMailDelivery(bookingId.getEmail(),
+              email))
           .flatMap(msg ->
-              handleMailMono(bookingId.getEmail().toString(), BOOKING_EVENT_UNAVAILABLE_SUBJECT, msg)
+              handleMailMono(bookingId.getEmail().toString(), BOOKING_EVENT_UNAVAILABLE_SUBJECT,
+                  msg)
                   .retryWhen(defaultMailerRetry)
                   .then(Mono.just(record))
           ).onErrorResume(error -> {
-            log.error("BOOKING_EVENT_UNAVAILABLE handling failed [{}]. Sending to DLT", bookingId, error);
+            log.error("BOOKING_EVENT_UNAVAILABLE handling failed [{}]. Sending to DLT",
+                bookingId,
+                error);
             return handleDLTLogic(record);
           });
-    }else{
+    } else {
       log.error("Unable to deserialize BookingEventUnavailable message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

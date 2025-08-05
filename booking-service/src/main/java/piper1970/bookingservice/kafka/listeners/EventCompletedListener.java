@@ -59,25 +59,35 @@ public class EventCompletedListener extends DiscoverableListener {
     return subscription;
   }
 
+  /**
+   * Helper method to handle event-completed messages.
+   *
+   * @param record ReceiverRecord containing EventCompleted message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+
     log.debug("EventCompletedListener::handleIndividualRequest started");
+
     if (record.value() instanceof EventCompleted message) {
       var eventId = message.getEventId();
-      log.debug(
-          "[{}] message has been received from EVENT_COMPLETED topic. Updating related bookings",
+
+      log.info("[{}] message has been received from EVENT_COMPLETED topic. Updating related bookings",
           eventId);
 
       // For handling bookings that have already been confirmed -> status changes to complete
-      var completedFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(BookingStatus.CONFIRMED))
+      var completedFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId,
+              List.of(BookingStatus.CONFIRMED))
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .map(booking -> booking.withBookingStatus(BookingStatus.COMPLETED));
 
       // For handling bookings that have not yet been confirmed -> status changes to cancelled
-      var cancelledFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(BookingStatus.IN_PROGRESS))
+      var cancelledFlux = bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId,
+              List.of(BookingStatus.IN_PROGRESS))
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
@@ -92,16 +102,17 @@ public class EventCompletedListener extends DiscoverableListener {
                   .timeout(timeoutDuration)
                   .retryWhen(defaultRepositoryRetry)
           ).count()
-          .doOnNext(count -> log.info("{} Bookings updated for completed event {}", count, eventId))
+          .doOnNext(
+              count -> log.info("{} Bookings updated for completed event {}", count, eventId))
           .map(cnt -> record)
           .onErrorResume(err -> {
-            log.error("Unable to process EventCompleted message after max attempts. Sending to DLT", err);
+            log.error("Unable to process EventCompleted message after max attempts. Sending to DLT",
+                err);
             return handleDLTLogic(record);
           });
 
     } else {
-      log.error(
-          "Unable to deserialize EventCompleted message. Sending to DLT for further processing");
+      log.error("Unable to deserialize EventCompleted message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

@@ -31,7 +31,8 @@ import reactor.util.retry.Retry;
 public class BookingCreatedListener extends AbstractListener {
 
   public static final String BOOKING_HAS_BEEN_CREATED_SUBJECT = "RE: Booking has been created";
-  private static final DateTimeFormatter EXPIRATION_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMMM dd, uuuu '@' hh:mm:ss a");
+  private static final DateTimeFormatter EXPIRATION_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern(
+      "EEEE, MMMM dd, uuuu '@' hh:mm:ss a");
   private final BookingConfirmationRepository bookingConfirmationRepository;
   private final String confirmationUrl;
   private final Integer confirmationInMinutes;
@@ -49,13 +50,13 @@ public class BookingCreatedListener extends AbstractListener {
       @Value("${notification-repository.timeout.milliseconds}") Long notificationRepositoryTimeoutInMilliseconds,
       @Value("${confirmation.url:http://localhost:8084/api/notifications/confirm}") String confirmationUrl,
       @Value("${confirmation.duration.minutes:30}") Integer confirmationInMinutes,
-      @Qualifier("repository") Retry defaultRepositoryRetry
-      ) {
+      @Qualifier("repository") Retry defaultRepositoryRetry) {
     super(options);
     this.bookingConfirmationRepository = bookingConfirmationRepository;
     this.confirmationUrl = confirmationUrl;
     this.confirmationInMinutes = confirmationInMinutes;
-    this.notificationTimeoutDuration = Duration.ofMinutes(notificationRepositoryTimeoutInMilliseconds);
+    this.notificationTimeoutDuration = Duration.ofMinutes(
+        notificationRepositoryTimeoutInMilliseconds);
     this.clock = clock;
     this.transactionalOperator = transactionalOperator;
     this.defaultRepositoryRetry = defaultRepositoryRetry;
@@ -92,21 +93,33 @@ public class BookingCreatedListener extends AbstractListener {
     }
   }
 
+  /**
+   * Helper method to handle booking created messages.
+   *
+   * @param record ReceiverRecord containing BookingCreated message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
-  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
+  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
+      ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingCreatedListener::handleIndividualRequest started");
-    if(record.value() instanceof BookingCreated message) {
+
+    if (record.value() instanceof BookingCreated message) {
+      var bookingId = Objects.requireNonNull(message.getBooking());
+      var confirmationDateTime = LocalDateTime.now(clock);
       var confirmToken = UUID.randomUUID();
       var confirmLink = confirmationUrl + "/" + confirmToken;
-      log.debug("Consuming from BOOKING_CREATED topic. Confirm link created [{}]", confirmLink);
-      var confirmationDateTime = LocalDateTime.now(clock);
 
-      var bookingId = Objects.requireNonNull(message.getBooking());
+      log.info("Consuming from BOOKING_CREATED topic. Confirm link created [{}]",
+          confirmLink);
+
       BookingCreatedMessage props = new BookingCreatedMessage(
           bookingId.getUsername().toString(), buildBookingLink(bookingId.getId()),
           buildEventLink(message.getEventId()),
           confirmLink,
-          confirmationDateTime.plusMinutes(confirmationInMinutes).format(EXPIRATION_DATE_TIME_FORMATTER)
+          confirmationDateTime.plusMinutes(confirmationInMinutes)
+              .format(EXPIRATION_DATE_TIME_FORMATTER)
       );
 
       var template = BookingCreatedMessage.template();
@@ -131,17 +144,20 @@ public class BookingCreatedListener extends AbstractListener {
       return bookingConfirmationRepository.save(dbConfirmation)
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(notificationTimeoutDuration)
-          .doOnNext(confirmation -> log.info("Booking confirmation saved [{}]", confirmation))
+          .doOnNext(confirmation ->
+              log.info("Booking confirmation saved [{}]", confirmation))
           .then(sendEmailMono)
           .as(transactionalOperator::transactional)
           .retryWhen(defaultRepositoryRetry)
           .then(Mono.just(record))
           .onErrorResume(error -> {
-            log.error("BOOKING_CREATED message handling failed. Transaction rolled back and message sent to DLT", error);
+            log.error("BOOKING_CREATED message handling failed. Transaction rolled back and message sent to DLT",
+                error);
             return handleDLTLogic(record);
           });
-    }else{
-      log.error("Unable to deserialize BookingCreated message. Sending to DLT for further processing");
+    } else {
+      log.error(
+          "Unable to deserialize BookingCreated message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

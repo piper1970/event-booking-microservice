@@ -61,22 +61,30 @@ public class BookingsCancelledListener extends AbstractListener {
     }
   }
 
+  /**
+   * Helper method to handle bookings cancelled unavailable messages.
+   *
+   * @param record ReceiverRecord containing BookingsCancelled message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
-  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
+  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
+      ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingsCancelledListener::handleIndividualRequest started");
-    if(record.value() instanceof BookingsCancelled message) {
+
+    if (record.value() instanceof BookingsCancelled message) {
       var eventLink = buildEventLink(message.getEventId());
 
-      if (log.isDebugEnabled()) {
-        var bookingIds = Objects.requireNonNull(message.getBookings())
-            .stream()
-            .map(BookingId::getId)
-            .map(Object::toString)
-            .collect(Collectors.joining(","));
-        log.debug("Consuming from BOOKINGS_CANCELLED topic for event [{}] and bookingIds [{}]",
-            message.getEventId(),
-            bookingIds);
-      }
+      var bookingIds = Objects.requireNonNull(message.getBookings())
+          .stream()
+          .map(BookingId::getId)
+          .map(Object::toString)
+          .collect(Collectors.joining(","));
+
+      log.info("Consuming from BOOKINGS_CANCELLED topic for event [{}] and bookingIds [{}]",
+          message.getEventId(),
+          bookingIds);
 
       var props = message.getBookings().stream()
           .map(bookingId -> {
@@ -90,7 +98,8 @@ public class BookingsCancelledListener extends AbstractListener {
       var template = BookingCancelledMessage.template();
 
       return readerFlux(template, props)
-          .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(), tpl.body()))
+          .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(),
+              tpl.body()))
           .doOnError(t -> log.error("Error while reading from flux", t))
           .flatMap(tpl ->
               handleMailFlux(tpl, BOOKING_CANCELLED_MESSAGE_SUBJECT)
@@ -101,7 +110,7 @@ public class BookingsCancelledListener extends AbstractListener {
             return handleDLTLogic(record);
           });
 
-    }else{
+    } else {
       log.error("Unable to deserialize BookingsCancelled message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

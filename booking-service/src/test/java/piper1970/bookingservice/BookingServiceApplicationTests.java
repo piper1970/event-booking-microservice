@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.fail;
 import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+import static piper1970.eventservice.common.kafka.reactive.TracingHelper.extractMDCIntoHeaders;
 
+import brave.Tracer;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
 import java.time.Clock;
@@ -86,6 +88,9 @@ class BookingServiceApplicationTests {
   @Autowired
   private MessagePostingService kafkaMessagePostingService;
 
+  @Autowired
+  private Tracer tracer;
+
   private final Duration timeoutDuration = Duration.ofSeconds(4);
 
   @Autowired
@@ -133,10 +138,10 @@ class BookingServiceApplicationTests {
         bookingRepository, timeoutMillis,defaultRepositoryRetry));
     discoverableListeners.add(new EventChangedListener(receiverFactory, dltProducer,
         kafkaSender,
-        bookingRepository, timeoutMillis, defaultRepositoryRetry, defaultKafkaRetry, clock));
+        bookingRepository, tracer, timeoutMillis, defaultRepositoryRetry,defaultKafkaRetry, clock));
     discoverableListeners.add(new EventCancelledListener(receiverFactory, dltProducer,
         kafkaSender,
-        bookingRepository, transactionalOperator, timeoutMillis, defaultRepositoryRetry, clock));
+        bookingRepository, transactionalOperator, tracer, timeoutMillis, defaultRepositoryRetry, clock));
 
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
@@ -286,7 +291,7 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_CONFIRMED, savedBooking.getId(), message, clock))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_CONFIRMED, savedBooking.getId(), message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 
@@ -321,7 +326,7 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_EXPIRED, savedBooking.getId(), message, clock))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_EXPIRED, savedBooking.getId(), message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 
@@ -356,7 +361,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 
@@ -393,7 +399,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 
@@ -429,7 +436,8 @@ class BookingServiceApplicationTests {
         new BookingId(savedBooking.getId(), savedBooking.getEmail(), savedBooking.getUsername()));
     message.setEventId(savedBooking.getEventId());
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, savedBooking.getId(), message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 
@@ -481,7 +489,7 @@ class BookingServiceApplicationTests {
         .block(timeoutDuration);
 
     var message = new EventChanged(1, "Test Event Changed Message");
-    kafkaSender.send(createSenderMono(Topics.EVENT_CHANGED, 1, message, clock))
+    kafkaSender.send(createSenderMono(Topics.EVENT_CHANGED, 1, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 
@@ -539,7 +547,8 @@ class BookingServiceApplicationTests {
         .block(timeoutDuration);
 
     var message = new EventCancelled(1, "Test Event Changed Message");
-    kafkaSender.send(createSenderMono(Topics.EVENT_CANCELLED, 1, message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.EVENT_CANCELLED, 1, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 
@@ -594,7 +603,8 @@ class BookingServiceApplicationTests {
         .block(timeoutDuration);
 
     var message = new EventCompleted(1, "Test Event Completed Message");
-    kafkaSender.send(createSenderMono(Topics.EVENT_COMPLETED, 1, message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.EVENT_COMPLETED, 1, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .block(timeoutDuration);
 

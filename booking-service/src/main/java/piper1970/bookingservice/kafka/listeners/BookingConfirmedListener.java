@@ -1,6 +1,5 @@
 package piper1970.bookingservice.kafka.listeners;
 
-
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -59,10 +58,18 @@ public class BookingConfirmedListener extends DiscoverableListener {
     return subscription;
   }
 
+  /**
+   * Helper method to handle confirmation messages.
+   *
+   * @param record ReceiverRecord containing BookingConfirmed message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingConfirmedListener::handleIndividualRequest started");
+
     if (record.value() instanceof BookingConfirmed message) {
       return bookingRepository.findById(message.getBooking().getId())
           .subscribeOn(Schedulers.boundedElastic())
@@ -70,15 +77,19 @@ public class BookingConfirmedListener extends DiscoverableListener {
           .retryWhen(defaultRepositoryRetry)
           .filter(booking -> BookingStatus.IN_PROGRESS == booking.getBookingStatus())
           .flatMap(
-              booking -> bookingRepository.save(booking.withBookingStatus(BookingStatus.CONFIRMED))
+              booking -> bookingRepository.save(
+                      booking.withBookingStatus(BookingStatus.CONFIRMED))
                   .subscribeOn(Schedulers.boundedElastic())
                   .timeout(timeoutDuration)
                   .retryWhen(defaultRepositoryRetry)
-                  .doOnNext(updatedBooking -> log.info("Confirmed booking saved: [{}]", updatedBooking))
+                  .doOnNext(
+                      updatedBooking ->
+                          log.info("Confirmed booking saved: [{}]", updatedBooking))
                   .map(updatedBooking -> record)
           )
           .onErrorResume(err -> {
-            log.error("BookingConfirmed message not handled after max attempts. Sending to DLT",
+            log.error(
+                "BookingConfirmed message not handled after max attempts. Sending to DLT",
                 err);
             return handleDLTLogic(record);
           });

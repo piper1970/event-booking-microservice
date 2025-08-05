@@ -1,7 +1,9 @@
 package piper1970.bookingservice.kafka.listeners;
 
 import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+import static piper1970.eventservice.common.kafka.reactive.TracingHelper.extractMDCIntoHeaders;
 
+import brave.Tracer;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -39,6 +41,7 @@ public class EventChangedListener extends DiscoverableListener {
   private final Duration timeoutDuration;
   private final Retry defaultRepositoryRetry;
   private final Retry defaultKafkaRetry;
+  private final Tracer tracer;
   private final Clock clock;
   private Disposable subscription;
 
@@ -47,14 +50,16 @@ public class EventChangedListener extends DiscoverableListener {
       DeadLetterTopicProducer deadLetterTopicProducer,
       KafkaSender<Integer, Object> kafkaSender,
       BookingRepository bookingRepository,
+      Tracer tracer,
       @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis,
       @Qualifier("repository") Retry defaultRepositoryRetry,
       @Qualifier("kafka") Retry defaultKafkaRetry,
       Clock clock
-      ) {
+  ) {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.kafkaSender = kafkaSender;
     this.bookingRepository = bookingRepository;
+    this.tracer = tracer;
     timeoutDuration = Duration.ofMillis(timeoutMillis);
     this.defaultRepositoryRetry = defaultRepositoryRetry;
     this.defaultKafkaRetry = defaultKafkaRetry;
@@ -78,30 +83,41 @@ public class EventChangedListener extends DiscoverableListener {
     return subscription;
   }
 
+  /**
+   * Helper method to handle event-changed messages.
+   *
+   * @param record ReceiverRecord containing EventChanged message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+
     log.debug("EventChangedListener::handleIndividualRequest started");
-    if(record.value() instanceof EventChanged message) {
+
+    if (record.value() instanceof EventChanged message) {
       var eventId = message.getEventId();
-      log.debug(
-          "[{}] message has been received EVENT_CHANGED topic. Relaying message to BOOKINGS_UPDATED topic with related bookings info",
+
+      log.info("[{}] message has been received EVENT_CHANGED topic. Relaying message to BOOKINGS_UPDATED topic with related bookings info",
           eventId);
+
       return bookingRepository.findByEventIdAndBookingStatusNotIn(eventId, List.of(
-          BookingStatus.CANCELLED,
-          BookingStatus.COMPLETED))
+              BookingStatus.CANCELLED,
+              BookingStatus.COMPLETED))
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .map(this::toBookingId)
           .collectList()
-          .doOnNext(bookings -> log.debug("[{}] bookings updated for event [{}]", bookings.size(), eventId))
+          .doOnNext(bookings -> log.info("[{}] bookings updated for event [{}]", bookings.size(),
+              eventId))
           .flatMap(bookings -> {
             var buMsg = new BookingsUpdated();
             buMsg.setEventId(eventId);
             buMsg.setMessage(message.getMessage());
             buMsg.setBookings(bookings);
-            return kafkaSender.send(createSenderMono(Topics.BOOKINGS_UPDATED, eventId, buMsg, clock))
+            return kafkaSender.send(
+                    createSenderMono(Topics.BOOKINGS_UPDATED, eventId, buMsg, clock, extractMDCIntoHeaders(tracer)))
                 .subscribeOn(Schedulers.boundedElastic())
                 .single()
                 .timeout(timeoutDuration)
@@ -110,11 +126,12 @@ public class EventChangedListener extends DiscoverableListener {
                 .map(updatedBooking -> record);
           })
           .onErrorResume(err -> {
-            log.error("Unable to send EventChanged message after max attempts. Sending to DLT", err);
+            log.error("Unable to send EventChanged message after max attempts. Sending to DLT",
+                err);
             return handleDLTLogic(record);
           });
 
-    }else{
+    } else {
       log.error("Unable to deserialize EventChanged message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

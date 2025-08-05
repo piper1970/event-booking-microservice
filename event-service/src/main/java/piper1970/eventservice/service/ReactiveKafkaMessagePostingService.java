@@ -1,7 +1,9 @@
 package piper1970.eventservice.service;
 
 import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+import static piper1970.eventservice.common.kafka.reactive.TracingHelper.extractMDCIntoHeaders;
 
+import brave.Tracer;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,60 +20,81 @@ import reactor.kafka.sender.KafkaSender;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ReactiveKafkaMessagePostingService implements MessagePostingService{
+public class ReactiveKafkaMessagePostingService implements MessagePostingService {
 
   private final KafkaSender<Integer, Object> kafkaSender;
+  private final Tracer tracer;
   private final Clock clock;
   private static final String SERVICE_NAME = "event-service";
 
+
   @Override
   public Mono<Void> postEventCancelledMessage(EventCancelled message) {
-    try{
-      var eventId = message.getEventId();
-      log.debug("Posting EVENT_CANCELLED message [{}]", eventId);
-      return kafkaSender.send(createSenderMono(Topics.EVENT_CANCELLED, eventId, message, clock))
-          .subscribeOn(Schedulers.boundedElastic())
-          .single()
-          .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
-          .doOnError(throwable -> log.error("Error sending EVENT_CANCELLED message: {}", throwable.getMessage(), throwable))
-          .then();
-    }catch(Exception e){
-      log.error("Unknown error occurred while posting EventCancelled message to kafka: {}", e.getMessage(), e);
-      return Mono.error(e);
-    }
+    return Mono.deferContextual(context -> {
+      try {
+        var eventId = message.getEventId();
+
+        log.info("Posting EVENT_CANCELLED message [{}]", eventId);
+        return kafkaSender.send(
+                createSenderMono(Topics.EVENT_CANCELLED, eventId, message, clock, extractMDCIntoHeaders(tracer)))
+            .subscribeOn(Schedulers.boundedElastic())
+            .single()
+            .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+            .doOnError(throwable -> log.error("Error sending EVENT_CANCELLED message: {}",
+                throwable.getMessage(), throwable))
+            .then();
+      } catch (Exception e) {
+        log.error("Unknown error occurred while posting EventCancelled message to kafka: {}",
+            e.getMessage(), e);
+        return Mono.error(e);
+      }
+    });
+
   }
 
   @Override
   public Mono<Void> postEventChangedMessage(EventChanged message) {
-    try{
-      var eventId = message.getEventId();
-      log.debug("Posting EVENT_CHANGED message [{}]", eventId);
-      return kafkaSender.send(createSenderMono(Topics.EVENT_CHANGED, eventId, message, clock))
-          .subscribeOn(Schedulers.boundedElastic())
-          .single()
-          .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
-          .doOnError(throwable -> log.error("Error sending EVENT_CHANGED message: {}", throwable.getMessage(), throwable))
-          .then();
-    }catch(Exception e){
-      log.error("Unknown error occurred while posting EventChanged message to kafka: {}", e.getMessage(), e);
-      return Mono.error(e);
-    }
+    return Mono.deferContextual(context -> {
+      try {
+        var eventId = message.getEventId();
+        log.debug("Posting EVENT_CHANGED message [{}]", eventId);
+        return kafkaSender.send(
+                createSenderMono(Topics.EVENT_CHANGED, eventId, message, clock, extractMDCIntoHeaders(tracer)))
+            .subscribeOn(Schedulers.boundedElastic())
+            .single()
+            .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+            .doOnError(throwable -> log.error("Error sending EVENT_CHANGED message: {}",
+                throwable.getMessage(), throwable))
+            .then();
+      } catch (Exception e) {
+        log.error("Unknown error occurred while posting EventChanged message to kafka: {}",
+            e.getMessage(), e);
+        return Mono.error(e);
+      }
+    });
   }
 
   @Override
   public Mono<Void> postEventCompletedMessage(EventCompleted message) {
-    try{
-      var eventId = message.getEventId();
-      log.debug("Posting EVENT_COMPLETED message [{}]", eventId);
-      return kafkaSender.send(createSenderMono(Topics.EVENT_COMPLETED, eventId, message, clock))
-          .subscribeOn(Schedulers.boundedElastic())
-          .single()
-          .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
-          .doOnError(throwable -> log.error("Error sending EVENT_COMPLETED message: {}", throwable.getMessage(), throwable))
-          .then();
-    }catch(Exception e){
-      log.error("Unknown error occurred while posting EventCompleted message to kafka: {}", e.getMessage(), e);
-      return Mono.error(e);
-    }
+    return Mono.deferContextual(context -> {
+      try {
+        var eventId = message.getEventId();
+        log.debug("Posting EVENT_COMPLETED message [{}]", eventId);
+        return kafkaSender.send(
+                createSenderMono(Topics.EVENT_COMPLETED, eventId, message, clock, extractMDCIntoHeaders(tracer)))
+            .subscribeOn(Schedulers.boundedElastic())
+            .single()
+            .doOnNext(KafkaHelper.postReactiveOnNextConsumer(SERVICE_NAME, log))
+            .doOnError(throwable -> log.error("Error sending EVENT_COMPLETED message: {}",
+                throwable.getMessage(), throwable))
+            .then();
+      } catch (Exception e) {
+        log.error("Unknown error occurred while posting EventCompleted message to kafka: {}",
+            e.getMessage(), e);
+        return Mono.error(e);
+      }
+    });
   }
 }
+
+

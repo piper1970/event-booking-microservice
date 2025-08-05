@@ -62,24 +62,30 @@ public class BookingsUpdatedListener extends AbstractListener {
     }
   }
 
+  /**
+   * Helper method to handle bookings updated unavailable messages.
+   *
+   * @param record ReceiverRecord containing BookingsUpdated message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingsUpdatedListener::handleIndividualRequest started");
+
     if (record.value() instanceof BookingsUpdated message) {
 
       var eventLink = buildEventLink(message.getEventId());
 
-      if (log.isDebugEnabled()) {
-        var bookingIds = Objects.requireNonNull(message.getBookings())
-            .stream()
-            .map(BookingId::getId)
-            .map(Object::toString)
-            .collect(Collectors.joining(","));
-        log.debug("Consuming from BOOKINGS_UPDATED topic for event [{}] and bookingIds [{}]",
-            message.getEventId(),
-            bookingIds);
-      }
+      var bookingIds = Objects.requireNonNull(message.getBookings())
+          .stream()
+          .map(BookingId::getId)
+          .map(Object::toString)
+          .collect(Collectors.joining(","));
+      log.info("Consuming from BOOKINGS_UPDATED topic for event [{}] and bookingIds [{}]",
+          message.getEventId(),
+          bookingIds);
 
       var props = message.getBookings().stream()
           .map(bookingId -> {
@@ -95,7 +101,8 @@ public class BookingsUpdatedListener extends AbstractListener {
       var template = BookingUpdatedMessage.template();
 
       return readerFlux(template, props)
-          .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(), tpl.body()))
+          .doOnNext(tpl -> logMailDelivery(tpl.subject().toString(),
+              tpl.body()))
           .flatMap(tpl ->
               handleMailFlux(tpl, BOOKING_HAS_BEEN_UPDATED_SUBJECT)
                   .retryWhen(defaultMailerRetry)

@@ -58,22 +58,32 @@ public class BookingExpiredListener extends DiscoverableListener {
     return subscription;
   }
 
+  /**
+   * Helper method to handle booking-expired messages.
+   *
+   * @param record ReceiverRecord containing BookingExpired message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingExpiredListener::handleIndividualRequest started");
-    if(record.value() instanceof BookingExpired message) {
+
+    if (record.value() instanceof BookingExpired message) {
       return bookingRepository.findById(message.getBooking().getId())
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .filter(booking -> BookingStatus.IN_PROGRESS == booking.getBookingStatus())
-          .flatMap(booking -> bookingRepository.save(booking.withBookingStatus(BookingStatus.CANCELLED))
+          .flatMap(booking -> bookingRepository.save(
+                  booking.withBookingStatus(BookingStatus.CANCELLED))
               .subscribeOn(Schedulers.boundedElastic())
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
               .doOnNext(updatedBooking ->
-                  log.info("Booking cancelled due to expired confirmation: {}", updatedBooking)
+                  log.info("Booking cancelled due to expired confirmation: {}",
+                      updatedBooking)
               ).map(updatedBooking -> record)
 
           )
@@ -82,7 +92,7 @@ public class BookingExpiredListener extends DiscoverableListener {
                 err);
             return handleDLTLogic(record);
           });
-    }else{
+    } else {
       log.error("Unable to deserialize BookingExpired message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

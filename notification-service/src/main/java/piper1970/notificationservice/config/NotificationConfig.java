@@ -2,6 +2,7 @@ package piper1970.notificationservice.config;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import brave.Tracer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.MustacheFactory;
@@ -42,9 +43,11 @@ import piper1970.notificationservice.routehandler.BookingConfirmationHandler;
 import piper1970.notificationservice.service.MessagePostingService;
 import reactor.kafka.receiver.MicrometerConsumerListener;
 import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.receiver.observation.KafkaReceiverObservation.DefaultKafkaReceiverObservationConvention;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.MicrometerProducerListener;
 import reactor.kafka.sender.SenderOptions;
+import reactor.kafka.sender.observation.KafkaSenderObservation.DefaultKafkaSenderObservationConvention;
 import reactor.util.retry.Retry;
 
 @Configuration(proxyBeanMethods = false)
@@ -213,14 +216,16 @@ public class NotificationConfig {
     Map<String, Object> propertiesMap = kafkaProperties.buildProducerProperties();
     var senderOptions = SenderOptions.<Integer, Object>create(propertiesMap)
         .producerListener(new MicrometerProducerListener(meterRegistry))
-        .withObservation(observationRegistry);
+        .withObservation(observationRegistry,
+            new DefaultKafkaSenderObservationConvention()); // needed for capturing correlation-id in spanned logs
     return KafkaSender.create(senderOptions);
   }
 
   @Bean
   DeadLetterTopicProducer deadLetterTopicProducer(KafkaSender<Integer, Object> kafkaSender,
-      @Value("${kafka.dlt.suffix:-ns-dlt}") String deadLetterTopicSuffix, Clock clock) {
-    return new DeadLetterTopicProducer(kafkaSender, deadLetterTopicSuffix, clock);
+      Tracer tracer, @Value("${kafka.dlt.suffix:-ns-dlt}") String deadLetterTopicSuffix,
+      Clock clock) {
+    return new DeadLetterTopicProducer(kafkaSender, tracer, deadLetterTopicSuffix, clock);
   }
 
   //endregion Producer
@@ -259,7 +264,8 @@ public class NotificationConfig {
       MeterRegistry meterRegistry) {
     return ReceiverOptions.<Integer, Object>create(kafkaProperties.buildConsumerProperties())
         .consumerListener(new MicrometerConsumerListener(meterRegistry))
-        .withObservation(observationRegistry);
+        .withObservation(observationRegistry,
+            new DefaultKafkaReceiverObservationConvention()); // needed for capturing correlation-id in spanned logs
   }
 
   @Bean

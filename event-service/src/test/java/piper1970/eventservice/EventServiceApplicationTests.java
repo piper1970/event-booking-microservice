@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import brave.Tracer;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
 import java.time.Clock;
@@ -78,6 +79,9 @@ public class EventServiceApplicationTests {
   @Qualifier("kafka")
   public Retry defaultKafkaRetry;
 
+  @Autowired
+  public Tracer tracer;
+
   //region Properties Used
 
   private final Duration timeoutDuration = Duration.ofSeconds(4);
@@ -116,7 +120,7 @@ public class EventServiceApplicationTests {
         eventRepository, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry));
     discoverableListeners.add(
         new BookingConfirmedListener(receiverFactory, eventRepository,
-            kafkaSender, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry,
+            kafkaSender, tracer, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry,
             defaultKafkaRetry, clock));
 
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
