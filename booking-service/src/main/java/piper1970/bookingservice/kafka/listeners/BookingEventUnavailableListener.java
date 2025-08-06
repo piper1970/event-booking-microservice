@@ -58,31 +58,42 @@ public class BookingEventUnavailableListener extends DiscoverableListener {
     return subscription;
   }
 
+  /**
+   * Helper method to handle event-unavailable messages.
+   *
+   * @param record ReceiverRecord containing BookingEventUnavailable message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingEventUnavailableListener::handleIndividualRequest started");
-    if(record.value() instanceof BookingEventUnavailable message) {
+
+    if (record.value() instanceof BookingEventUnavailable message) {
       return bookingRepository.findById(message.getBooking().getId())
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .filter(booking -> BookingStatus.IN_PROGRESS == booking.getBookingStatus()
               || BookingStatus.CONFIRMED == booking.getBookingStatus())
-          .flatMap(booking -> bookingRepository.save(booking.withBookingStatus(BookingStatus.CANCELLED))
+          .flatMap(booking -> bookingRepository.save(
+                  booking.withBookingStatus(BookingStatus.CANCELLED))
               .subscribeOn(Schedulers.boundedElastic())
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
-              .doOnNext(updatedBooking -> log.warn("Booking [{}] for event [{}] has been cancelled due to unavailability",
-                  updatedBooking.getId(),
-                  updatedBooking.getEventId()))
+              .doOnNext(updatedBooking ->
+                  log.warn("Booking [{}] for event [{}] has been cancelled due to unavailability",
+                      updatedBooking.getId(),
+                      updatedBooking.getEventId()))
               .map(updatedBooking -> record)
           )
           .onErrorResume(err -> {
-            log.error("BookingEventUnavailable message not handled after max attempts. Sending to DLT", err);
+            log.error("BookingEventUnavailable message not handled after max attempts. Sending to DLT",
+                err);
             return handleDLTLogic(record);
           });
-    }else{
+    } else {
       log.error("Unable to deserialize BookingEventUnavailable message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

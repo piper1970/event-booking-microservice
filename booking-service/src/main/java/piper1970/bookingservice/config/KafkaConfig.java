@@ -1,5 +1,6 @@
 package piper1970.bookingservice.config;
 
+import brave.Tracer;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
@@ -18,9 +19,11 @@ import piper1970.eventservice.common.kafka.reactive.ReactiveKafkaReceiverFactory
 import piper1970.eventservice.common.kafka.topics.Topics;
 import reactor.kafka.receiver.MicrometerConsumerListener;
 import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.receiver.observation.KafkaReceiverObservation.DefaultKafkaReceiverObservationConvention;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.MicrometerProducerListener;
 import reactor.kafka.sender.SenderOptions;
+import reactor.kafka.sender.observation.KafkaSenderObservation.DefaultKafkaSenderObservationConvention;
 
 @Configuration(proxyBeanMethods = false)
 @EnableKafka
@@ -112,15 +115,17 @@ public class KafkaConfig {
       MeterRegistry meterRegistry) {
     Map<String, Object> propertiesMap = kafkaProperties.buildProducerProperties();
     var senderOptions = SenderOptions.<Integer, Object>create(propertiesMap)
-        .withObservation(observationRegistry)
+        .withObservation(observationRegistry,
+            new DefaultKafkaSenderObservationConvention()) // needed for capturing correlation-id in spanned logs
         .producerListener(new MicrometerProducerListener(meterRegistry));
     return KafkaSender.create(senderOptions);
   }
 
   @Bean
   DeadLetterTopicProducer deadLetterTopicProducer(KafkaSender<Integer, Object> kafkaSender,
-      @Value("${kafka.dlt.suffix:-bs-dlt}") String deadLetterTopicSuffix, Clock clock) {
-    return new DeadLetterTopicProducer(kafkaSender, deadLetterTopicSuffix, clock);
+      Tracer tracer, @Value("${kafka.dlt.suffix:-bs-dlt}") String deadLetterTopicSuffix,
+      Clock clock) {
+    return new DeadLetterTopicProducer(kafkaSender, tracer, deadLetterTopicSuffix, clock);
   }
 
   //endregion Kafka Producer
@@ -131,7 +136,8 @@ public class KafkaConfig {
   public ReceiverOptions<Integer, Object> receiverOptions(KafkaProperties kafkaProperties, ObservationRegistry observationRegistry,
       MeterRegistry meterRegistry) {
     return ReceiverOptions.<Integer, Object>create(kafkaProperties.buildConsumerProperties())
-        .withObservation(observationRegistry)
+        .withObservation(observationRegistry,
+            new DefaultKafkaReceiverObservationConvention()) // needed for capturing correlation-id in spanned logs
         .consumerListener(new MicrometerConsumerListener(meterRegistry));
   }
 

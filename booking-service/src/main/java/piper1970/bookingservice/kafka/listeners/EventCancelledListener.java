@@ -1,7 +1,9 @@
 package piper1970.bookingservice.kafka.listeners;
 
 import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+import static piper1970.eventservice.common.kafka.reactive.TracingHelper.extractMDCIntoHeaders;
 
+import brave.Tracer;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -38,6 +40,7 @@ public class EventCancelledListener extends DiscoverableListener {
   private final KafkaSender<Integer, Object> kafkaSender;
   private final BookingRepository bookingRepository;
   private final TransactionalOperator transactionalOperator;
+  private final Tracer tracer;
   private final Duration timeoutDuration;
   private final Retry defaultRepositoryRetry;
   private Disposable subscription;
@@ -49,6 +52,7 @@ public class EventCancelledListener extends DiscoverableListener {
       KafkaSender<Integer, Object> kafkaSender,
       BookingRepository bookingRepository,
       TransactionalOperator transactionalOperator,
+      Tracer tracer,
       @Value("${booking-repository.timout.milliseconds}") Long timeoutMillis,
       @Qualifier("repository") Retry defaultRepositoryRetry,
       Clock clock) {
@@ -56,6 +60,7 @@ public class EventCancelledListener extends DiscoverableListener {
     this.kafkaSender = kafkaSender;
     this.bookingRepository = bookingRepository;
     this.transactionalOperator = transactionalOperator;
+    this.tracer = tracer;
     timeoutDuration = Duration.ofMillis(timeoutMillis);
     this.defaultRepositoryRetry = defaultRepositoryRetry;
     this.clock = clock;
@@ -78,18 +83,26 @@ public class EventCancelledListener extends DiscoverableListener {
     return subscription;
   }
 
+  /**
+   * Helper method to handle event-cancelled messages.
+   *
+   * @param record ReceiverRecord containing EventCancelled message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
   protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
       ReceiverRecord<Integer, Object> record) {
+
     log.debug("EventCancelledListener::handleIndividualRequest started");
-    if(record.value() instanceof EventCancelled message) {
+
+    if (record.value() instanceof EventCancelled message) {
       var eventId = message.getEventId();
-      log.debug(
+      log.info(
           "[{}] message has been received from EVENT_CANCELLED topic.  Relaying message to BOOKINGS_CANCELLED topic with related bookings info",
           eventId);
       return bookingRepository.findBookingsByEventIdAndBookingStatusIn(eventId, List.of(
-          BookingStatus.IN_PROGRESS,
-          BookingStatus.CONFIRMED))
+              BookingStatus.IN_PROGRESS,
+              BookingStatus.CONFIRMED))
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .map(booking -> booking.withBookingStatus(BookingStatus.CANCELLED))
@@ -98,17 +111,22 @@ public class EventCancelledListener extends DiscoverableListener {
               bookingRepository.saveAll(bookingList)
                   .subscribeOn(Schedulers.boundedElastic())
                   .timeout(timeoutDuration)
-                  .doOnNext(updatedBooking -> log.info("Cancelled booking saved: [{}]", updatedBooking))
+                  .doOnNext(
+                      updatedBooking ->
+                          log.info("Cancelled booking saved: [{}]", updatedBooking))
                   .map(this::toBookingId)
-              )
+          )
           .collectList()
-          .doOnNext(bookings -> log.debug("[{}] bookings cancelled for event [{}]", bookings.size(), eventId))
+          .doOnNext(
+              bookings -> log.info("[{}] bookings cancelled for event [{}]", bookings.size(),
+                  eventId))
           .flatMap(bookings -> {
             var buMsg = new BookingsCancelled();
             buMsg.setEventId(eventId);
             buMsg.setMessage(message.getMessage());
             buMsg.setBookings(bookings);
-            return kafkaSender.send(createSenderMono(Topics.BOOKINGS_CANCELLED, eventId, buMsg, clock))
+            return kafkaSender.send(
+                    createSenderMono(Topics.BOOKINGS_CANCELLED, eventId, buMsg, clock, extractMDCIntoHeaders(tracer)))
                 .subscribeOn(Schedulers.boundedElastic())
                 .single()
                 .timeout(timeoutDuration)
@@ -118,10 +136,11 @@ public class EventCancelledListener extends DiscoverableListener {
           .as(transactionalOperator::transactional)
           .retryWhen(defaultRepositoryRetry)
           .onErrorResume(err -> {
-            log.error("Unable to send EventCancelled message after max attempts. Sending to DLT and aborting transaction", err);
+            log.error("Unable to send EventCancelled message after max attempts. Sending to DLT and aborting transaction",
+                err);
             return handleDLTLogic(record);
           });
-    }else{
+    } else {
       log.error("Unable to deserialize EventCancelled message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

@@ -18,14 +18,14 @@ import reactor.util.retry.Retry;
 @Component
 @Slf4j
 public class BookingCancelledListener extends AbstractListener {
-  
+
   public static final String BOOKING_CANCELLED_MESSAGE_SUBJECT = "RE: Booking has been cancelled";
   private final Retry defaultMailerRetry;
   private Disposable subscription;
 
   public BookingCancelledListener(BaseListenerOptions options,
       @Qualifier("mailer") Retry defaultMailerRetry
-      ) {
+  ) {
     super(options);
     this.defaultMailerRetry = defaultMailerRetry;
   }
@@ -54,17 +54,28 @@ public class BookingCancelledListener extends AbstractListener {
 
   record BookingCancelledMessage(String username, String bookingLink,
                                  String eventLink) {
+
     public static String template() {
       return "booking-cancelled.mustache";
     }
   }
 
+  /**
+   * Helper method to handle booking cancelled messages.
+   *
+   * @param record ReceiverRecord containing BookingCancelled message
+   * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
+   */
   @Override
-  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record) {
-    if(record.value() instanceof BookingCancelled message) {
-      log.debug("BookingCancelledListener::handleIndividualRequest started");
+  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
+      ReceiverRecord<Integer, Object> record) {
+
+    log.debug("BookingCancelledListener::handleIndividualRequest started");
+
+    if (record.value() instanceof BookingCancelled message) {
+
       var bookingId = Objects.requireNonNull(message.getBooking());
-      log.debug("Consuming from BOOKING_CANCELLED topic for id [{}]", bookingId);
+      log.info("Consuming from BOOKING_CANCELLED topic for id [{}]", bookingId);
       final BookingCancelledMessage props = new BookingCancelledMessage(
           bookingId.getUsername().toString(),
           buildBookingLink(bookingId.getId()),
@@ -72,17 +83,21 @@ public class BookingCancelledListener extends AbstractListener {
       );
       var template = BookingCancelledMessage.template();
       return readerMono(template, props)
-          .doOnNext(email -> logMailDelivery(bookingId.getEmail(), email))
+          .doOnNext(
+              email -> logMailDelivery(bookingId.getEmail(), email))
           .flatMap(msg ->
-              handleMailMono(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT, msg)
+              handleMailMono(bookingId.getEmail().toString(), BOOKING_CANCELLED_MESSAGE_SUBJECT,
+                  msg)
                   .retryWhen(defaultMailerRetry)
                   .then(Mono.just(record))
           ).onErrorResume(error -> {
-            log.error("BOOKING_CANCELLED handling failed [{}]. Sending to DLT", bookingId, error);
+            log.error("BOOKING_CANCELLED handling failed [{}]. Sending to DLT", bookingId,
+                error);
             return handleDLTLogic(record);
           });
-    }else{
-      log.error("Unable to deserialize BookingCancelled message. Sending to DLT for further processing");
+    } else {
+      log.error(
+          "Unable to deserialize BookingCancelled message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }
   }

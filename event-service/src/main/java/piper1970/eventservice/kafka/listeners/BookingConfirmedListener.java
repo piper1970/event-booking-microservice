@@ -1,7 +1,9 @@
 package piper1970.eventservice.kafka.listeners;
 
 import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+import static piper1970.eventservice.common.kafka.reactive.TracingHelper.extractMDCIntoHeaders;
 
+import brave.Tracer;
 import java.time.Clock;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,7 @@ public class BookingConfirmedListener extends DiscoverableListener {
 
   private final EventRepository eventRepository;
   private final KafkaSender<Integer, Object> kafkaSender;
+  private final Tracer tracer;
   private final Duration timeoutDuration;
   private final Retry defaultRepositoryRetry;
   private final Retry defaultKafkaRetry;
@@ -40,6 +43,7 @@ public class BookingConfirmedListener extends DiscoverableListener {
   public BookingConfirmedListener(ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory,
       EventRepository eventRepository,
       KafkaSender<Integer, Object> kafkaSender,
+      Tracer tracer,
       DeadLetterTopicProducer deadLetterTopicProducer,
       @NonNull @Value("${event-repository.timout.milliseconds}") Integer timeoutInMilliseconds,
       @Qualifier("repository") Retry defaultRepositoryRetry,
@@ -48,6 +52,7 @@ public class BookingConfirmedListener extends DiscoverableListener {
     super(reactiveKafkaReceiverFactory, deadLetterTopicProducer);
     this.eventRepository = eventRepository;
     this.kafkaSender = kafkaSender;
+    this.tracer = tracer;
     timeoutDuration = Duration.ofMillis(timeoutInMilliseconds);
     this.defaultRepositoryRetry = defaultRepositoryRetry;
     this.defaultKafkaRetry = defaultKafkaRetry;
@@ -72,39 +77,46 @@ public class BookingConfirmedListener extends DiscoverableListener {
   }
 
   /**
-   * Helper method to handle confirmation requests per single record.
-   * In the event of a confirmation to an event with no more available bookings,
-   * a BOOKING_EVENT_UNAVAILABLE message is sent to the corresponding topic.
-   * Retries up to 3 times, returning empty mono if not successful.
+   * Helper method to handle confirmation requests per single record. In the event of a confirmation
+   * to an event with no more available bookings, a BOOKING_EVENT_UNAVAILABLE message is sent to the
+   * corresponding topic. Retries up to 3 times, returning empty mono if not successful.
    *
    * @param record ReceiverRecord containing BookingConfirmed message
    * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
    */
   @Override
-  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record){
+  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
+      ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingConfirmedListener::handleIndividualRequest started");
-    if(record.value() instanceof BookingConfirmed message) {
+
+    if (record.value() instanceof BookingConfirmed message) {
       var eventId = message.getEventId();
-      log.debug("Consuming from BOOKING_CONFIRMED topic [{}]", eventId);
+
+      log.info("Consuming from BOOKING_CONFIRMED topic [{}]", eventId);
+
       return eventRepository.findById(eventId)
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
           .filter(event -> event.getAvailableBookings() > 0)
           .switchIfEmpty(Mono.defer(() -> {
-            log.warn("Event [{}] has no available bookings left. Sending message to BOOKING_EVENT_UNAVAILABLE topic", eventId);
+            log.warn("Event [{}] has no available bookings left. Sending message to BOOKING_EVENT_UNAVAILABLE topic",
+                eventId);
             var buMsg = new BookingEventUnavailable(message.getBooking(), eventId);
-            return kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, eventId, buMsg, clock))
+            return kafkaSender.send(
+                    createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, eventId, buMsg, clock, extractMDCIntoHeaders(tracer)))
                 .single()
                 .timeout(timeoutDuration)
                 .retryWhen(defaultKafkaRetry)
                 .onErrorResume(err -> {
-                  // error only logged...
-                  log.error("Unable to send message to BOOKING_EVENT_UNAVAILABLE topic. Manual intervention necessary", err);
+                  log.error("Unable to send message to BOOKING_EVENT_UNAVAILABLE topic. Manual intervention necessary",
+                      err);
                   return Mono.empty();
                 }).then(Mono.empty());
           }))
-          .flatMap(event -> eventRepository.save(event.withAvailableBookings(event.getAvailableBookings() - 1))
+          .flatMap(event -> eventRepository.save(
+                  event.withAvailableBookings(event.getAvailableBookings() - 1))
               .subscribeOn(Schedulers.boundedElastic())
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
@@ -115,7 +127,7 @@ public class BookingConfirmedListener extends DiscoverableListener {
                 return handleDLTLogic(record);
               })
           );
-    }else{
+    } else {
       log.error("Unable to deserialize message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

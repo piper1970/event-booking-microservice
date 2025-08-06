@@ -23,7 +23,7 @@ import reactor.util.retry.Retry;
 
 @Component
 @Slf4j
-public class BookingCancelledListener extends DiscoverableListener{
+public class BookingCancelledListener extends DiscoverableListener {
 
   private final EventRepository eventRepository;
   private final Duration timeoutDuration;
@@ -66,29 +66,36 @@ public class BookingCancelledListener extends DiscoverableListener{
    * @return a Mono[ReceiverRecord], optionally posting to DLT if problems occurred
    */
   @Override
-  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record){
+  protected Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(
+      ReceiverRecord<Integer, Object> record) {
+
     log.debug("BookingCancelledListener::handleIndividualRequest started");
-    if(record.value() instanceof BookingCancelled message) {
+
+    if (record.value() instanceof BookingCancelled message) {
       return eventRepository.findById(message.getEventId())
           .subscribeOn(Schedulers.boundedElastic())
           .timeout(timeoutDuration)
           .retryWhen(defaultRepositoryRetry)
-          .flatMap(event -> eventRepository.save(event.withAvailableBookings(event.getAvailableBookings() + 1))
+          .flatMap(event -> eventRepository.save(
+                  event.withAvailableBookings(event.getAvailableBookings() + 1))
               .subscribeOn(Schedulers.boundedElastic())
               .timeout(timeoutDuration)
               .retryWhen(defaultRepositoryRetry)
-              .doOnNext((Event evt) -> log.info(
+              .doOnNext((Event evt) ->
+                  log.info(
                       "Event [{}] availabilities increased to [{}] due to booking cancellation",
                       evt.getId(), evt.getAvailableBookings()))
-              .doOnError(err -> log.error("Event [{}] for cancelled booking not properly updated", message.getEventId(), err))
+              .doOnError(err -> log.error("Event [{}] for cancelled booking not properly updated",
+                  message.getEventId(), err))
               .map(_evt -> record)
           )
           .onErrorResume(err -> {
-            log.error("BOOKING_CANCELLED message not handled after max attempts. Sending to DLQ",
+            log.error(
+                "BOOKING_CANCELLED message not handled after max attempts. Sending to DLQ",
                 err);
             return handleDLTLogic(record);
           });
-    }else{
+    } else {
       log.error("Unable to deserialize message. Sending to DLT for further processing");
       return handleDLTLogic(record);
     }

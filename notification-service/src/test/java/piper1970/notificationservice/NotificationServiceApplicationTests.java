@@ -9,10 +9,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static piper1970.eventservice.common.kafka.KafkaHelper.createSenderMono;
+import static piper1970.eventservice.common.kafka.reactive.TracingHelper.extractMDCIntoHeaders;
 import static piper1970.notificationservice.kafka.listener.BookingCancelledListener.BOOKING_CANCELLED_MESSAGE_SUBJECT;
 import static piper1970.notificationservice.kafka.listener.BookingCreatedListener.BOOKING_HAS_BEEN_CREATED_SUBJECT;
 import static piper1970.notificationservice.kafka.listener.BookingEventUnavailableListener.BOOKING_EVENT_UNAVAILABLE_SUBJECT;
 
+import brave.Tracer;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
 import jakarta.mail.Session;
@@ -96,7 +98,10 @@ public class NotificationServiceApplicationTests {
   private final Duration timeoutDuration = Duration.ofSeconds(10);
 
   @Autowired
-  MessagePostingService kafkaMessagePostingService;
+  private MessagePostingService kafkaMessagePostingService;
+
+  @Autowired
+  private Tracer tracer;
 
   @Autowired
   private ReactiveKafkaReceiverFactory receiverFactory;
@@ -215,7 +220,8 @@ public class NotificationServiceApplicationTests {
     message.setEventId(eventId);
     message.setBooking(new BookingId(bookingId, email, username));
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_CREATED, bookingId, message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.BOOKING_CREATED, bookingId, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .subscribeOn(Schedulers.boundedElastic())
         .block(timeoutDuration);
@@ -254,7 +260,7 @@ public class NotificationServiceApplicationTests {
     message.setEventId(1);
     message.setBooking(new BookingId(2, "test_user@test.com", "test_user"));
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, bookingId, message, clock))
+    kafkaSender.send(createSenderMono(Topics.BOOKING_EVENT_UNAVAILABLE, bookingId, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .subscribeOn(Schedulers.boundedElastic())
         .block(timeoutDuration);
@@ -276,7 +282,8 @@ public class NotificationServiceApplicationTests {
     message.setEventId(1);
     message.setBooking(new BookingId(2, "test_user@test.com", "test_user"));
 
-    kafkaSender.send(createSenderMono(Topics.BOOKING_CANCELLED, bookingId, message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.BOOKING_CANCELLED, bookingId, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .subscribeOn(Schedulers.boundedElastic())
         .block(timeoutDuration);
@@ -300,7 +307,8 @@ public class NotificationServiceApplicationTests {
     );
     var message = new BookingsCancelled(bookingIds, eventId, "Cancellation Message");
 
-    kafkaSender.send(createSenderMono(Topics.BOOKINGS_CANCELLED, eventId, message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.BOOKINGS_CANCELLED, eventId, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .subscribeOn(Schedulers.boundedElastic())
         .block(timeoutDuration);
@@ -319,7 +327,8 @@ public class NotificationServiceApplicationTests {
     );
     var message = new BookingsUpdated(bookingIds, eventId, "Update Message");
 
-    kafkaSender.send(createSenderMono(Topics.BOOKINGS_UPDATED, eventId, message, clock))
+    kafkaSender.send(
+            createSenderMono(Topics.BOOKINGS_UPDATED, eventId, message, clock, extractMDCIntoHeaders(tracer)))
         .single()
         .subscribeOn(Schedulers.boundedElastic())
         .block(timeoutDuration);

@@ -20,7 +20,7 @@ public class TracingObservationCustomizer implements
             return !pathMatcher.match("/actuator/**",
                 observationContext.getCarrier().getPath().value());
           } else {
-            return !name.startsWith("spring.security");
+            return !name.startsWith(securityPrefix);
           }
         });
   }

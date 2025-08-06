@@ -1,5 +1,8 @@
 package piper1970.eventservice.common.kafka.reactive;
 
+import static piper1970.eventservice.common.kafka.reactive.TracingHelper.decorateWithTracing;
+
+import java.util.function.Function;
 import org.springframework.beans.factory.DisposableBean;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -26,7 +29,11 @@ public abstract class DiscoverableListener implements DisposableBean, AutoClosea
 
   /**
    * Handle the main flux build.
-   * Relies on abstract @handleIndividualRequest logic for individual message processing
+   * <p/>
+   * Relies on abstract @handleIndividualRequest logic for individual message processing.
+   * <p/>
+   * To ensure proper trace propagation in kafka receivers, handleIndividualRequest is decorated by
+   * {@link TracingHelper#decorateWithTracing(ReceiverRecord, Function)}
    *
    * @return Flux[ReceiverRecord[Integer,Object]]
    */
@@ -34,7 +41,8 @@ public abstract class DiscoverableListener implements DisposableBean, AutoClosea
     return createReceiver()
         .receive()
         .subscribeOn(Schedulers.boundedElastic())
-        .concatMap(this::handleIndividualRequest);
+        // enable trace propagation
+        .concatMap(record -> decorateWithTracing(record, this::handleIndividualRequest));
   }
 
   private KafkaReceiver<Integer, Object> createReceiver() {
