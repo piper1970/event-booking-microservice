@@ -82,7 +82,7 @@ services:
       KC_HTTP_ENABLED: false
       KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/conf/server.keystore
       KC_HTTPS_KEY_STORE_TYPE: pkcs12
-      KC_HTTPS_KEY_STORE_PASSWORD: ${KC_KEYSTORE_PASSWORD:kcPas%wO5D}
+      KC_HTTPS_KEY_STORE_PASSWORD: ${KC_KEYSTORE_PASSWORD:kcPasSwO5D}
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
