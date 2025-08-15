@@ -1,0 +1,7 @@
+server:
+  ssl:
+    enabled: true
+    key-store: file:${SSL_KEYSTORE_PATH:data/certs/ssl_local/event-booking-service.p12}
+    key-store-type: PKCS12
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:evbPa!sW@8d}
+    key-alias: api-gateway

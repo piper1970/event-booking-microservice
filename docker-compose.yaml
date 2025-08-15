@@ -69,6 +69,7 @@ services:
     image: quay.io/keycloak/keycloak:26.1
     ports:
       - "8180:8080"
+      - "8441:8443"
     environment:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
@@ -78,13 +79,17 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
       KC_HTTP_RELATIVE_PATH: /
-      KC_HTTP_ENABLED: true
+      KC_HTTP_ENABLED: false
+      KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/conf/server.keystore
+      KC_HTTPS_KEY_STORE_TYPE: pkcs12
+      KC_HTTPS_KEY_STORE_PASSWORD: ${KC_KEYSTORE_PASSWORD:kcPas%wO5D}
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
       - ./data/keycloak/default/:/opt/keycloak/data/import/
+      - ./data/certs/keycloak/keycloak.p12:/opt/keycloak/conf/server.keystore
     command:
       - start-dev
       - --import-realm
