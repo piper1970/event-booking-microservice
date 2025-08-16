@@ -39,3 +39,7 @@ build/
 
 **/logs
 
+# Hide certificates
+certs/
+certs/**
+
