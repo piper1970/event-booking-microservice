@@ -1,7 +1,48 @@
 server:
   ssl:
     enabled: true
-    key-store: file:${SSL_KEYSTORE_PATH}
-    key-store-type: PKCS12
-    key-store-password: ${SSL_KEYSTORE_PASSWORD}
-    key-alias: api-gateway
+    bundle: event-booking-service-bundle
+
+spring:
+  ssl:
+    bundle:
+      jks:
+        event-booking-service-bundle:
+          keystore:
+            location: file:${SSL_KEYSTORE_PATH}
+            password: ${SSL_KEYSTORE_PASSWORD}
+            type: PKCS12
+            alias: api-gateway
+          truststore:
+            location: file:${SSL_KEYSTORE_PATH}
+            password: ${SSL_KEYSTORE_PASSWORD}
+            type: PKCS12
+
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            jwk-set-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/certs
+            authorization-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/auth
+            token-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/token
+            user-info-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/userinfo
+            user-name-attribute: sub
+  cloud:
+    gateway:
+      globalcors:
+        cors-configuration:
+          '[/**]':
+            allowed-origins:
+              - "https://localhost:${server.port}" # Gateway URL
+              - "https://localhost:8441" # Keycloak URL
+              - "http://localhost:8888" # Config URL
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - OPTIONS
+              - HEAD
+            allowed-headers: "*"
+            allow-credentials: true

@@ -13,7 +13,7 @@ import io.swagger.v3.oas.annotations.servers.Server;
 
 @OpenAPIDefinition(
     servers = {
-        @Server(url = "http://localhost:8080",
+        @Server(url = "${api.gateway.url: http://localhost:8080}",
             description = "API Gateway")
     },
     info = @Info(
