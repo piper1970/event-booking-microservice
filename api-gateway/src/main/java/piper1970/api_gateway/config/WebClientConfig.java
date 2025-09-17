@@ -25,6 +25,7 @@ public class WebClientConfig {
   WebClient webClient(ReactiveOAuth2AuthorizedClientManager authorizedClientManager,
       SslBundles sslBundles,
       @Value("${server.ssl.enabled:false}") boolean sslEnabled) {
+
     var oauth2Client = new ServerOAuth2AuthorizedClientExchangeFilterFunction(
         authorizedClientManager);
 
@@ -39,25 +40,17 @@ public class WebClientConfig {
       try {
 
         SslBundle sslBundle = sslBundles.getBundle("event-booking-service");
+        var managers = sslBundle.getManagers();
 
-        // netty's HttpClient requires it's own SslContext version.
-        var contextBuilder = io.netty.handler.ssl.SslContextBuilder
+        // Netty's HttpClient requires its own SslContext version.
+        var sslContext = io.netty.handler.ssl.SslContextBuilder
             .forClient()
-            .sslProvider(JDK);
+            .sslProvider(JDK)
+            .trustManager(managers.getTrustManagerFactory())
+            .keyManager(managers.getKeyManagerFactory())
+            .build();
 
-        // load truststore manager
-        if (sslBundle.getManagers().getTrustManagerFactory() != null) {
-          contextBuilder.trustManager(sslBundle.getManagers().getTrustManagerFactory());
-        }
-
-        // load keystore manager
-        if (sslBundle.getManagers().getKeyManagerFactory() != null) {
-          contextBuilder.keyManager(sslBundle.getManagers().getKeyManagerFactory());
-        }
-
-        var nettySslContext = contextBuilder.build();
-
-        httpClient.secure(spec -> spec.sslContext(nettySslContext));
+        httpClient.secure(spec -> spec.sslContext(sslContext));
 
       } catch (SSLException e) {
         log.error("SSL exception. Aborting...", e);
