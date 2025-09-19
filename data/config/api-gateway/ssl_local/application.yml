@@ -9,13 +9,13 @@ spring:
       jks:
         event-booking-service:
           keystore:
-            location: file:${SSL_KEYSTORE_PATH}
-            password: ${SSL_KEYSTORE_PASSWORD}
+            location: file:${API_KEYSTORE_PATH}
+            password: ${API_KEYSTORE_PASSWORD}
             type: PKCS12
-            alias: api-gateway
+            alias: ${API_KEYSTORE_ALIAS}
           truststore:
-            location: file:${SSL_KEYSTORE_PATH}
-            password: ${SSL_KEYSTORE_PASSWORD}
+            location: file:${API_TRUSTSTORE_PATH}
+            password: ${API_TRUSTSTORE_PASSWORD}
             type: PKCS12
 
   security:

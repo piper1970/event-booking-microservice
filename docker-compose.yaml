@@ -82,14 +82,14 @@ services:
       KC_HTTP_ENABLED: false
       KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/conf/server.keystore
       KC_HTTPS_KEY_STORE_TYPE: pkcs12
-      KC_HTTPS_KEY_STORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD}
+      KC_HTTPS_KEY_STORE_PASSWORD: ${KEYCLOAK_KEYSTORE_PASSWORD}
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
       - ./data/keycloak/default/:/opt/keycloak/data/import/
-      - '${SSL_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
+      - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
     command:
       - start-dev
       - --import-realm
