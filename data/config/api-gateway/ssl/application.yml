@@ -10,10 +10,10 @@ spring:
       client:
         provider:
           keycloak:
-            jwk-set-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/certs
-            authorization-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/auth
-            token-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/token
-            user-info-uri: https://localhost:8441/realms/piper1970/protocol/openid-connect/userinfo
+            jwk-set-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/certs
+            authorization-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/auth
+            token-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/token
+            user-info-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/userinfo
             user-name-attribute: sub
   cloud:
     gateway:
