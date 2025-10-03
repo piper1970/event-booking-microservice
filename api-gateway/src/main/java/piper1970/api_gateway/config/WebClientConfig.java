@@ -31,18 +31,17 @@ public class WebClientConfig {
 
     var builder = WebClient.builder();
 
-    // Use Netty version of HttpClient, rather than JDBC, since it is
+    // Use Netty version of HttpClient, rather than JDBC
     reactor.netty.http.client.HttpClient httpClient = reactor.netty.http.client.HttpClient.create();
 
     // add SSL capabilities conditionally
     if (sslEnabled) {
-
       try {
-
         SslBundle sslBundle = sslBundles.getBundle("event-booking-service");
         var managers = sslBundle.getManagers();
 
         // Netty's HttpClient requires its own SslContext version.
+        // expects bundle to have both keystore and truststore managers setup
         var sslContext = io.netty.handler.ssl.SslContextBuilder
             .forClient()
             .sslProvider(JDK)
@@ -50,7 +49,7 @@ public class WebClientConfig {
             .keyManager(managers.getKeyManagerFactory())
             .build();
 
-        httpClient.secure(spec -> spec.sslContext(sslContext));
+        httpClient = httpClient.secure(spec -> spec.sslContext(sslContext));
 
       } catch (SSLException e) {
         log.error("SSL exception. Aborting...", e);
@@ -58,7 +57,7 @@ public class WebClientConfig {
       }
     }
 
-    // Use ReactorClientHttpConnector rather than JDBC version
+    // Use reactive ReactorClientHttpConnector rather than JDBC version
     builder.clientConnector(new ReactorClientHttpConnector(httpClient));
 
     return builder
