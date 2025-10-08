@@ -56,6 +56,7 @@ import org.springframework.r2dbc.connection.init.CompositeDatabasePopulator;
 import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.r2dbc.connection.init.ResourceDatabasePopulator;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.testcontainers.containers.ComposeContainer;
@@ -84,6 +85,10 @@ import reactor.core.publisher.Mono;
         baseUrlProperties = "keystore-service.url")
 })
 @Tag("integration-test")
+@TestPropertySource(properties = {
+    "EVENTS_TRUSTSTORE_PATH=/mock/path",
+    "EVENTS_TRUSTSTORE_PASSWORD=mock_password"
+})
 public class EventControllerTestsIT {
 
   //region Properties Setup

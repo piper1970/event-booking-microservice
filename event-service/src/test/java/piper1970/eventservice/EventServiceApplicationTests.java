@@ -36,6 +36,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import piper1970.eventservice.common.bookings.messages.BookingCancelled;
 import piper1970.eventservice.common.bookings.messages.types.BookingId;
 import piper1970.eventservice.common.events.messages.BookingEventUnavailable;
@@ -68,6 +69,10 @@ import reactor.util.retry.Retry;
 @ActiveProfiles({"test", "test_kafka"})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestClassOrder(OrderAnnotation.class)
+@TestPropertySource(properties = {
+    "EVENTS_TRUSTSTORE_PATH=/mock/path",
+    "EVENTS_TRUSTSTORE_PASSWORD=mock_password"
+})
 @Order(1)
 public class EventServiceApplicationTests {
 
