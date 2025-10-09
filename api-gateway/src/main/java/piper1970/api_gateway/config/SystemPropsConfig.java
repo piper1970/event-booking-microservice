@@ -3,8 +3,10 @@ package piper1970.api_gateway.config;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
+@Profile({"ssl_local"})
 public class SystemPropsConfig {
 
   private final String trustStorePath;
@@ -18,7 +20,7 @@ public class SystemPropsConfig {
   }
 
   @PostConstruct
-  public void configureSsl() {
+  public void configureTrustStore() {
 
     // Hard-setting these values due to extended issues setting up SSL with OAuth2 services
     System.setProperty("javax.net.ssl.trustStore", trustStorePath);

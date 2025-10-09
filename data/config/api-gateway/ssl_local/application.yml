@@ -1,3 +1,9 @@
+api:
+  uri:
+    booking-service: lb://booking-service
+    event-service: lb://event-service
+    notification-service: lb://notification-service
+
 server:
   ssl:
     enabled: true
@@ -46,3 +52,28 @@ spring:
               - HEAD
             allowed-headers: "*"
             allow-credentials: true
+      routes:
+        - id: booking-service
+          uri: ${api.uri.booking-service}
+          predicates:
+            - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
+        - id: event-service
+          uri: ${api.uri.event-service}
+          predicates:
+            - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
+        - id: notification-service
+          uri: ${api.uri.notification-service}
+          predicates:
+            - Path=/api/notifications/**,/api/notifications
+        - id: booking-service-openapi
+          uri: ${api.uri.booking-service}
+          predicates:
+            - Path=/v3/api-docs/bookings
+          filters:
+            - RewritePath=/v3/api-docs/bookings,/v3/api-docs
+        - id: event-service-openapi
+          uri: ${api.uri.event-service}
+          predicates:
+            - Path=/v3/api-docs/events
+          filters:
+            - RewritePath=/v3/api-docs/events,/v3/api-docs

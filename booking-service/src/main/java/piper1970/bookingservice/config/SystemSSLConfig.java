@@ -1,4 +1,4 @@
-package piper1970.eventservice.config;
+package piper1970.bookingservice.config;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,14 +13,15 @@ public class SystemSSLConfig {
   private final String trustStorePassword;
 
   public SystemSSLConfig(
-      @Value("${EVENTS_TRUSTSTORE_PATH}")String trustStorePath,
-      @Value("${EVENTS_TRUSTSTORE_PASSWORD}")String trustStorePassword) {
+      @Value("${BOOKINGS_TRUSTSTORE_PATH}")String trustStorePath,
+      @Value("${BOOKINGS_TRUSTSTORE_PASSWORD}")String trustStorePassword) {
     this.trustStorePath = trustStorePath;
     this.trustStorePassword = trustStorePassword;
   }
 
   @PostConstruct
   public void configureTrustStore() {
+
     System.setProperty("javax.net.ssl.trustStore", trustStorePath);
     System.setProperty("javax.net.ssl.trustStorePassword", trustStorePassword);
     System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");
