@@ -4,7 +4,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
-@Profile({"local_discovery", "compose",  "ssl_local"})
+@Profile({"local_discovery", "compose",  "ssl_local", "ssl_compose"})
 @Configuration
 @EnableDiscoveryClient
 public class LocalDiscovery {

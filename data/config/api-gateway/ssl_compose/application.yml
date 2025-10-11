@@ -1,0 +1,82 @@
+api:
+  uri:
+    booking-service: lb://booking-service
+    event-service: lb://event-service
+    notification-service: lb://notification-service
+
+server:
+  ssl:
+    enabled: true
+    bundle: event-booking-service
+
+spring:
+  data:
+    redis:
+      host: redis
+  ssl:
+    bundle:
+      jks:
+        event-booking-service:
+          keystore:
+            location: file:${API_KEYSTORE_PATH}
+            password: ${API_KEYSTORE_PASSWORD}
+            type: PKCS12
+            alias: ${API_KEYSTORE_ALIAS}
+          truststore:
+            location: file:${API_TRUSTSTORE_PATH}
+            password: ${API_TRUSTSTORE_PASSWORD}
+            type: PKCS12
+
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            jwk-set-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/certs
+            authorization-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/auth
+            token-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/token
+            user-info-uri: https://keycloak:8441/realms/piper1970/protocol/openid-connect/userinfo
+            user-name-attribute: sub
+  cloud:
+    gateway:
+      globalcors:
+        cors-configuration:
+          '[/**]':
+            allowed-origins:
+              - "https://localhost:${server.port}" # Gateway URL
+              - "https://keycloak:8441" # Keycloak URL
+              - "http://event-service-config:8888" # Config URL
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - OPTIONS
+              - HEAD
+            allowed-headers: "*"
+            allow-credentials: true
+      routes:
+        - id: booking-service
+          uri: ${api.uri.booking-service}
+          predicates:
+            - Path=/api/bookings/**,/api/bookings,/bookings/api-docs,/bookings/api-docs/**
+        - id: event-service
+          uri: ${api.uri.event-service}
+          predicates:
+            - Path=/api/events/**,/api/events,/events/api-docs,/events/api-docs/**
+        - id: notification-service
+          uri: ${api.uri.notification-service}
+          predicates:
+            - Path=/api/notifications/**,/api/notifications
+        - id: booking-service-openapi
+          uri: ${api.uri.booking-service}
+          predicates:
+            - Path=/v3/api-docs/bookings
+          filters:
+            - RewritePath=/v3/api-docs/bookings,/v3/api-docs
+        - id: event-service-openapi
+          uri: ${api.uri.event-service}
+          predicates:
+            - Path=/v3/api-docs/events
+          filters:
+            - RewritePath=/v3/api-docs/events,/v3/api-docs

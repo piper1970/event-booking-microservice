@@ -3,26 +3,26 @@ networks:
     driver: bridge
 
 volumes:
-  postgres-data:
-    name: "event-service-postgres-volume"
-  zookeeper-data:
-    name: "event-service-zookeeper-volume"
-  zookeeper-log:
-    name: "event-service-zookeeper-log-volume"
-  kafka-data:
-    name: "event-service-kafka-volume"
-  kafka-logs:
-    name: "event-service-kafka-logs-volume"
-  schema-registry-data:
-    name: "event-service-schema-registry-volume"
-  grafana-data:
-    name: "event-service-grafana-data"
-  elk-certs:
-    name: "event-service-elasticsearch-certs"
-  es01-data:
-    name: "event-service-elasticsearch-1-data"
-  kibana-data:
-    name: "event-service-kibana-data"
+  postgres-data-ssl:
+    name: "event-service-postgres-ssl-volume"
+  zookeeper-data-ssl:
+    name: "event-service-zookeeper-ssl-volume"
+  zookeeper-log-ssl:
+    name: "event-service-zookeeper-log-ssl-volume"
+  kafka-data-ssl:
+    name: "event-service-kafka-ssl-volume"
+  kafka-logs-ssl:
+    name: "event-service-kafka-logs-ssl-volume"
+  schema-registry-data-ssl:
+    name: "event-service-schema-registry-ssl-volume"
+  grafana-data-ssl:
+    name: "event-service-grafana-ssl-data"
+  elk-certs-ssl:
+    name: "event-service-elasticsearch-ssl-certs"
+  es01-data-ssl:
+    name: "event-service-elasticsearch-1-ssl-data"
+  kibana-data-ssl:
+    name: "event-service-kibana-ssl-data"
 
 services:
   postgres:
@@ -46,16 +46,14 @@ services:
       BOOKINGS_DB_USER: ${BOOKINGS_DB_USER}
       BOOKINGS_DB_PASSWORD: ${BOOKINGS_DB_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-ssl:/var/lib/postgresql/data
       - ./data/scripts:/docker-entrypoint-initdb.d
-    # TODO - disable for outside access
     ports:
       - "5432:5432"
 
   redis:
     image: redis:alpine3.21
     restart: always
-    # TODO - disable for outside access
     ports:
       - '6379:6379'
     command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
@@ -70,7 +68,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     ports:
-      - "8180:8080"
+      - "8441:8443"
     environment:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
@@ -80,12 +78,17 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
       KC_HTTP_RELATIVE_PATH: /
-      KC_HTTP_ENABLED: true
+      KC_HTTP_ENABLED: false
+      KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/conf/server.keystore
+      KC_HTTPS_KEY_STORE_TYPE: pkcs12
+      KC_HTTPS_KEY_STORE_PASSWORD: ${KEYCLOAK_KEYSTORE_PASSWORD}
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
       - ./data/keycloak/default/:/opt/keycloak/data/import/
+      - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
     command:
       - start-dev
       - --import-realm
@@ -97,8 +100,8 @@ services:
     ports:
       - "2181:2181"
     volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-log:/var/lib/zookeeper/log
+      - zookeeper-data-ssl:/var/lib/zookeeper/data
+      - zookeeper-log-ssl:/var/lib/zookeeper/log
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
     healthcheck:
@@ -112,8 +115,8 @@ services:
     ports:
       - "9092:9092"
     volumes:
-      - kafka-data:/var/lib/kafka/data
-      - kafka-logs:/tmp/kafka-logs
+      - kafka-data-ssl:/var/lib/kafka/data
+      - kafka-logs-ssl:/tmp/kafka-logs
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -140,7 +143,7 @@ services:
     ports:
       - "9091:8081"
     volumes:
-      - schema-registry-data:/usr/bin/confluent
+      - schema-registry-data-ssl:/usr/bin/confluent
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
@@ -158,7 +161,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./data/prometheus/prometheus-local.yml:/etc/prometheus/prometheus.yml
+      - ./data/prometheus/prometheus-ssl_local.yml:/etc/prometheus/prometheus.yml
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
 
@@ -171,7 +174,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/grafana:/etc/grafana/provisioning/datasources
-      - grafana-data:/var/lib/grafana
+      - grafana-data-ssl:/var/lib/grafana
     environment:
       - GF_USERS_ALLOW_SIGN_UP=false
   
@@ -183,7 +186,7 @@ services:
   setup-elk-certs-job:
     image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
-      - elk-certs:/usr/share/elasticsearch/config/certs
+      - elk-certs-ssl:/usr/share/elasticsearch/config/certs
       - ./data/elk/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
     environment:
@@ -218,8 +221,8 @@ services:
     labels:
       co.elastic.logs/module: elasticsearch
     volumes:
-      - elk-certs:/usr/share/elasticsearch/config/certs
-      - es01-data:/usr/share/elasticsearch/data
+      - elk-certs-ssl:/usr/share/elasticsearch/config/certs
+      - es01-data-ssl:/usr/share/elasticsearch/data
     ports:
       - "127.0.0.1:9200:9200"
     networks:
@@ -264,7 +267,7 @@ services:
         condition: service_healthy
     image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
-      - elk-certs:/usr/share/elasticsearch/config/certs
+      - elk-certs-ssl:/usr/share/elasticsearch/config/certs
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_PASSWORD={KIBANA_PASSWORD}
@@ -289,8 +292,8 @@ services:
     networks:
       - elk
     volumes:
-      - elk-certs:/usr/share/kibana/config/certs
-      - kibana-data:/usr/share/kibana/data
+      - elk-certs-ssl:/usr/share/kibana/config/certs
+      - kibana-data-ssl:/usr/share/kibana/data
     ports:
       - "5601:5601"
     environment:
@@ -325,7 +328,7 @@ services:
     networks:
       - elk
     volumes:
-      - elk-certs:/usr/share/logstash/certs
+      - elk-certs-ssl:/usr/share/logstash/certs
       - "./data/logstash/logstash-local.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
       - "./logs/:/usr/share/logstash/ingest_data/"
     command: logstash -f /usr/share/logstash/pipeline/logstash.conf
@@ -336,21 +339,3 @@ services:
       - ELASTIC_HOSTS=https://es01:9200
     mem_limit: 536870912
 
-# Optional kafka Control Center UI
-#  control-center:
-#    image: confluentinc/cp-enterprise-control-center:7.9.0
-#    hostname: control-center
-#    container_name: control-center
-#    depends_on:
-#      - kafka
-#      - schema-registry
-#    ports:
-#      - "9021:9021"
-#    environment:
-#      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'kafka:29092'
-#      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
-#      CONTROL_CENTER_REPLICATION_FACTOR: 1
-#      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
-#      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
-#      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
-#      PORT: 9021

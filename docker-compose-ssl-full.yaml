@@ -12,26 +12,26 @@ networks:
 
 volumes:
 
-  postgres-data-full:
-    name: "event-service-postgres-full-volume"
-  zookeeper-data-full:
-    name: "event-service-zookeeper-full-volume"
-  zookeeper-log-full:
-    name: "event-service-zookeeper-log-full-volume"
-  kafka-data-full:
-    name: "event-service-kafka-full-volume"
-  kafka-logs-full:
-    name: "event-service-kafka-logs-full-volume"
-  schema-registry-data-full:
-    name: "event-service-schema-registry-full-volume"
-  grafana-data-full:
-    name: "event-service-grafana-full-data"
-  elk-certs-full:
-    name: "event-service-elasticsearch-full-certs"
-  es01-data-full:
-    name: "event-service-elasticsearch-1-full-data"
-  kibana-data-full:
-    name: "event-service-kibana-full-data"
+  postgres-data-ssl-full:
+    name: "event-service-postgres-ssl-full-volume"
+  zookeeper-data-ssl-full:
+    name: "event-service-zookeeper-ssl-full-volume"
+  zookeeper-log-ssl-full:
+    name: "event-service-zookeeper-log-ssl-full-volume"
+  kafka-data-ssl-full:
+    name: "event-service-kafka-ssl-full-volume"
+  kafka-logs-ssl-full:
+    name: "event-service-kafka-logs-ssl-full-volume"
+  schema-registry-data-ssl-full:
+    name: "event-service-schema-registry-ssl-full-volume"
+  grafana-data-ssl-full:
+    name: "event-service-grafana-ssl-full-data"
+  elk-certs-ssl-full:
+    name: "event-service-elasticsearch-ssl-full-certs"
+  es01-data-ssl-full:
+    name: "event-service-elasticsearch-1-ssl-full-data"
+  kibana-data-ssl-full:
+    name: "event-service-kibana-ssl-full-data"
 
 services:
 
@@ -60,7 +60,7 @@ services:
       BOOKINGS_DB_USER: ${BOOKINGS_DB_USER}
       BOOKINGS_DB_PASSWORD: ${BOOKINGS_DB_PASSWORD}
     volumes:
-      - postgres-data-full:/var/lib/postgresql/data
+      - postgres-data-ssl-full:/var/lib/postgresql/data
       - ./data/scripts:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
@@ -84,7 +84,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     ports:
-      - "8180:8080"
+      - "8441:8443"
     networks:
       - full
     environment:
@@ -96,13 +96,18 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
       KC_HTTP_RELATIVE_PATH: /
-      KC_HTTP_ENABLED: true
+      KC_HTTP_ENABLED: false
+      KC_HTTPS_KEY_STORE_FILE: /opt/keycloak/conf/server.keystore
+      KC_HTTPS_KEY_STORE_TYPE: pkcs12
+      KC_HTTPS_KEY_STORE_PASSWORD: ${KEYCLOAK_KEYSTORE_PASSWORD}
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
-      KC_HOSTNAME: http://keycloak:8180 # using external port, 8180
+      KC_HOSTNAME: https://keycloak:8441 # using external port, 8441
       KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
       - ./data/keycloak/compose/:/opt/keycloak/data/import/
+      - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
     command:
       - start-dev
       - --import-realm
@@ -112,8 +117,8 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.9.0
     volumes:
-      - zookeeper-data-full:/var/lib/zookeeper/data
-      - zookeeper-log-full:/var/lib/zookeeper/log
+      - zookeeper-data-ssl-full:/var/lib/zookeeper/data
+      - zookeeper-log-ssl-full:/var/lib/zookeeper/log
     networks:
       - full
     environment:
@@ -127,8 +132,8 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.9.0
     volumes:
-      - kafka-data-full:/var/lib/kafka/data
-      - kafka-logs-full:/tmp/kafka-logs
+      - kafka-data-ssl-full:/var/lib/kafka/data
+      - kafka-logs-ssl-full:/tmp/kafka-logs
     networks:
       - full
     environment:
@@ -157,7 +162,7 @@ services:
       kafka:
         condition: service_healthy
     volumes:
-      - schema-registry-data-full:/usr/bin/confluent
+      - schema-registry-data-ssl-full:/usr/bin/confluent
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
@@ -173,7 +178,7 @@ services:
     container_name: prometheus
     restart: unless-stopped
     volumes:
-      - ./data/prometheus/prometheus-compose.yml:/etc/prometheus/prometheus.yml
+      - ./data/prometheus/prometheus-compose-ssl_full.yml:/etc/prometheus/prometheus.yml
     networks:
       - full
     command:
@@ -190,7 +195,7 @@ services:
       - full
     volumes:
       - ./data/grafana:/etc/grafana/provisioning/datasources
-      - grafana-data-full:/var/lib/grafana
+      - grafana-data-ssl-full:/var/lib/grafana
     environment:
       - GF_USERS_ALLOW_SIGN_UP=false
 
@@ -201,7 +206,7 @@ services:
   setup-elk-certs-job:
     image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
-      - elk-certs-full:/usr/share/elasticsearch/config/certs
+      - elk-certs-ssl-full:/usr/share/elasticsearch/config/certs
       - ./data/elk/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
     environment:
@@ -238,8 +243,8 @@ services:
     networks:
       - elk
     volumes:
-      - elk-certs-full:/usr/share/elasticsearch/config/certs
-      - es01-data-full:/usr/share/elasticsearch/data
+      - elk-certs-ssl-full:/usr/share/elasticsearch/config/certs
+      - es01-data-ssl-full:/usr/share/elasticsearch/data
     ports:
       - "127.0.0.1:9200:9200"
     environment:
@@ -282,7 +287,7 @@ services:
         condition: service_healthy
     image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
-      - elk-certs-full:/usr/share/elasticsearch/config/certs
+      - elk-certs-ssl-full:/usr/share/elasticsearch/config/certs
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_PASSWORD={KIBANA_PASSWORD}
@@ -307,8 +312,8 @@ services:
     networks:
       - elk
     volumes:
-      - elk-certs-full:/usr/share/kibana/config/certs
-      - kibana-data-full:/usr/share/kibana/data
+      - elk-certs-ssl-full:/usr/share/kibana/config/certs
+      - kibana-data-ssl-full:/usr/share/kibana/data
     ports:
       - "5601:5601"
     environment:
@@ -344,7 +349,7 @@ services:
       - full
       - elk
     volumes:
-      - elk-certs-full:/usr/share/logstash/certs
+      - elk-certs-ssl-full:/usr/share/logstash/certs
       - "./data/logstash/logstash-compose.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
     command: logstash -f /usr/share/logstash/pipeline/logstash.conf
     environment:
@@ -364,7 +369,7 @@ services:
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=local_discovery,compose
+      - SPRING_PROFILES_ACTIVE=compose
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
       - DISCOVERY_USER=${DISCOVERY_USER}
     healthcheck:
@@ -407,7 +412,7 @@ services:
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=compose
+      - SPRING_PROFILES_ACTIVE=compose,ssl_local
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -442,7 +447,7 @@ services:
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=compose
+      - SPRING_PROFILES_ACTIVE=compose,ssl_local
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -453,6 +458,10 @@ services:
       - EVENTS_ADMIN_DB_PASSWORD=${EVENTS_ADMIN_DB_PASSWORD}
       - EVENTS_DB_USER=${EVENTS_DB_USER}
       - EVENTS_DB_PASSWORD=${EVENTS_DB_PASSWORD}
+      - EVENTS_TRUSTSTORE_PATH=/truststore.p12
+      - EVENTS_TRUSTSTORE_PASSWORD=$EVENTS_TRUSTSTORE_PASSWORD}
+    volumes:
+      - '${EVENTS_TRUSTSTORE_PATH}:/truststore.p12'
     healthcheck:
       test: "curl --silent --fail http://localhost:8081/actuator/health | grep UP  || exit 1"
       interval: 30s
@@ -472,7 +481,7 @@ services:
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=compose
+      - SPRING_PROFILES_ACTIVE=compose,ssl_local
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -483,6 +492,10 @@ services:
       - BOOKINGS_ADMIN_DB_PASSWORD=${BOOKINGS_ADMIN_DB_PASSWORD}
       - BOOKINGS_DB_USER=${BOOKINGS_DB_USER}
       - BOOKINGS_DB_PASSWORD=${BOOKINGS_DB_PASSWORD}
+      - BOOKINGS_TRUSTSTORE_PATH=/truststore.p12
+      - BOOKINGS_TRUSTSTORE_PASSWORD=${BOOKINGS_TRUSTSTORE_PASSWORD}
+    volumes:
+      - '${BOOKINGS_TRUSTSTORE_PATH}:/truststore.p12'
     healthcheck:
       test: "curl --silent --fail http://localhost:8083/actuator/health | grep UP  || exit 1"
       interval: 30s
@@ -502,11 +515,11 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8443:8443"
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=compose
+      - SPRING_PROFILES_ACTIVE=ssl_compose
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -514,8 +527,16 @@ services:
       - OAUTH2_CLIENT_ID=${OAUTH2_CLIENT_ID}
       - OAUTH2_CLIENT_SECRET=${OAUTH2_CLIENT_SECRET}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - API_KEYSTORE_PATH=/keystore.p12
+      - API_KEYSTORE_PASSWORD=${API_KEYSTORE_PASSWORD}
+      - API_KEYSTORE_ALIAS=${API_KEYSTORE_ALIAS}
+      - API_TRUSTSTORE_PATH=/truststore.p12
+      - API_TRUSTSTORE_PASSWORD=${API_TRUSTSTORE_PASSWORD}
+    volumes:
+      - '${API_KEYSTORE_PATH}:/keystore.p12'
+      - '${API_TRUSTSTORE_PATH}:/truststore.p12'
     healthcheck:
-      test: "curl --silent --fail http://localhost:8080/actuator/health | grep UP  || exit 1"
+      test: "curl --silent --fail --insecure https://localhost:8443/actuator/health | grep UP  || exit 1"
       interval: 30s
       timeout: 10s
       retries: 5
