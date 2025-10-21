@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
-@Profile({"ssl_local"})
+@Profile({"ssl_local", "ssl_compose"})
 public class SystemPropsConfig {
 
   private final String trustStorePath;

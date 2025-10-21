@@ -84,9 +84,10 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     ports:
-      - "8441:8443"
+      - "8443:8443"
     networks:
       - full
+    container_name: keycloak
     environment:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
@@ -102,7 +103,8 @@ services:
       KC_HTTPS_KEY_STORE_PASSWORD: ${KEYCLOAK_KEYSTORE_PASSWORD}
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
-      KC_HOSTNAME: https://keycloak:8441 # using external port, 8441
+      KC_HOSTNAME: keycloak
+      KC_HTTPS_PORT: 8443
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
@@ -412,7 +414,7 @@ services:
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=compose,ssl_local
+      - SPRING_PROFILES_ACTIVE=ssl_compose
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -447,7 +449,7 @@ services:
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=compose,ssl_local
+      - SPRING_PROFILES_ACTIVE=ssl_compose
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -459,7 +461,7 @@ services:
       - EVENTS_DB_USER=${EVENTS_DB_USER}
       - EVENTS_DB_PASSWORD=${EVENTS_DB_PASSWORD}
       - EVENTS_TRUSTSTORE_PATH=/truststore.p12
-      - EVENTS_TRUSTSTORE_PASSWORD=$EVENTS_TRUSTSTORE_PASSWORD}
+      - EVENTS_TRUSTSTORE_PASSWORD=${EVENTS_TRUSTSTORE_PASSWORD}
     volumes:
       - '${EVENTS_TRUSTSTORE_PATH}:/truststore.p12'
     healthcheck:
@@ -481,7 +483,7 @@ services:
     networks:
       - full
     environment:
-      - SPRING_PROFILES_ACTIVE=compose,ssl_local
+      - SPRING_PROFILES_ACTIVE=ssl_compose
       - CONFIG_USERNAME=${CONFIG_USERNAME}
       - CONFIG_PASSWORD=${CONFIG_PASSWORD}
       - DISCOVERY_PASSWORD=${DISCOVERY_PASSWORD}
@@ -515,7 +517,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8443:8443"
+      - "9000:9000"
     networks:
       - full
     environment:
@@ -536,7 +538,7 @@ services:
       - '${API_KEYSTORE_PATH}:/keystore.p12'
       - '${API_TRUSTSTORE_PATH}:/truststore.p12'
     healthcheck:
-      test: "curl --silent --fail --insecure https://localhost:8443/actuator/health | grep UP  || exit 1"
+      test: "curl --silent --fail --insecure https://localhost:9000/actuator/health | grep UP  || exit 1"
       interval: 30s
       timeout: 10s
       retries: 5

@@ -68,7 +68,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     ports:
-      - "8441:8443"
+      - "8443:8443"
     environment:
       KC_DB: postgres
       KC_DB_USERNAME: postgres
@@ -86,6 +86,8 @@ services:
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HOSTNAME: keycloak
+      KC_HTTPS_PORT: 8443
     volumes:
       - ./data/keycloak/default/:/opt/keycloak/data/import/
       - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
