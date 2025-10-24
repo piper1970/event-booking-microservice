@@ -1,4 +1,4 @@
-# Event-Booking Service (POC, WIP)
+# Event-Booking Service
 
 _Spring Boot & Kafka-based microservice for cloud-native event systems._
 
