@@ -1,3 +1,5 @@
+# Use this file for setting up entire system in secure HTTPS mode (microservices included)
+
 networks:
   elk:
     driver: bridge
@@ -108,7 +110,7 @@ services:
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
-      - ./data/keycloak/compose/:/opt/keycloak/data/import/
+      - ./data/keycloak/compose-ssl-full/:/opt/keycloak/data/import/
       - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
     command:
       - start-dev

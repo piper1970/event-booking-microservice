@@ -1,3 +1,5 @@
+# Use this file for setting up external services only (keycloak uses https)
+
 networks:
   elk:
     driver: bridge
@@ -89,7 +91,7 @@ services:
       KC_HOSTNAME: keycloak
       KC_HTTPS_PORT: 8443
     volumes:
-      - ./data/keycloak/default/:/opt/keycloak/data/import/
+      - ./data/keycloak/compose-ssl/:/opt/keycloak/data/import/
       - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
     command:
       - start-dev

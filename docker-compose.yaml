@@ -1,3 +1,5 @@
+# Use this file for setting up external services only (keycloak uses HTTP)
+
 networks:
   elk:
     driver: bridge
@@ -48,14 +50,12 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./data/scripts:/docker-entrypoint-initdb.d
-    # TODO - disable for outside access
     ports:
       - "5432:5432"
 
   redis:
     image: redis:alpine3.21
     restart: always
-    # TODO - disable for outside access
     ports:
       - '6379:6379'
     command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
@@ -84,8 +84,9 @@ services:
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
-      - ./data/keycloak/default/:/opt/keycloak/data/import/
+      - ./data/keycloak/compose/:/opt/keycloak/data/import/
     command:
       - start-dev
       - --import-realm
