@@ -1,3 +1,5 @@
+# Use this file for setting up entire system in HTTP mode (microservices included)
+
 networks:
   elk:
     driver: bridge
@@ -102,7 +104,7 @@ services:
       KC_HOSTNAME: http://keycloak:8180 # using external port, 8180
       KC_HOSTNAME_STRICT: false
     volumes:
-      - ./data/keycloak/compose/:/opt/keycloak/data/import/
+      - ./data/keycloak/compose-full/:/opt/keycloak/data/import/
     command:
       - start-dev
       - --import-realm
@@ -202,7 +204,7 @@ services:
     image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
       - elk-certs-full:/usr/share/elasticsearch/config/certs
-      - ./data/certs/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
+      - ./data/elk/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}

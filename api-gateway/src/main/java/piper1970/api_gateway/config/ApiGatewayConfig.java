@@ -74,8 +74,6 @@ public class ApiGatewayConfig {
 
     http.logout(spec -> spec.logoutSuccessHandler(oidcLogoutSuccessHandler()));
 
-
-
     return http.build();
   }
 
@@ -106,7 +104,7 @@ public class ApiGatewayConfig {
     return logoutSuccessHandler;
   }
 
-  Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {
+  private Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthenticationConverter() {
     JwtAuthenticationConverter authConverter = new JwtAuthenticationConverter();
     authConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesExtractor);
     return new ReactiveJwtAuthenticationConverterAdapter(authConverter);

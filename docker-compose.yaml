@@ -1,3 +1,5 @@
+# Use this file for setting up external services only (keycloak uses HTTP)
+
 networks:
   elk:
     driver: bridge
@@ -84,7 +86,7 @@ services:
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
     volumes:
-      - ./data/keycloak/default/:/opt/keycloak/data/import/
+      - ./data/keycloak/compose/:/opt/keycloak/data/import/
     command:
       - start-dev
       - --import-realm
@@ -183,7 +185,7 @@ services:
     image: elasticsearch:${ELK_STACK_VERSION}
     volumes:
       - elk-certs:/usr/share/elasticsearch/config/certs
-      - ./data/certs/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
+      - ./data/elk/instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
     user: "0"
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}

@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-  <springProfile name="!compose">
+  <springProfile name="!compose &amp; !ssl_compose">
 
     <property name="LOG_DIR" value="${user.dir}/logs"/>
     <property name="LOG_FILE" value="api-gateway"/>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-      <withJansi>true</withJansi>
       <encoder>
         <pattern>%green(%d{HH:mm:ss.SSS}) %boldBlue([%thread])
           %highlight(%-5level) %cyan(%logger{36}) - %msg %n
@@ -57,7 +56,7 @@
     </root>
   </springProfile>
 
-  <springProfile name="compose">
+  <springProfile name="compose | ssl_compose">
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
       <encoder>
         <pattern>%green(%d{HH:mm:ss.SSS}) %boldBlue([%thread])

@@ -1,7 +1,7 @@
 {
 	"info": {
-		"_postman_id": "c711f033-47f4-40c9-9a96-7d9e5443a227",
-		"name": "EventService-Local",
+		"_postman_id": "8e704a7a-1369-4177-bb38-5a77e90235b0",
+		"name": "EventService-Https-Compose",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "4616004"
 	},
@@ -19,18 +19,23 @@
 									"type": "oauth2",
 									"oauth2": [
 										{
-											"key": "challengeAlgorithm",
-											"value": "S256",
-											"type": "string"
-										},
-										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
 											"type": "string"
 										},
 										{
 											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
+										{
+											"key": "challengeAlgorithm",
+											"value": "S256",
 											"type": "string"
 										},
 										{
@@ -41,11 +46,6 @@
 										{
 											"key": "clientId",
 											"value": "{{oauth_client_id}}",
-											"type": "string"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
 											"type": "string"
 										},
 										{
@@ -69,6 +69,16 @@
 											"type": "string"
 										},
 										{
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
 											"key": "tokenName",
 											"value": "Keycloak",
 											"type": "string"
@@ -83,12 +93,12 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/bookings",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings"
@@ -104,18 +114,23 @@
 									"type": "oauth2",
 									"oauth2": [
 										{
-											"key": "challengeAlgorithm",
-											"value": "S256",
-											"type": "string"
-										},
-										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
 											"type": "string"
 										},
 										{
 											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
+										{
+											"key": "challengeAlgorithm",
+											"value": "S256",
 											"type": "string"
 										},
 										{
@@ -126,11 +141,6 @@
 										{
 											"key": "clientId",
 											"value": "{{oauth_client_id}}",
-											"type": "string"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
 											"type": "string"
 										},
 										{
@@ -151,6 +161,16 @@
 										{
 											"key": "addTokenTo",
 											"value": "header",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
 											"type": "string"
 										},
 										{
@@ -168,16 +188,15 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/bookings/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings1",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
-										"bookings",
-										"1"
+										"bookings1"
 									]
 								}
 							},
@@ -189,6 +208,21 @@
 								"auth": {
 									"type": "oauth2",
 									"oauth2": [
+										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
 										{
 											"key": "grant_type",
 											"value": "authorization_code_with_pkce",
@@ -205,21 +239,6 @@
 											"type": "string"
 										},
 										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
-											"type": "string"
-										},
-										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
-											"type": "string"
-										},
-										{
 											"key": "client_authentication",
 											"value": "header",
 											"type": "string"
@@ -233,6 +252,16 @@
 											"key": "useBrowser",
 											"value": false,
 											"type": "boolean"
+										},
+										{
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
+											"type": "string"
 										},
 										{
 											"key": "tokenName",
@@ -249,16 +278,16 @@
 								"method": "PATCH",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/bookings/33/cancel",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings/2/cancel",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings",
-										"33",
+										"2",
 										"cancel"
 									]
 								}
@@ -271,6 +300,21 @@
 								"auth": {
 									"type": "oauth2",
 									"oauth2": [
+										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
 										{
 											"key": "grant_type",
 											"value": "authorization_code_with_pkce",
@@ -287,21 +331,6 @@
 											"type": "string"
 										},
 										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
-											"type": "string"
-										},
-										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
-											"type": "string"
-										},
-										{
 											"key": "client_authentication",
 											"value": "header",
 											"type": "string"
@@ -315,6 +344,16 @@
 											"key": "useBrowser",
 											"value": false,
 											"type": "boolean"
+										},
+										{
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
+											"type": "string"
 										},
 										{
 											"key": "tokenName",
@@ -340,12 +379,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/bookings/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings/1",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings",
@@ -362,6 +401,21 @@
 									"type": "oauth2",
 									"oauth2": [
 										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
+										{
 											"key": "client_authentication",
 											"value": "header",
 											"type": "string"
@@ -369,16 +423,6 @@
 										{
 											"key": "grant_type",
 											"value": "authorization_code_with_pkce",
-											"type": "string"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
 											"type": "string"
 										},
 										{
@@ -397,13 +441,18 @@
 											"type": "boolean"
 										},
 										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
+											"key": "addTokenTo",
+											"value": "header",
 											"type": "string"
 										},
 										{
-											"key": "addTokenTo",
-											"value": "header",
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
 											"type": "string"
 										},
 										{
@@ -422,7 +471,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"eventId\": 1\n}",
+									"raw": "{\n    \"eventId\": 2\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -430,12 +479,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/bookings",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings"
@@ -456,6 +505,21 @@
 									"type": "oauth2",
 									"oauth2": [
 										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
+										{
 											"key": "client_authentication",
 											"value": "header",
 											"type": "string"
@@ -463,16 +527,6 @@
 										{
 											"key": "grant_type",
 											"value": "authorization_code_with_pkce",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
-											"type": "string"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
 											"type": "string"
 										},
 										{
@@ -491,13 +545,18 @@
 											"type": "boolean"
 										},
 										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
+											"key": "addTokenTo",
+											"value": "header",
 											"type": "string"
 										},
 										{
-											"key": "addTokenTo",
-											"value": "header",
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
 											"type": "string"
 										},
 										{
@@ -515,12 +574,12 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/events",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events"
@@ -536,6 +595,21 @@
 									"type": "oauth2",
 									"oauth2": [
 										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
+										{
 											"key": "client_authentication",
 											"value": "header",
 											"type": "string"
@@ -543,16 +617,6 @@
 										{
 											"key": "grant_type",
 											"value": "authorization_code_with_pkce",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
-											"type": "string"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
 											"type": "string"
 										},
 										{
@@ -571,13 +635,18 @@
 											"type": "boolean"
 										},
 										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
+											"key": "addTokenTo",
+											"value": "header",
 											"type": "string"
 										},
 										{
-											"key": "addTokenTo",
-											"value": "header",
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
 											"type": "string"
 										},
 										{
@@ -595,16 +664,16 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/events/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events/2",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events",
-										"1"
+										"2"
 									]
 								}
 							},
@@ -617,6 +686,21 @@
 									"type": "oauth2",
 									"oauth2": [
 										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
+										{
 											"key": "client_authentication",
 											"value": "header",
 											"type": "string"
@@ -624,16 +708,6 @@
 										{
 											"key": "grant_type",
 											"value": "authorization_code_with_pkce",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
-											"type": "string"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
 											"type": "string"
 										},
 										{
@@ -652,13 +726,18 @@
 											"type": "boolean"
 										},
 										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/v1/callback",
+											"key": "addTokenTo",
+											"value": "header",
 											"type": "string"
 										},
 										{
-											"key": "addTokenTo",
-											"value": "header",
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
 											"type": "string"
 										},
 										{
@@ -677,7 +756,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n        \"id\": 1,\n        \"title\": \"Event1\",\n        \"description\": \"Description1\",\n        \"location\": \"Location1\",\n        \"eventDateTime\": \"2024-12-07T12:58:30.409739\",\n        \"cost\": 100.00,\n        \"availableBookings\": 95,\n        \"eventStatus\": \"IN_PROGRESS\"\n    }",
+									"raw": "{\n    \"title\": \"Backing with Bart2\",\n    \"description\": \"I will not bake with bad ingredients...\",\n    \"location\": \"Pioneer Square\",\n    \"eventDateTime\": \"2025-12-06T15:00\",\n    \"durationInMinutes\": 60,\n    \"availableBookings\": 20\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -685,12 +764,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/events/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events/1",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events",
@@ -707,6 +786,21 @@
 									"type": "oauth2",
 									"oauth2": [
 										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
+										{
 											"key": "challengeAlgorithm",
 											"value": "S256",
 											"type": "string"
@@ -722,24 +816,9 @@
 											"type": "string"
 										},
 										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/login/oauth2/code",
-											"type": "string"
-										},
-										{
 											"key": "useBrowser",
 											"value": false,
 											"type": "boolean"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
-											"type": "string"
 										},
 										{
 											"key": "grant_type",
@@ -754,6 +833,16 @@
 										{
 											"key": "addTokenTo",
 											"value": "header",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
 											"type": "string"
 										},
 										{
@@ -772,7 +861,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"title\": \"Backing with Bart2\",\n    \"description\": \"I will not bake with bad ingredients...\",\n    \"location\": \"Pioneer Square\",\n    \"eventDateTime\": \"2025-12-06T15:00\",\n    \"cost\": \"15.00\",\n    \"availableBookings\": 0,\n    \"eventStatus\": \"COMPLETED\"\n}",
+									"raw": "{\n    \"title\": \"Backing with Bart2 - Revisited\",\n    \"description\": \"I will not bake with bad ingredients...\",\n    \"location\": \"Pioneer Square\",\n    \"eventDateTime\": \"2025-12-06T15:00\",\n    \"durationInMinutes\": 60,\n    \"availableBookings\": 30\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -780,12 +869,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/events",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events"
@@ -800,6 +889,21 @@
 								"auth": {
 									"type": "oauth2",
 									"oauth2": [
+										{
+											"key": "accessTokenUrl",
+											"value": "{{token_url}}",
+											"type": "string"
+										},
+										{
+											"key": "authUrl",
+											"value": "{{auth_url}}",
+											"type": "string"
+										},
+										{
+											"key": "redirect_uri",
+											"value": "{{callback_url}}",
+											"type": "string"
+										},
 										{
 											"key": "challengeAlgorithm",
 											"value": "S256",
@@ -816,24 +920,9 @@
 											"type": "string"
 										},
 										{
-											"key": "redirect_uri",
-											"value": "http://localhost:8080/login/oauth2/code",
-											"type": "string"
-										},
-										{
 											"key": "useBrowser",
 											"value": false,
 											"type": "boolean"
-										},
-										{
-											"key": "accessTokenUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token",
-											"type": "string"
-										},
-										{
-											"key": "authUrl",
-											"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth",
-											"type": "string"
 										},
 										{
 											"key": "grant_type",
@@ -851,6 +940,16 @@
 											"type": "string"
 										},
 										{
+											"key": "password",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "test-member",
+											"type": "string"
+										},
+										{
 											"key": "tokenName",
 											"value": "Keycloak",
 											"type": "string"
@@ -865,16 +964,17 @@
 								"method": "PATCH",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/events/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events/1/cancel",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events",
-										"1"
+										"1",
+										"cancel"
 									]
 								}
 							},
@@ -883,6 +983,44 @@
 					]
 				}
 			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "callback_url",
+			"value": "https://localhost:9000/v1/callback"
+		},
+		{
+			"key": "auth_url",
+			"value": "https://keycloak:8443/realms/piper1970/protocol/openid-connect/auth"
+		},
+		{
+			"key": "token_url",
+			"value": "https://keycloak:8443/realms/piper1970/protocol/openid-connect/token"
 		}
 	]
 }
