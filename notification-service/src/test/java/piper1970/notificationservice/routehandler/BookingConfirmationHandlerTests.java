@@ -142,7 +142,7 @@ class BookingConfirmationHandlerTests {
     when(mockRepository.findByConfirmationString(eq(testToken)))
         .thenReturn(
             Mono.just(testBookingConfirmation)
-                .delayElement(notificationTimeoutDuration)
+                .delayElement(notificationTimeoutDuration) // create artificial time delay
         );
 
     StepVerifier.withVirtualTime(
@@ -191,7 +191,7 @@ class BookingConfirmationHandlerTests {
     when(mockRepository.save(eq(expiredConfirmation)))
         .thenReturn(
             Mono.just(expiredConfirmation)
-                .delayElement(notificationTimeoutDuration)
+                .delayElement(notificationTimeoutDuration) // create artificial time delay
         );
 
     StepVerifier.withVirtualTime(
@@ -261,7 +261,7 @@ class BookingConfirmationHandlerTests {
     when(mockRepository.save(eq(confirmedConfirmation)))
         .thenReturn(
             Mono.just(confirmedConfirmation)
-                .delayElement(notificationTimeoutDuration)
+                .delayElement(notificationTimeoutDuration) // artificial delay
         );
 
     StepVerifier.withVirtualTime(

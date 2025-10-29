@@ -55,6 +55,9 @@ public class NotificationServiceTestsIT {
   @Autowired
   RouterFunction<ServerResponse> route;
 
+  /**
+   * TestContainer loading all docker components from /test/docker-compose-tests.yaml file
+   */
   @Container
   static ComposeContainer composeContainer = createComposeContainer();
 
@@ -191,7 +194,7 @@ public class NotificationServiceTestsIT {
   @ActiveProfiles({"test", "integration_test_containers"})
   public static class TestIntegrationConfiguration {
 
-    ///  Initializes database structure from schema
+    ///  Initializes database structure from schema-integration.sql file
     @Bean
     public ConnectionFactoryInitializer connectionFactoryInitializer(
         ConnectionFactory connectionFactory) {

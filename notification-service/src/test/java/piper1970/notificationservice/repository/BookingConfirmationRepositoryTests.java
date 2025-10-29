@@ -88,7 +88,7 @@ class BookingConfirmationRepositoryTests {
         .confirmationString(goodString)
         .build();
 
-    insertConfirmations(badConfirmation, goodConfirmation);
+    insertConfirmationsIntoRepository(badConfirmation, goodConfirmation);
 
     bookingConfirmationRepository.findByConfirmationString(goodString)
         .as(StepVerifier::create)
@@ -144,7 +144,7 @@ class BookingConfirmationRepositoryTests {
         .confirmationString(UUID.randomUUID())
         .build();
 
-    insertConfirmations(confirmation1, confirmation2, confirmation3, confirmation4);
+    insertConfirmationsIntoRepository(confirmation1, confirmation2, confirmation3, confirmation4);
 
     bookingConfirmationRepository.findByConfirmationStatus(ConfirmationStatus.AWAITING_CONFIRMATION)
         .as(StepVerifier::create)
@@ -214,7 +214,7 @@ class BookingConfirmationRepositoryTests {
         .confirmationString(UUID.randomUUID())
         .build();
 
-    insertConfirmations(confirmation1, confirmation2, confirmation3, confirmation4, confirmation5);
+    insertConfirmationsIntoRepository(confirmation1, confirmation2, confirmation3, confirmation4, confirmation5);
 
     bookingConfirmationRepository.deleteByConfirmationDateTimeBefore(deletionDateTime)
         .as(StepVerifier::create)
@@ -228,7 +228,7 @@ class BookingConfirmationRepositoryTests {
 
   }
 
-  private void insertConfirmations(BookingConfirmation... bookingConfirmations) {
+  private void insertConfirmationsIntoRepository(BookingConfirmation... bookingConfirmations) {
     bookingConfirmationRepository.saveAll(List.of(bookingConfirmations))
         .as(StepVerifier::create)
         .expectNextCount(bookingConfirmations.length)
