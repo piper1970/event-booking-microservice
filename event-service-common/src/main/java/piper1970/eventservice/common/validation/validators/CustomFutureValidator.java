@@ -7,6 +7,9 @@ import java.time.LocalDateTime;
 import piper1970.eventservice.common.validation.annotations.CustomFuture;
 import piper1970.eventservice.common.validation.validators.context.ValidationContextProvider;
 
+/**
+ * ConstraintValidator for LocalDateTime objects, ensuring the given date is in the future
+ */
 public class CustomFutureValidator implements ConstraintValidator<CustomFuture, LocalDateTime> {
 
   private Clock clock;

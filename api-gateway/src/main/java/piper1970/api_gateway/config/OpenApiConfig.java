@@ -6,6 +6,9 @@ import io.swagger.v3.oas.models.info.Info;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Config for Swagger/OpenApi starting page, setting title, version, and description
+ */
 @OpenAPIDefinition
 @Configuration
 public class OpenApiConfig {

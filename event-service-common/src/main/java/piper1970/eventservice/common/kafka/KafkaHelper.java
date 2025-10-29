@@ -10,8 +10,18 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
 
+/**
+ * Kafka helper class for common reactive kafka functions
+ */
 public class KafkaHelper {
 
+  /**
+   * Reactive onNext Consumer builder, creating consumers that log the kafka messages.
+   *
+   * @param service microservice in use
+   * @param log logger to log messages to
+   * @return Consumer[SenderResult[Long]] for logging reactive kafka messages in the pipeline.
+   */
   public static Consumer<SenderResult<Long>> postReactiveOnNextConsumer(String service, Logger log){
     return (senderResult) -> {
       var metadata = senderResult.recordMetadata();
@@ -23,7 +33,7 @@ public class KafkaHelper {
   }
 
   /**
-   * Wrapper function to send messages through a KafkaSender.
+   * Wrapper function to send messages through a KafkaSender, appending a time-based correlationId to each message.
    *
    * @param topic Topic to send message to
    * @param key Integer key value

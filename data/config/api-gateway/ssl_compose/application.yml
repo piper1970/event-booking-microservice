@@ -1,18 +1,16 @@
+# local api address overrides for eureka discovery
 api:
   uri:
     booking-service: lb://booking-service
     event-service: lb://event-service
     notification-service: lb://notification-service
 
+# ssl settings for event-booking-service bundle
 server:
   ssl:
     enabled: true
     bundle: event-booking-service
-
 spring:
-  data:
-    redis:
-      host: redis
   ssl:
     bundle:
       jks:
@@ -26,7 +24,11 @@ spring:
             location: file:${API_TRUSTSTORE_PATH}
             password: ${API_TRUSTSTORE_PASSWORD}
             type: PKCS12
-
+  # redis overrides
+  data:
+    redis:
+      host: redis
+  # OAuth2 client overrides
   security:
     oauth2:
       client:
@@ -37,6 +39,7 @@ spring:
             token-uri: https://keycloak:8443/realms/piper1970/protocol/openid-connect/token
             user-info-uri: https://keycloak:8443/realms/piper1970/protocol/openid-connect/userinfo
             user-name-attribute: sub
+  # api routing overrides
   cloud:
     gateway:
       globalcors:

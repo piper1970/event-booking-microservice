@@ -1,3 +1,4 @@
+# api address overrides for eureka discovery
 api:
   uri:
     booking-service: lb://booking-service

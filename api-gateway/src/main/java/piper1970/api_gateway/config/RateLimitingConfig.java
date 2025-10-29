@@ -8,6 +8,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Mono;
 
+/**
+ * Configuration for remote-address-based key extraction, used for rate-limiting tracking.
+ */
 @Configuration
 public class RateLimitingConfig {
 

@@ -20,7 +20,6 @@ spring:
             jwk-set-uri: "http://bogus.jwk-set.uri"
             authorization-uri: "http://bogus.authorization.uri"
             token-uri: "http://bogus.token.uri"
-
       resourceserver:
         jwt:
           jwk-set-uri: "http://bogus.jwk-set.uri"
