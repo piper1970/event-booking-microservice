@@ -9,12 +9,16 @@ import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Configuration for ensuring Netty Reactive WebServer is using custom ssl context, if ssl is enabled.
+ */
 @Configuration
 @Slf4j
 public class ServerSslConfig {
 
-  /// Configuration customizer for injecting SSL keystore/truststore features
-  /// into Netty web server
+  /** Configuration customizer for injecting SSL keystore/truststore features
+   * into Netty web server
+   **/
   @Bean
   public WebServerFactoryCustomizer<NettyReactiveWebServerFactory> nettyServerFactoryCustomizer(
       SslBundles sslBundles, @Value("${server.ssl.enabled:false}") boolean sslEnabled) {

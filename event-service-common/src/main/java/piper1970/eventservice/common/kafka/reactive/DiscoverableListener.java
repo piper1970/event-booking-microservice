@@ -11,6 +11,10 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverRecord;
 
+/**
+ * Abstract class for building Kafka listeners. Implementing classes must provider topi, subscription (for disposing),
+ * initialization of receiver flux, and individual record handline functionality.
+ */
 public abstract class DiscoverableListener implements DisposableBean, AutoCloseable {
 
   private final ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory;
@@ -22,9 +26,30 @@ public abstract class DiscoverableListener implements DisposableBean, AutoClosea
     this.deadLetterTopicProducer = deadLetterTopicProducer;
   }
 
+  /**
+   * Handle the Flux initialization behavior.
+   * <p/>
+   * Typically, this starts with a call to {@link #buildFluxRequest}, followed by a call to subscribe(),
+   * which would return a subscription/disposable component for possible cancellation of the request pipeline.
+   */
   public abstract void initializeReceiverFlux();
+
+  /**
+   * @return topic the listener is following
+   */
   protected abstract String getTopic();
+
+  /**
+   * @return disposable subscription, used for possible cancellation of the Flux pipeline.
+   */
   protected abstract Disposable getSubscription();
+
+  /**
+   * Function for handling individual requests from the Flux pipeline. Called at end of {@link #buildFluxRequest}
+   *
+   * @param record Current ReceiverRecord for processing
+   * @return Mono[ReceiverRecord] for downstream processing
+   */
   protected abstract Mono<ReceiverRecord<Integer, Object>> handleIndividualRequest(ReceiverRecord<Integer, Object> record);
 
   /**

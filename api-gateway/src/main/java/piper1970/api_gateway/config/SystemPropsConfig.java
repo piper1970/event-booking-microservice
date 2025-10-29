@@ -5,6 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
+/**
+ * Configuration for loading custom trust-store properties into system properties when using ssl_local and ssl_compose profiles.
+ */
 @Configuration
 @Profile({"ssl_local", "ssl_compose"})
 public class SystemPropsConfig {

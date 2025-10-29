@@ -1,5 +1,4 @@
-# Routing
-
+# local api address overrides for eureka discovery
 api:
   uri:
     booking-service: lb://booking-service
@@ -7,6 +6,8 @@ api:
     notification-service: lb://notification-service
 
 spring:
+
+  # api-gateway overrides
   cloud:
     gateway:
       routes:

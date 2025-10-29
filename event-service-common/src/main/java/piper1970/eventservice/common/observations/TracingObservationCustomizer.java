@@ -6,6 +6,12 @@ import org.springframework.http.server.reactive.observation.ServerRequestObserva
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
 
+/**
+ * Custom ObservationRegistryCustomizer to avoid tracing actuator and spring security activity.
+ *
+ * @see ObservationRegistryCustomizer
+ * @see ObservationRegistry
+ */
 public class TracingObservationCustomizer implements
     ObservationRegistryCustomizer<ObservationRegistry> {
 

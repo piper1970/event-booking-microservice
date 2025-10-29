@@ -8,6 +8,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import piper1970.eventservice.common.validation.validators.CustomFutureValidator;
 
+/**
+ * Custom Bean-Validation annotation, marking validation by CustomFutureValidator
+ *
+ * @see CustomFutureValidator
+ */
 @Constraint(validatedBy = CustomFutureValidator.class)
 @Target({ElementType.PARAMETER, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)

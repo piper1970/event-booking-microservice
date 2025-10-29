@@ -13,6 +13,9 @@ import reactor.kafka.receiver.ReceiverRecord;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderResult;
 
+/**
+ * Kafka producer for DLT messages
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class DeadLetterTopicProducer {
@@ -22,6 +25,12 @@ public class DeadLetterTopicProducer {
   private final String topicSuffix;
   private final Clock clock;
 
+  /**
+   * Process record to the associated dead-letter topic.
+   *
+   * @param record unprocessed record to post to dead-letter topic
+   * @return results of posting to dlt topic
+   */
   public Mono<SenderResult<Long>> process(ReceiverRecord<Integer, Object> record) {
     var dltTopic = record.topic() + topicSuffix;
     return kafkaSender.send(

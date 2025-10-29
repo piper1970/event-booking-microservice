@@ -11,8 +11,14 @@ import reactor.kafka.receiver.ReceiverPartition;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+/**
+ * Factory for accessing individual kafka receivers
+ */
 public class ReactiveKafkaReceiverFactory {
 
+  /**
+   * topic-key-based receiver map
+   */
   private final Map<String, KafkaReceiver<Integer, Object>> kafkaReceiverMap;
 
   public ReactiveKafkaReceiverFactory(@NonNull ReceiverOptions<Integer, Object> receiverOptions,
@@ -35,6 +41,13 @@ public class ReactiveKafkaReceiverFactory {
     return KafkaReceiver.create(receiverOptions);
   }
 
+  /**
+   * Access given kafka receiver based on key/topic string provided
+   *
+   * @param topic accessor for receiver
+   * @return KafkaReceiver[Int, Object]
+   * @throws IllegalArgumentException if topic is unrecognized
+   */
   public KafkaReceiver<Integer, Object> getReceiver(@NonNull String topic){
     return Optional.ofNullable(kafkaReceiverMap.get(topic))
         .orElseThrow(() -> new IllegalArgumentException("Unknown topic: " + topic));

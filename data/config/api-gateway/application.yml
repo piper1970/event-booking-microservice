@@ -1,9 +1,11 @@
+# local api endpoints
 api:
   uri:
     booking-service: http://localhost:8083
     event-service: http://localhost:8081
     notification-service: http://localhost:8084
 
+# cors/csrf properties used in security context
 csrf:enabled: false
 cors:allowedOrigin: "*"
 

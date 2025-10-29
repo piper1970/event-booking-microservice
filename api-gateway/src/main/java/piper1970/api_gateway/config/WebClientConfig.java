@@ -17,6 +17,10 @@ import org.springframework.security.oauth2.client.registration.ReactiveClientReg
 import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
+/**
+ * Configuration for outgoing, reactive web-client, ensuring keystore/truststore properties are set, if ssl is enabled.
+ * Also ensures web-client has OAuth2 Authorization Middleware running as a filter.
+ */
 @Configuration
 @Slf4j
 public class WebClientConfig {
@@ -26,15 +30,10 @@ public class WebClientConfig {
       SslBundles sslBundles,
       @Value("${server.ssl.enabled:false}") boolean sslEnabled) {
 
-    var oauth2Client = new ServerOAuth2AuthorizedClientExchangeFilterFunction(
-        authorizedClientManager);
-
-    var builder = WebClient.builder();
-
-    // Use Netty version of HttpClient, rather than JDBC
+    // Use Netty reactive version of HttpClient, rather than JDBC version
     reactor.netty.http.client.HttpClient httpClient = reactor.netty.http.client.HttpClient.create();
 
-    // add SSL capabilities conditionally
+    // conditionally add SSL capabilities to httpClient used by web-client
     if (sslEnabled) {
       try {
         SslBundle sslBundle = sslBundles.getBundle("event-booking-service");
@@ -52,16 +51,18 @@ public class WebClientConfig {
         httpClient = httpClient.secure(spec -> spec.sslContext(sslContext));
 
       } catch (SSLException e) {
+        // Abort if we get here.  System cannot run without ssl-context properly set up
         log.error("SSL exception. Aborting...", e);
         throw new RuntimeException(e);
       }
     }
 
-    // Use reactive ReactorClientHttpConnector rather than JDBC version
-    builder.clientConnector(new ReactorClientHttpConnector(httpClient));
-
-    return builder
-        .filter(oauth2Client)
+    return WebClient.builder()
+        // Use reactive ReactorClientHttpConnector rather than JDBC version
+        .clientConnector(new ReactorClientHttpConnector(httpClient))
+        // filter/middleware to ensure OAuth2 secured calls from client
+        .filter(new ServerOAuth2AuthorizedClientExchangeFilterFunction(
+            authorizedClientManager))
         .build();
   }
 
