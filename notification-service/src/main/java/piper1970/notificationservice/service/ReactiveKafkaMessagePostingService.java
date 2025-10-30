@@ -22,6 +22,12 @@ import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderResult;
 import reactor.util.retry.Retry;
 
+/**
+ * Service for posting confirmation and expired messages to Kafka topics
+ *
+ * @see BookingConfirmed
+ * @see BookingExpired
+*/
 @Service
 @Slf4j
 public class ReactiveKafkaMessagePostingService implements MessagePostingService {
@@ -48,6 +54,12 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
     this.clock = clock;
   }
 
+  /**
+   * Handles posting {@link BookingConfirmed } messages to Kafka.
+   *
+   * @param message  message to post to Kafka booking-confirmed topic
+   * @return Mono[Void]
+   */
   @Override
   public Mono<Void> postBookingConfirmedMessage(BookingConfirmed message) {
     return Mono.deferContextual(context -> {
@@ -72,6 +84,12 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
     });
   }
 
+  /**
+   * Handles posting {@link BookingExpired } messages to Kafka.
+   *
+   * @param message  message to post to Kafka booking-expired topic
+   * @return Mono[Void]
+   */
   @Override
   public Mono<Void> postBookingExpiredMessage(BookingExpired message) {
     return Mono.deferContextual(context -> {
@@ -96,6 +114,9 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
     });
   }
 
+  /**
+   * Helper function for dealing with timeouts when attempting to post messages.
+   */
   private Mono<SenderResult<Long>> handlePostingTimeout(Throwable ex, Integer bookId,
       String subMessage) {
     if (Exceptions.isRetryExhausted(ex)) {
@@ -109,6 +130,9 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
             "attempting to post %s message with key [%d]".formatted(subMessage, bookId)), ex));
   }
 
+  /**
+   * Helper template to create timeout messages based off argument.
+   */
   private String providePostingTimeoutErrorMessage(String subMessage) {
     return String.format("Message posting for booking timed out [over %d milliseconds] %s",
         postingTimeout.toMillis(), subMessage);

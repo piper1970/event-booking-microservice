@@ -149,6 +149,7 @@ public class NotificationServiceApplicationTests {
 
   @BeforeAll
   void setupListeners() {
+    // load all kafka listeners with test arguments
     discoverableListeners.add(new BookingCreatedListener(baseListenerOptions, repository,
         transactionalOperator, clock, timeoutInMilliseconds,
         confirmationUrl, confirmationInMinutes, defaultRepositoryRetry));
@@ -157,11 +158,13 @@ public class NotificationServiceApplicationTests {
     discoverableListeners.add(new BookingsCancelledListener(baseListenerOptions, defaultMailerRetry));
     discoverableListeners.add(new BookingsUpdatedListener(baseListenerOptions,defaultMailerRetry));
 
+    // initialize all listeners after load is complete
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
 
   @AfterAll
   void closeListeners() {
+    // cleanup kafka listener resources after tests are complete
     discoverableListeners.forEach(DiscoverableListener::close);
   }
 

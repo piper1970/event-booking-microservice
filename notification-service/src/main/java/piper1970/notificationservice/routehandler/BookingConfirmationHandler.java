@@ -32,6 +32,13 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
+/**
+ * Route handler for booking-confirmation link logic.
+ * <p>
+ * Deals with processing of time-sensitive booking confirmations.
+ * Clicking the unique confirmation link within the given timeframe
+ * updates the status of the associated booking from IN_PROGRESS to CONFIRMED.
+ */
 @Slf4j
 public class BookingConfirmationHandler {
 
@@ -66,6 +73,19 @@ public class BookingConfirmationHandler {
 
   //region Main Handler
 
+  /**
+   * Handler for processing clicking the unique confirmation link.
+   * <p>
+   * Clicking on the link has the following outcomes:
+   * <dl>
+   * <dt>User clicks on link within time frame</dt>
+   * <dd>Booking is confirmed. JSON success response is returned to user</dd>
+   * <dt>User clicks on link outside of time frame</dt>
+   * <dd>Booking is cancelled.  JSON error message is returned to user</dd>
+   * <dt>User clicks on link already activated</dt>
+   * <dd>404/Not Found is returned to user</dd>
+   * </dl>
+   */
   public Mono<ServerResponse> handleConfirmation(ServerRequest request) {
 
     // guaranteed to be on path due to route-handler path template
@@ -150,6 +170,9 @@ public class BookingConfirmationHandler {
 
   //region Avro Message Builder
 
+  /**
+   * BookingConfirmation Domain object -> Avro BookingConfirmed object
+   */
   private BookingConfirmed buildBookingConfirmedMessage(BookingConfirmation confirmation) {
     var bookingId = new BookingId();
     bookingId.setId(confirmation.getBookingId());
@@ -158,6 +181,9 @@ public class BookingConfirmationHandler {
     return new BookingConfirmed(bookingId, confirmation.getEventId());
   }
 
+  /**
+   * BookingConfirmation Domain object -> Avro BookingExpired object
+   */
   private BookingExpired buildBookingExpiredMessage(BookingConfirmation confirmation) {
     var bookingId = new BookingId();
     bookingId.setId(confirmation.getBookingId());
@@ -203,6 +229,7 @@ public class BookingConfirmationHandler {
   private Mono<ServerResponse> handleConfirmationLogic(BookingConfirmation confirmation,
       String confirmationString) {
 
+    // path if confirmation happened within time window
     if (confirmBooking(confirmation)) {
 
       log.debug("Booking confirmation [{}] successfully confirmed for user [{}]", confirmation.getBookingId(), confirmation.getBookingUser());
@@ -220,15 +247,17 @@ public class BookingConfirmationHandler {
                   "saving confirmed booking confirmation for token [%s]".formatted(
                       confirmationString)))
           // post booking-confirmed message to kafka topic
-          .flatMap(savedConfirmation -> {
-            log.debug(
-                "Booking confirmation [{}] successfully saved. Relaying success to BOOKING_CONFIRMED topic",
-                savedConfirmation);
-            var message = buildBookingConfirmedMessage(savedConfirmation);
+          .flatMap(_confirmation -> {
+            var message = buildBookingConfirmedMessage(_confirmation);
             return messagePostingService.postBookingConfirmedMessage(message)
-                .then(Mono.just(savedConfirmation));
+                .then(Mono.just(_confirmation));
           })
-          .doOnSuccess(_confirmation -> confirmationCounter.increment())
+          // log increment successful confirmation metric
+          .doOnSuccess(_confirmation -> {
+            log.debug("Booking confirmation [{}] successfully saved. Relayed successfully to BOOKING_CONFIRMED topic",
+                _confirmation);
+            confirmationCounter.increment();
+          })
           // build/return OK/200 ServerResponse
           .flatMap(savedConfirmation -> {
             try {
@@ -239,11 +268,10 @@ public class BookingConfirmationHandler {
             } catch (JsonProcessingException e) {
               // should never happen!!!
               log.error("JSON PROCESSING ERROR: response could not be properly built", e);
-
               return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
             }
           });
-    } else {
+    } else { // path if confirmation happened outside of time window
 
       var expiredConfirmation = confirmation.toBuilder()
           .confirmationStatus(ConfirmationStatus.EXPIRED)
@@ -263,14 +291,17 @@ public class BookingConfirmationHandler {
                   "saving expired booking confirmation for token [%s]".formatted(
                       confirmationString)))
           // post booking expired message to kafka topic
-          .flatMap(bookingConfirmation -> {
-            log.debug("Expired booking saved [{}]. Relaying failure to BOOKING_EXPIRED topic",
-                bookingConfirmation);
-            var message = buildBookingExpiredMessage(bookingConfirmation);
+          .flatMap(_expiredConfirmation -> {
+            var message = buildBookingExpiredMessage(_expiredConfirmation);
             return messagePostingService.postBookingExpiredMessage(message)
-                .then(Mono.just(bookingConfirmation));
+                .then(Mono.just(_expiredConfirmation));
           })
-          .doOnSuccess(_confirmation -> expiredCounter.increment())
+          // log and increment expired confirmation metric
+          .doOnSuccess(_expiredConfirmation -> {
+            log.debug("Expired booking saved [{}]. Relayed successfully to BOOKING_EXPIRED topic",
+                _expiredConfirmation);
+            expiredCounter.increment();
+          })
           // build/return BAD_REQUEST/400 Server Response
           .flatMap(_ignored -> {
             try {
@@ -284,7 +315,6 @@ public class BookingConfirmationHandler {
             } catch (JsonProcessingException e) {
               // should never happen!!!
               log.error("JSON PROCESSING ERROR: response could not be properly built", e);
-
               return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
             }
           });

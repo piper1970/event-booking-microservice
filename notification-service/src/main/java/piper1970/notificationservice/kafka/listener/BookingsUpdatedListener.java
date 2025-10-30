@@ -17,6 +17,10 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
+/**
+ * Kafka listener for bookings-updated topic. Sends out booking-updated email to every user booked for an event.
+ * This usually happens if the owner of the event updates the event before it starts.
+ */
 @Component
 @Slf4j
 public class BookingsUpdatedListener extends AbstractListener {

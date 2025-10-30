@@ -292,16 +292,25 @@ class SchedulingServiceTests {
         .verifyComplete();
   }
 
+  /**
+   * Helper method to set up mock behavior for messagePostingService.  Not all tests require this mock behavior
+   */
   private void initializeMockKafkaMessage() {
     when(messagePostingService.postBookingExpiredMessage(any(BookingExpired.class)))
         .thenReturn(Mono.empty());
   }
 
+  /**
+   * Helper method to set up transactionalOperator moc behavior when needed. Not all tests need this mock behavior
+   */
   private void initializeTransactionalMock() {
     when(transactionalOperator.transactional(ArgumentMatchers.<Flux<BookingConfirmation>>any()))
         .thenAnswer(i -> i.getArgument(0));
   }
 
+  /**
+   * Helper method to initialize database before each test
+   */
   private void initializeDatabase() {
     var statements = List.of(
         "DROP TABLE IF EXISTS event_service.booking_confirmations;",
@@ -332,9 +341,15 @@ class SchedulingServiceTests {
         .verifyComplete());
   }
 
+  /**
+   * Helper configuration set up to disable default scheduler behavior during tests.
+   */
   @TestConfiguration
   static class TestConfig {
 
+    /**
+     * Override TaskScheduler bean with no-op version for tests
+     */
     @Bean
     TaskScheduler taskScheduler() {
       // ignore scheduled runs

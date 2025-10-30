@@ -21,6 +21,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
+/**
+ * Service for handling periodic cleanup of booking-confirmation repository.
+ */
 @Service
 @Slf4j
 public class SchedulingService {
@@ -30,7 +33,12 @@ public class SchedulingService {
   private final TransactionalOperator transactionalOperator;
   private final Counter expirationCounter;
   private final Clock clock;
+
+  /**
+   * Number of hours until confirmation record is considered stale.
+   */
   private final long staleDataDurationInHours;
+
   private final long maxRetries;
 
   public SchedulingService(BookingConfirmationRepository bookingConfirmationRepository,
@@ -95,7 +103,9 @@ public class SchedulingService {
 
 
   /**
-   * Periodically deletes confirmations that have been in the system for over 6 hours
+   * Periodically deletes confirmations that have been in the system for over a given number of hours
+   *
+   * @see #staleDataDurationInHours
    */
   @Scheduled(fixedDelayString = "${scheduler.stale.data.fixed.delay.millis:900000}", initialDelayString = "${scheduler.stale.data.initial.delay.millis:60000}")
   @SchedulerLock(name = "clearStaleDataLock", lockAtLeastFor = "${shedlock.lockAtLeastFor.default:PT5M}")
