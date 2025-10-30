@@ -15,6 +15,11 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
+/**
+ * Kafka listener for booking-event-unavailable topic. Sends out booking-event-unavailable email to user.
+ * This message usually shows up when the available-bookings (integer) amount for the event drops to zero
+ * before the user confirms the booking.
+ */
 @Component
 @Slf4j
 public class BookingEventUnavailableListener extends AbstractListener {

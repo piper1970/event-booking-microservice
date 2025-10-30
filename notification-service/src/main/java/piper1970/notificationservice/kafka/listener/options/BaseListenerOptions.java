@@ -8,6 +8,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 import piper1970.eventservice.common.kafka.reactive.DeadLetterTopicProducer;
 import piper1970.eventservice.common.kafka.reactive.ReactiveKafkaReceiverFactory;
 
+/**
+ * Component that holds common Kafka Listener options for all Listeners
+ */
 @Value
 @Builder
 public class BaseListenerOptions {

@@ -26,6 +26,10 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
+/**
+ * Kafka listener for booking-created topic. Sends out booking-created email to user, with a
+ * time-sensitive confirmation link.
+ */
 @Component
 @Slf4j
 public class BookingCreatedListener extends AbstractListener {

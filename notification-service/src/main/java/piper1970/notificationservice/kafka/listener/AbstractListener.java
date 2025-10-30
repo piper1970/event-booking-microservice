@@ -20,7 +20,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Helper abstract method to deal with common constructor logic
+ * Abstract class to deal with common kafka Listener behavior.
  */
 public abstract class AbstractListener extends DiscoverableListener {
 

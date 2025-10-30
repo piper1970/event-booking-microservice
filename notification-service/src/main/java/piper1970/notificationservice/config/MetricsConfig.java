@@ -6,9 +6,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Configuration for custom metrics
+ */
 @Configuration
 public class MetricsConfig {
 
+  /**
+   * Counter metric covering number confirmations that expired before being clicked
+   */
   @Bean
   @Qualifier("expirations")
   public Counter expiredConfirmationCounter(MeterRegistry registry) {
@@ -17,6 +23,9 @@ public class MetricsConfig {
         .register(registry);
   }
 
+  /**
+   * Counter metric covering number confirmations that were clicked in time
+   */
   @Bean
   @Qualifier("confirmations")
   public Counter succeededConfirmation(MeterRegistry registry) {

@@ -14,6 +14,9 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
+/**
+ * JPA R2DBC domain for booking-confirmation table
+ */
 @Getter
 @Setter
 @Builder(toBuilder = true)

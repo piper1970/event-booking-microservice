@@ -50,6 +50,9 @@ import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.observation.KafkaSenderObservation.DefaultKafkaSenderObservationConvention;
 import reactor.util.retry.Retry;
 
+/**
+ * Default configuration setting up security, routing, kafka, mustache (email templating), and retry logic beans
+ */
 @Configuration(proxyBeanMethods = false)
 @EnableKafka
 @EnableWebFluxSecurity

@@ -5,6 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 
+/**
+ * Configuration for enabling discovery client behavior for specified profiles.
+ */
 @Profile({"compose", "local_discovery", "ssl_local", "ssl_compose"})
 @Configuration
 @EnableDiscoveryClient

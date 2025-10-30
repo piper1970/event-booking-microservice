@@ -15,6 +15,10 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
+/**
+ * Kafka listener for booking-cancelled topic. Sends out booking-cancelled email to user. Typically,
+ * this message occurs if the user cancels their booking via the api before the event occurs.
+ */
 @Component
 @Slf4j
 public class BookingCancelledListener extends AbstractListener {

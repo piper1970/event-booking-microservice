@@ -6,6 +6,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import piper1970.eventservice.common.observations.TracingObservationCustomizer;
 
+/**
+ * Configuration for zipkin tracing. Setup to skip actuator and security calls in tracing
+ *
+ * @see TracingObservationCustomizer
+ */
 @Configuration
 public class ObservationConfig {
 
