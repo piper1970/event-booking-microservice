@@ -66,6 +66,7 @@ class DefaultBookingWebServiceTests {
   @Mock
   Clock clock;
 
+  // values for mocked clock
   final Instant clockInstant = Instant.now();
   final ZoneId clockZone = ZoneId.systemDefault();
 
@@ -101,7 +102,7 @@ class DefaultBookingWebServiceTests {
 
   //region Find Method Scenarios
 
-  ///  ## FIND SCENARIOS
+  ///  # FIND SCENARIOS
   ///  - I've found you - returns booking
   ///  - I haven't found you - returns nothing but no errors
   ///  - I've timed out -> throws BookingTimeoutException
@@ -149,15 +150,15 @@ class DefaultBookingWebServiceTests {
   @DisplayName("findBookingsByUsername should return bookings by user if in the system")
   void findBookingsByUsername_UserFound() {
 
-    when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(username)
-        .filter(booking -> booking.getUsername().equals(username))
-    );
-
     mockBookingMapper();
 
     var expectedCount = createBookingStream(username)
         .filter(booking -> booking.getUsername().equals(username))
         .count();
+
+    when(bookingRepository.findByUsername(username)).thenReturn(createBookingFlux(username)
+        .filter(booking -> booking.getUsername().equals(username))
+    );
 
     StepVerifier.create(webService.findBookingsByUsername(username))
         .expectNextCount(expectedCount)
@@ -195,13 +196,13 @@ class DefaultBookingWebServiceTests {
   @DisplayName("findBookingById should properly return booking found with id")
   void findBookingById() {
 
+    mockBookingMapper();
+
     var bookingParams = BookingParams.of(bookingId, eventId);
     var booking = createBooking(bookingParams);
     var bookingDto = createBookingDto(bookingParams);
 
     when(bookingRepository.findById(bookingId)).thenReturn(Mono.just(booking));
-
-    mockBookingMapper();
 
     StepVerifier.create(webService.findBookingById(bookingId))
         .expectNext(bookingDto)
@@ -240,14 +241,14 @@ class DefaultBookingWebServiceTests {
   @DisplayName("findBookingByIdAndUsername should properly return booking with given user and id")
   void findBookingByIdAndUsername_BookingFound() {
 
+    mockBookingMapper();
+
     var params = BookingParams.of(bookingId, eventId, username);
     var booking = createBooking(params);
     var bookingDto = createBookingDto(params);
 
     when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
-
-    mockBookingMapper();
 
     StepVerifier.create(webService.findBookingByIdAndUsername(bookingId, username))
         .expectNext(bookingDto)
@@ -314,10 +315,9 @@ class DefaultBookingWebServiceTests {
   @DisplayName("createBooking should throw exception if event is already in progress")
   void createBooking_throws_exception_if_validation_fails_event_is_already_in_progress() {
 
-    var cbr = createBookingRequest();
-
     mockClock();
 
+    var cbr = createBookingRequest();
     var eventDto = buildEventDto(LocalDateTime.now(clock).minusMinutes(10), 120);
 
     when(eventRequestService.requestEvent(eventId, token))
@@ -333,10 +333,9 @@ class DefaultBookingWebServiceTests {
   @DisplayName("createBooking should throw exception if event is over")
   void createBooking_throws_exception_if_validation_fails_event_over() {
 
-    var cbr = createBookingRequest();
-
     mockClock();
 
+    var cbr = createBookingRequest();
     var eventDto = buildEventDto(LocalDateTime.now(clock).minusDays(10), 10);
 
     when(eventRequestService.requestEvent(eventId, token))
@@ -355,9 +354,7 @@ class DefaultBookingWebServiceTests {
     mockClock();
 
     var cbr = createBookingRequest();
-
     var eventDto = buildEventDto(LocalDateTime.now(clock).plusDays(10), 12);
-
     var booking = createBooking(BookingParams.of(bookingId, eventId, username));
 
     when(eventRequestService.requestEvent(eventId, token))
@@ -380,11 +377,10 @@ class DefaultBookingWebServiceTests {
   void createBooking_success() {
 
     mockClock();
+    mockBookingMapper();
 
     var cbr = createBookingRequest();
-
     var eventDto = buildEventDto(LocalDateTime.now(clock).plusDays(10), 120);
-
     var params = BookingParams.of(bookingId, eventId, username);
     var booking = createBooking(params);
     var bookingDto = createBookingDto(params);
@@ -398,8 +394,6 @@ class DefaultBookingWebServiceTests {
         .thenReturn(Mono.empty());
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
-
-    mockBookingMapper();
 
     StepVerifier.create(webService.createBooking(cbr, token))
         .expectNext(bookingDto)
@@ -457,7 +451,6 @@ class DefaultBookingWebServiceTests {
     mockClock();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
-
     var event = buildEventDto(LocalDateTime.now(clock).minusDays(10), 80);
 
     when(bookingRepository.findByIdAndUsername(bookingId, username))
@@ -513,18 +506,17 @@ class DefaultBookingWebServiceTests {
     mockClock();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
+    var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
+    var event = buildEventDto(LocalDateTime.now(clock).plusHours(10), 80);
 
     when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
-
-    var event = buildEventDto(LocalDateTime.now(clock).plusHours(10), 80);
 
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<BookingDto>>any())).thenAnswer(args -> args.getArgument(0));
 
-    var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
     when(bookingRepository.save(cancelledBooking))
     .thenReturn(Mono.just(cancelledBooking)
     .delayElement(timeoutDuration));
@@ -540,21 +532,19 @@ class DefaultBookingWebServiceTests {
   void cancelBooking_Success_Returns_Cancelled_Booking() {
 
     mockClock();
-
     mockBookingMapper();
 
     var booking = createBooking(BookingParams.of(bookingId, eventId, token));
+    var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
+    var event = buildEventDto(LocalDateTime.now(clock).minusDays(10), 80)
+        .withEventStatus(EventStatus.AWAITING);
 
     when(bookingRepository.findByIdAndUsername(bookingId, username))
         .thenReturn(Mono.just(booking));
 
-    var event = buildEventDto(LocalDateTime.now(clock).minusDays(10), 80)
-        .withEventStatus(EventStatus.AWAITING);
-
     when(eventRequestService.requestEvent(eventId, token))
         .thenReturn(Mono.just(event));
 
-    var cancelledBooking = booking.withBookingStatus(BookingStatus.CANCELLED);
     when(bookingRepository.save(cancelledBooking))
     .thenReturn(Mono.just(cancelledBooking));
 
@@ -572,6 +562,9 @@ class DefaultBookingWebServiceTests {
 
   //region Helper Methods
 
+  /**
+   * Helper method to build EventDto from an event-date-time and duration.
+   */
   private EventDto buildEventDto(LocalDateTime eventDateTime, Integer duration) {
 
     // set event-status based on comparison of now, eventDateTime and duration
@@ -579,6 +572,7 @@ class DefaultBookingWebServiceTests {
     var now = LocalDateTime.now(clock);
     var endTime = eventDateTime.plusMinutes(duration);
     EventStatus status;
+
     if(now.isAfter(endTime)) {
       status = EventStatus.COMPLETED;
     }else if(now.isAfter(eventDateTime)) {
@@ -600,6 +594,9 @@ class DefaultBookingWebServiceTests {
         .build();
   }
 
+  /**
+   * Helper method to build BookingCreateRequest from static eventId and userName constants
+   */
   private BookingCreateRequest createBookingRequest() {
     return BookingCreateRequest.builder()
         .eventId(eventId)
@@ -607,10 +604,19 @@ class DefaultBookingWebServiceTests {
         .build();
   }
 
+  /**
+   * Helper method to create a flux of bookings based off testUser argument.
+   *
+   * @see #createBookingStream for additinal info
+   */
   private Flux<Booking> createBookingFlux(@Nullable String testUser) {
     return Flux.fromStream(createBookingStream(testUser));
   }
 
+  /**
+   * Helper method to create a Booking stream based of given test user. Odd bookings in stream
+   * have BookingParams::testUser parameter set to testUser argument of method
+   */
   private Stream<Booking> createBookingStream(@Nullable String testUser) {
     return IntStream.range(0, allBookingsCount)
         .mapToObj(id -> {
@@ -623,7 +629,11 @@ class DefaultBookingWebServiceTests {
         .map(this::createBooking);
   }
 
-  @SuppressWarnings("all")
+  /**
+   * Helper Record to encapsulate id, eventId, and user into single record in stream processing.
+   *
+   * @see #createBooking
+   */
   private record BookingParams(int id, int eventId, @Nullable String user) {
 
     static BookingParams of(int id, int eventId) {
@@ -635,6 +645,9 @@ class DefaultBookingWebServiceTests {
     }
   }
 
+  /**
+   * Helper function to convert {@link BookingParams} object to {@link BookingDto}
+   */
   private BookingDto createBookingDto(BookingParams bookingParams) {
 
     var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();
@@ -647,6 +660,9 @@ class DefaultBookingWebServiceTests {
         .build();
   }
 
+  /**
+   * Helper function to convert {@link BookingParams} object to {@link Booking}
+   */
   private Booking createBooking(BookingParams bookingParams) {
 
     var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();
@@ -659,6 +675,9 @@ class DefaultBookingWebServiceTests {
         .build();
   }
 
+  /**
+   * Helper method to mock booking mapper behavior. Not all tests require this.
+   */
   private void mockBookingMapper() {
     when(bookingMapper.entityToDto(any())).thenAnswer(
         args -> {
@@ -673,6 +692,9 @@ class DefaultBookingWebServiceTests {
     );
   }
 
+  /**
+   * Helper method to mock clock behavior. Not all tests require this.
+   */
   private void mockClock() {
     given(clock.instant()).willReturn(clockInstant);
     given(clock.getZone()).willReturn(clockZone);

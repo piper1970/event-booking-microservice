@@ -11,6 +11,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
 
+/**
+ * Config for Swagger/OpenApi for booking-service, setting up OAuth2 security and general info
+ */
 @OpenAPIDefinition(
     servers = {
         @Server(url = "${api.gateway.url: http://localhost:8080}",

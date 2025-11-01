@@ -8,7 +8,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
@@ -54,7 +53,13 @@ class DefaultEventRequestServiceTests {
 
   private static final Long timeoutInMillis = 2000L;
   private static final String token = "token";
+  private static final String bearerToken = "Bearer " + token;
   private static final int eventId = 1;
+  private final Retry retry = Retry.backoff(3, Duration.ofMillis(500L))
+      .filter(throwable -> throwable instanceof TimeoutException)
+      .jitter(0.7D);
+  private static final EventDto testEventResponse;
+  private static final String testResponseJson;
 
   @Mock
   private ReactiveResilience4JCircuitBreakerFactory mockCircuitBreakerFactory;
@@ -62,18 +67,31 @@ class DefaultEventRequestServiceTests {
   @Mock
   private ReactiveCircuitBreaker mockCircuitBreaker;
 
-  private final Retry retry = Retry.backoff(3, Duration.ofMillis(500L))
-      .filter(throwable -> throwable instanceof TimeoutException)
-      .jitter(0.7D);
-
-  private static final ObjectMapper objectMapper;
-
   static {
-    objectMapper = JsonMapper.builder()
+
+    testEventResponse = EventDto.builder()
+        .id(eventId)
+        .facilitator("facilitator")
+        .title("title")
+        .description("description")
+        .location("location")
+        .availableBookings(100)
+        .eventDateTime(LocalDateTime.now().plusDays(1))
+        .durationInMinutes(90)
+        .build();
+
+    var objectMapper = JsonMapper.builder()
         .addModule(new JavaTimeModule())
         .build();
+
+    try {
+      testResponseJson = objectMapper.writeValueAsString(testEventResponse);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
+  // Use wiremock mock web server rather than mocking web-client-builder
   @RegisterExtension
   static WireMockExtension mockWebServer = WireMockExtension.newInstance()
       .options(WireMockConfiguration.wireMockConfig()
@@ -82,15 +100,21 @@ class DefaultEventRequestServiceTests {
       ).build();
 
   @BeforeEach
-  void setUp() {
-    mockCircuitBreaker();
+  void setUp(){
+
+    // setup mock circuit-breaker behavior
+    when(mockCircuitBreakerFactory.create(anyString())).thenReturn(mockCircuitBreaker);
+    when(mockCircuitBreaker.run(ArgumentMatchers.<Mono<EventDto>>any(), any()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
     String baseUrl = mockWebServer.baseUrl();
     Builder clientBuilder = WebClient.builder()
         .baseUrl(baseUrl);
+
     requestService = new DefaultEventRequestService(clientBuilder, mockCircuitBreakerFactory, timeoutInMillis, retry);
   }
 
-  /// ## TEST SCENARIOS
+  /// # TEST SCENARIOS
   /// - webClient returns 500-ish response status -> returns Mono with
   /// EventRequestServiceUnavailableException
   /// - webClient returns Forbidden(403) response status -> returns Mono with ForbiddenException
@@ -104,10 +128,9 @@ class DefaultEventRequestServiceTests {
   @Test
   @DisplayName("requestEvent should return EventRequestServiceUnavailableException if call to webClient returns status code 500 (Internal Server Error)")
   void requestEvent_webClientReturns500(){
-    var bToken = "Bearer " + token;
 
     mockWebServer.stubFor(get("/api/events/" + eventId)
-        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bToken))
+        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearerToken))
         .withHeader("Accept", equalTo("application/json"))
         .willReturn(aResponse().withStatus(500))
     );
@@ -119,10 +142,9 @@ class DefaultEventRequestServiceTests {
   @Test
   @DisplayName("requestEvent should return ForbiddenException if call to webClient returns status code 403 (Forbidden)")
   void requestEvent_webClientReturns403() {
-    var bToken = "Bearer " + token;
 
     mockWebServer.stubFor(get("/api/events/" + eventId)
-        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bToken))
+        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearerToken))
         .withHeader("Accept", equalTo("application/json"))
         .willReturn(aResponse().withStatus(403))
     );
@@ -134,10 +156,9 @@ class DefaultEventRequestServiceTests {
   @Test
   @DisplayName("requestEvent should return UnauthorizedException if call to webClient returns status code 401 (Unauthorized)")
   void requestEvent_webClientReturns401() {
-    var bToken = "Bearer " + token;
 
     mockWebServer.stubFor(get("/api/events/" + eventId)
-        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bToken))
+        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearerToken))
         .withHeader("Accept", equalTo("application/json"))
         .willReturn(aResponse().withStatus(401))
     );
@@ -149,10 +170,9 @@ class DefaultEventRequestServiceTests {
   @Test
   @DisplayName("requestEvent should return EventNotFound exception if call to webClient returns status code 404 (Not Found)")
   void requestEvent_webClientReturns404() {
-    var bToken = "Bearer " + token;
 
     mockWebServer.stubFor(get("/api/events/" + eventId)
-        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bToken))
+        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearerToken))
         .withHeader("Accept", equalTo("application/json"))
         .willReturn(aResponse().withStatus(404))
     );
@@ -164,10 +184,9 @@ class DefaultEventRequestServiceTests {
   @Test
   @DisplayName("requestEvent should return UnknownCauseException if call to webClient status code 400 (Bad Request)")
   void requestEvent_400() {
-    var bToken = "Bearer " + token;
 
     mockWebServer.stubFor(get("/api/events/" + eventId)
-        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bToken))
+        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearerToken))
         .withHeader("Accept", equalTo("application/json"))
         .willReturn(aResponse().withStatus(400))
     );
@@ -179,16 +198,14 @@ class DefaultEventRequestServiceTests {
   @Test
   @DisplayName("requestEvent should return EventRequestServiceTimeoutException if call to webClient times out")
   void requestEvent_times_out() throws JsonProcessingException {
-    var response = buildEvent();
-    var bToken = "Bearer " + token;
 
     mockWebServer.stubFor(get("/api/events/" + eventId)
-        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bToken))
+        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearerToken))
         .withHeader("Accept", equalTo("application/json"))
         .willReturn(aResponse()
             .withStatus(200)
             .withHeader("Content-Type", "application/json")
-            .withBody(objectMapper.writeValueAsString(response))
+            .withBody(testResponseJson)
         ));
 
     StepVerifier.withVirtualTime(() -> requestService.requestEvent(eventId, token))
@@ -200,39 +217,17 @@ class DefaultEventRequestServiceTests {
   @Test
   @DisplayName("requestEvent should return Event if call to webClient returns status code 200 (Ok) and a response body")
   void requestEvent_success() throws JsonProcessingException {
-    var response = buildEvent();
-    var bToken = "Bearer " + token;
-
     mockWebServer.stubFor(get("/api/events/" + eventId)
-        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bToken))
+        .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearerToken))
         .withHeader("Accept", equalTo("application/json"))
         .willReturn(aResponse()
             .withStatus(200)
             .withHeader("Content-Type", "application/json")
-            .withBody(objectMapper.writeValueAsString(response))
-        ));
+            .withBody(testResponseJson))
+        );
 
     StepVerifier.create(requestService.requestEvent(eventId, token))
-        .expectNext(response)
+        .expectNext(testEventResponse)
         .verifyComplete();
-  }
-
-  private EventDto buildEvent() {
-    return EventDto.builder()
-        .id(eventId)
-        .facilitator("facilitator")
-        .title("title")
-        .description("description")
-        .location("location")
-        .availableBookings(100)
-        .eventDateTime(LocalDateTime.now().plusDays(1))
-        .durationInMinutes(90)
-        .build();
-  }
-
-  private void mockCircuitBreaker() {
-    when(mockCircuitBreakerFactory.create(anyString())).thenReturn(mockCircuitBreaker);
-    when(mockCircuitBreaker.run(ArgumentMatchers.<Mono<EventDto>>any(), any()))
-        .thenAnswer(invocation -> invocation.getArgument(0));
   }
 }

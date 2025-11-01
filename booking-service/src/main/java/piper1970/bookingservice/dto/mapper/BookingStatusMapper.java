@@ -15,6 +15,7 @@ public interface BookingStatusMapper {
       @ValueMapping(source="IN_PROGRESS", target="IN_PROGRESS"),
       @ValueMapping(source="CONFIRMED", target="CONFIRMED"),
       @ValueMapping(source="CANCELLED", target="CANCELLED"),
+      @ValueMapping(source="COMPLETED", target="COMPLETED"),
       @ValueMapping(source = MappingConstants.NULL, target="CANCELLED"),
       @ValueMapping(source = MappingConstants.ANY_UNMAPPED, target="CANCELLED")
   })
@@ -23,7 +24,8 @@ public interface BookingStatusMapper {
   @ValueMappings({
       @ValueMapping(source="IN_PROGRESS", target="IN_PROGRESS"),
       @ValueMapping(source="CONFIRMED", target="CONFIRMED"),
-      @ValueMapping(source="CANCELLED", target="CANCELLED")
+      @ValueMapping(source="CANCELLED", target="CANCELLED"),
+      @ValueMapping(source="COMPLETED", target="COMPLETED")
   })
   String fromBookingStatus(BookingStatus bookingStatus);
 }

@@ -8,6 +8,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
 
+/**
+ * WebClient Configuration for setting load-balanced web client usage with event-service web client.
+ */
 @Configuration
 @Slf4j
 public class WebClientConfig {

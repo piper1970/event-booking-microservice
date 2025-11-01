@@ -20,6 +20,12 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
+/**
+ * Listener for BookingEventUnavailable messages off the 'booking-event-unavailable' topic.
+ * <p>
+ * These messages are sent via the event-service when a created booking gets confirmed, but the event no longer
+ * has any seats available.
+ */
 @Component
 @Slf4j
 public class BookingEventUnavailableListener extends DiscoverableListener {

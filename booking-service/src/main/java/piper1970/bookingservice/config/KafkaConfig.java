@@ -25,6 +25,9 @@ import reactor.kafka.sender.MicrometerProducerListener;
 import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.observation.KafkaSenderObservation.DefaultKafkaSenderObservationConvention;
 
+/**
+ * Kafka configuration for booking-service handling topics, dlt, sender/producers, and receiver-factory beans.
+ */
 @Configuration(proxyBeanMethods = false)
 @EnableKafka
 public class KafkaConfig {

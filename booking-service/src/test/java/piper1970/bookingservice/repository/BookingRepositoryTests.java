@@ -46,6 +46,7 @@ class BookingRepositoryTests {
                 );
             """);
 
+    // Drop and recreate bookings table
     statements.forEach(stmt -> databaseClient.sql(stmt)
         .fetch()
         .rowsUpdated()
@@ -57,6 +58,7 @@ class BookingRepositoryTests {
   @Test
   @DisplayName("should be able to find bookings given a username")
   void findByUsername() {
+
     var testUsername = "test_username";
     var booking1 = Booking.builder()
         .username(testUsername)
@@ -90,6 +92,7 @@ class BookingRepositoryTests {
   @Test
   @DisplayName("should be able to find a booking by id and username")
   void findByIdAndUsername() {
+
     var testUsername = "test_username";
     var booking1 = Booking.builder()
         .username(testUsername)
@@ -128,6 +131,7 @@ class BookingRepositoryTests {
   @Test
   @DisplayName("should be able to find booking summaries for bookings with given event id that are not completed or cancelled")
   void findBookingSummariesForEventIdThatAreNotCompletedOrCancelled() {
+
     var testUsername = "test_username";
     var booking1 = Booking.builder()
         .username(testUsername + 1)
@@ -179,8 +183,13 @@ class BookingRepositoryTests {
         .verifyComplete();
   }
 
-
+  /**
+   * Helper method to initialize repo with given bookings.
+   *
+   * @param bookings variable-sized list of bookings to insert into repository
+   */
   private void insertBookings(Booking... bookings) {
+
     bookingRepository.saveAll(List.of(bookings))
         .as(StepVerifier::create)
         .expectNextCount(bookings.length)
