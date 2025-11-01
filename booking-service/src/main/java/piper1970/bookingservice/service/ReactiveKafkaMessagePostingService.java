@@ -18,6 +18,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 
+/**
+ * Service for posting kafka messages reactively to
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,6 +33,10 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
 
   @Override
   public Mono<Void> postBookingCreatedMessage(BookingCreated message) {
+    // TODO: is these even working?  context not being used inside try block
+    //   This was added because zipkin tracing was not capturing the traceId/spanId values
+    //   from kafka posts. Currently, traceId is captured, but spanId isn't.
+    //   does `spring.reactor.context-propagation=auto` property invalidate the need for this?
     return Mono.deferContextual(context -> {
       try {
         var key = message.getBooking().getId();

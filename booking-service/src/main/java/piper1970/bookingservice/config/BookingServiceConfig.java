@@ -28,6 +28,9 @@ import piper1970.eventservice.common.validation.validators.context.ValidationCon
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
+/**
+ * Main configuration for booking-service, handling security, clock, validation, and retry beans
+ */
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity

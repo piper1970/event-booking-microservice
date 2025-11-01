@@ -96,6 +96,7 @@ public class BookingControllerTestsIT {
 
   //region Setup Properties
 
+  // TestContainer to run all docker entries from docker-compose file
   @Container
   static ComposeContainer composeContainer = createComposeContainer();
 
@@ -150,15 +151,21 @@ public class BookingControllerTestsIT {
   @BeforeEach
   void setUp() throws JOSEException, JsonProcessingException {
 
+    // setup clock behavior
     given(clock.instant()).willReturn(clockInstant);
     given(clock.getZone()).willReturn(clockZone);
 
+    // initialize webclient with fake port
     webClient = WebTestClient.bindToServer()
         .baseUrl("http://localhost:" + port)
         .build();
+
+    // clear database
     bookingRepository.deleteAll()
         .then()
         .block();
+
+    // setup mocked keycloak server
     setupKeyCloakServer();
   }
 
@@ -169,12 +176,12 @@ public class BookingControllerTestsIT {
   @Test
   @DisplayName("authorized users should be able to retrieve all their bookings")
   void getAllBookings_Authenticated_And_Authorized_Owner_Of_Bookings() throws JOSEException {
-    //add bookings to the repo
 
     initializeDatabase()
         .then()
         .block();
 
+    // test_member has 2 bookings in the repo
     var token = getJwtToken("test_member", "MEMBER");
 
     webClient.get()
@@ -193,12 +200,12 @@ public class BookingControllerTestsIT {
   @Test
   @DisplayName("authorized users (non-admin) should not be able to retrieve bookings from other users")
   void getAllBookings_Authenticated_And_Authorized_Not_Owner_Of_Bookings() throws JOSEException {
-    //add bookings to the repo
 
     initializeDatabase()
         .then()
         .block();
 
+    // non_test_member has no bookings in repo
     var token = getJwtToken("non_test_member", "MEMBER");
 
     webClient.get()
@@ -221,6 +228,7 @@ public class BookingControllerTestsIT {
     webClient.get()
         .uri("/api/bookings")
         .accept(MediaType.APPLICATION_JSON)
+        // missing authorization bearer token
         .headers(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
         .exchange()
         .expectStatus().isUnauthorized();
@@ -289,6 +297,7 @@ public class BookingControllerTestsIT {
     webClient.get()
         .uri("/api/bookings/{id}", id)
         .accept(MediaType.APPLICATION_JSON)
+        // missing authentication bearer token
         .headers(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
         .exchange()
         .expectStatus().isUnauthorized();
@@ -423,6 +432,7 @@ public class BookingControllerTestsIT {
         .contentType(MediaType.APPLICATION_JSON)
         .accept(MediaType.APPLICATION_JSON)
         .body(Mono.just(createRequest), BookingCreateRequest.class)
+        // missing bearer token
         .exchange()
         .expectStatus()
         .isUnauthorized();
@@ -540,7 +550,9 @@ public class BookingControllerTestsIT {
 
   //region Helper Methods
 
-  ///  fill database with default bookings
+  /**
+   * Helper function to initialize database. Returns 2 test_member and 1 test_member-2 bookings
+   */
   Mono<List<Booking>> initializeDatabase() {
     return bookingRepository.saveAll(List.of(
         Booking.builder()
@@ -565,7 +577,9 @@ public class BookingControllerTestsIT {
   }
 
 
-  ///  Generate Token based of RSA Key returned by Wire-mocked OAuth2 server
+  /**
+   * Helper function to generate Token based off RSA Key returned by Wire-mocked OAuth2 server
+   */
   String getJwtToken(String username, String... authorities) throws JOSEException {
 
     var iat = Instant.now();
@@ -611,14 +625,9 @@ public class BookingControllerTestsIT {
 
 
   /**
-   * Stubs wiremock server to return event-dto based on given parameters. Parameters given - other
+   * Helper function to stubs wiremock server to return event-dto based on given parameters. Parameters given - other
    * than id -  are used by calling service as criteria for whether the booking should be allowed to
    * be created.
-   *
-   * @param eventId                   id for event
-   * @param availableBookingsForEvent Number of bookings available
-   * @param eventDateTime             date of the event
-   * @throws JsonProcessingException if event cannot be marshalled to JSON
    */
   void mockEventServer(
       Integer eventId,
@@ -664,7 +673,9 @@ public class BookingControllerTestsIT {
         ));
   }
 
-  /// Initialize RSA Key and set mock oauth2 server to return it when prompted
+  /**
+   * Helper function to 1) Initialize rsaKey and 2)set mock keycloak to return jwk-set based off rsaKey
+   */
   void setupKeyCloakServer()
       throws JOSEException, JsonProcessingException {
 
@@ -691,7 +702,9 @@ public class BookingControllerTestsIT {
     keycloakServerInitialized = true;
   }
 
-  /// Setup TestContainer based off docker-compose test file
+  /**
+   * Helper function to set up composite TestContainer based off docker-compose test file
+   */
   @SuppressWarnings("all")
   static ComposeContainer createComposeContainer() {
     String userDirectory = System.getProperty("user.dir");
@@ -723,7 +736,9 @@ public class BookingControllerTestsIT {
       this.apiUri = apiUri;
     }
 
-    ///  Initializes database structure from schema
+    /**
+     * Initializes database structure from test integration schema
+     */
     @Bean
     public ConnectionFactoryInitializer connectionFactoryInitializer(
         ConnectionFactory connectionFactory) {
@@ -737,8 +752,10 @@ public class BookingControllerTestsIT {
       return initializer;
     }
 
-    ///  Need to override webClientBuilder to disable @LoadBalanced behavior
-    /// spring.main.allow-bean-definition-overriding=true added to
+    /**
+     * Needed to override webClientBuilder to disable @LoadBalanced behavior
+     * Relies on 'spring.main.allow-bean-definition-overriding=true' being added to properties
+     */
     @Bean
     @Primary
     public WebClient.Builder webClientBuilder() {

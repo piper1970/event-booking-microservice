@@ -130,6 +130,7 @@ class BookingServiceApplicationTests {
 
   @BeforeAll
   void setupListeners() {
+    // setup all kafka listeners
     discoverableListeners.add(new BookingConfirmedListener(receiverFactory, dltProducer,
         bookingRepository, timeoutMillis, defaultRepositoryRetry));
     discoverableListeners.add(new BookingExpiredListener(receiverFactory, dltProducer,
@@ -148,12 +149,12 @@ class BookingServiceApplicationTests {
 
   @AfterAll
   void teardownListeners() {
+    // close all kafka listeners
     discoverableListeners.forEach(DiscoverableListener::close);
   }
 
   @BeforeEach
   void setup() {
-
     // clear database.
     bookingRepository.deleteAll().block();
   }
@@ -196,6 +197,7 @@ class BookingServiceApplicationTests {
   @Test
   @DisplayName("should be able to post BookingCancelled message to BOOKING_CANCELLED kafka topic")
   void postBookingCancelledMessage() {
+
     var message = new BookingCancelled();
     var bookingID = new BookingId();
     bookingID.setId(1);
@@ -222,6 +224,7 @@ class BookingServiceApplicationTests {
   @Test
   @DisplayName("should be able to post BookingsUpdated message to BOOKINGS_UPDATED kafka topic")
   void postBookingsUpdatedMessage() {
+
     var message = new BookingsUpdated();
     var bookingID = new BookingId();
     bookingID.setId(1);
@@ -248,6 +251,7 @@ class BookingServiceApplicationTests {
   @Test
   @DisplayName("should be able to post BookingsCancelled message to BOOKINGS_CANCELLED kafka topic")
   void postBookingsCancelledMessage() {
+
     var message = new BookingsCancelled();
     var bookingID = new BookingId();
     bookingID.setId(1);
@@ -573,6 +577,7 @@ class BookingServiceApplicationTests {
   @Test
   @DisplayName("should update all bookings associated with event, setting status from IN_PROGRESS->CANCELLED, or CONFIRMED->COMPLETE")
   void consumeEventCompletedMessage() {
+
     var booking1 = Booking.builder() // will need cancelling
         .email("test_user@test.com")
         .username("test_user")
@@ -633,6 +638,9 @@ class BookingServiceApplicationTests {
 
   //region Helpers
 
+  /**
+   * Helper function to convert KafkaReceiver to ConsumerRecord Mono
+   */
   private Mono<ConsumerRecord<Integer, Object>> getReceiverAsMono(
       KafkaReceiver<Integer, Object> receiver) {
     return receiver.receiveAtmostOnce()
@@ -647,6 +655,10 @@ class BookingServiceApplicationTests {
   @ActiveProfiles({"test", "integration_kafka"})
   static class TestConfig {
 
+    /**
+     * Set up Mock Schema Registry based of Kafka properties. Relies on local Avro schema files
+     * rather than files in registry.
+     */
     @Bean
     public SchemaRegistryClient schemaRegistryClient(KafkaProperties kafkaProperties) {
       String registryUrl = kafkaProperties.getProperties().get("schema.registry.url");
@@ -654,6 +666,9 @@ class BookingServiceApplicationTests {
       return MockSchemaRegistry.getClientForScope(scope);
     }
 
+    /**
+     * Enhanced ReceiverFactory with extended range of Topics needed for tests.
+     */
     @Primary
     @Bean
     public ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory(

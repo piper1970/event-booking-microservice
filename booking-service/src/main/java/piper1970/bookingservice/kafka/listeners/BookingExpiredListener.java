@@ -20,6 +20,15 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
+/**
+ * Listener for BookingExpired messages off the 'booking-expired' topic.
+ * <p>
+ * These messages are sent via the notification-service in one of two possibilities:
+ * <ul>
+ *   <li>User attempts to click a confirmation link after the allotted time has expired</li>
+ *   <li>A scheduled maintenance run of notification-service finds a stale confirmation that has expiree</li>
+ * </ul>
+ */
 @Component
 @Slf4j
 public class BookingExpiredListener extends DiscoverableListener {

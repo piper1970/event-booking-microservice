@@ -27,6 +27,13 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
+/**
+ * Default reactive web service.
+ * Communicates with EventRequestService web client to access event availability info.
+ * Communicates with booking repository to fetch, create and update bookings.
+ * Communicates asynchronously with neighboring microservices via kafka to post booking creation and cancellation
+ * messages.
+ */
 @Service
 @Slf4j
 public class DefaultBookingWebService implements BookingWebService {

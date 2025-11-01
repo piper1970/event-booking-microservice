@@ -7,6 +7,9 @@ import org.springframework.cloud.client.circuitbreaker.Customizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Circuit Breaker config
+ */
 @Configuration
 public class ResilienceConfig {
 

@@ -7,8 +7,7 @@ import java.util.List;
 import piper1970.bookingservice.validation.annotations.EnumValues;
 
 /**
- * Validator for ensuring the String value to test is one of the names() for the given Enum
- *
+ * Validator for ensuring the String value to test is one of the names() for the given Enum, or null
  */
 public class EnumValuesValidator implements ConstraintValidator<EnumValues, String> {
 

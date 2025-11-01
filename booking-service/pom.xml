@@ -28,16 +28,21 @@
   </dependencyManagement>
 
   <dependencies>
+
+<!-- SpringCloud Bootstrap -->
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-bootstrap</artifactId>
     </dependency>
 
+<!-- Webflux -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webflux</artifactId>
     </dependency>
 
+
+<!-- Kafka -->
     <dependency>
       <groupId>org.springframework.kafka</groupId>
       <artifactId>spring-kafka</artifactId>
@@ -49,18 +54,14 @@
       <version>${reactive-kafka.version}</version>
     </dependency>
 
+<!-- Prometheus -->
     <dependency>
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-registry-prometheus</artifactId>
       <scope>runtime</scope>
     </dependency>
 
-    <dependency>
-      <groupId>piper1970</groupId>
-      <artifactId>event-service-common</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
-    </dependency>
-
+<!-- R2DBC / Postgres -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-r2dbc</artifactId>
@@ -78,6 +79,7 @@
       <scope>runtime</scope>
     </dependency>
 
+<!-- Flyway -->
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
@@ -88,6 +90,7 @@
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
 
+<!-- MapStruct -->
     <dependency>
       <groupId>org.mapstruct</groupId>
       <artifactId>mapstruct</artifactId>
@@ -100,16 +103,20 @@
       <version>${lombok.mapstruct.binding.version}</version>
     </dependency>
 
+<!-- Bean Validation -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+<!-- Eureka Discovery Client -->
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
     </dependency>
 
+
+<!-- Security -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
@@ -125,6 +132,7 @@
       <artifactId>spring-security-oauth2-jose</artifactId>
     </dependency>
 
+<!-- Resilience4J -->
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
@@ -135,7 +143,7 @@
       <artifactId>resilience4j-micrometer</artifactId>
     </dependency>
 
-    <!-- OpenAPI/Swagger Api Documentation-->
+    <!-- OpenAPI/Swagger Api Documentation -->
     <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
@@ -148,8 +156,15 @@
       <version>${swagger-annotations.version}</version>
     </dependency>
 
-    <!--  Test Dependencies  -->
+<!-- Common Dependencies -->
+    <dependency>
+      <groupId>piper1970</groupId>
+      <artifactId>event-service-common</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+    </dependency>
 
+
+<!-- Test Containers -->
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -170,6 +185,7 @@
       <scope>test</scope>
     </dependency>
 
+<!-- Wiremock/Test -->
     <dependency>
       <groupId>org.wiremock.integrations</groupId>
       <artifactId>wiremock-spring-boot</artifactId>
@@ -177,30 +193,34 @@
       <scope>test</scope>
     </dependency>
 
+<!-- Reactor/Test -->
     <dependency>
       <groupId>io.projectreactor</groupId>
       <artifactId>reactor-test</artifactId>
       <scope>test</scope>
     </dependency>
 
+<!-- Kafka/Test -->
     <dependency>
       <groupId>org.springframework.kafka</groupId>
       <artifactId>spring-kafka-test</artifactId>
       <scope>test</scope>
     </dependency>
 
+<!-- Security/Test -->
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
 
+<!-- R2DBC - H2/Test -->
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
       <scope>test</scope>
-
     </dependency>
+
     <dependency>
       <groupId>io.r2dbc</groupId>
       <artifactId>r2dbc-h2</artifactId>
