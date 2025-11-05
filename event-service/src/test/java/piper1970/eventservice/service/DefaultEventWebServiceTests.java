@@ -48,23 +48,22 @@ import reactor.util.retry.Retry;
 @Order(2)
 class DefaultEventWebServiceTests {
 
+  // service to test
   private DefaultEventWebService webService;
 
+  // mocked services
   @Mock
   private EventRepository eventRepository;
-
   @Mock
   private TransactionalOperator transactionalOperator;
-
   @Mock
   private MessagePostingService messagePostingService;
-
   @Mock
   private EventMapper eventMapper;
-
   @Mock
   private Clock clock;
 
+  // common variables used for tests
   private static final Integer eventRepositoryTimeoutInMilliseconds = 1000;
   private static final int allEventsCount = 20;
   private static final String facilitator = "facilitator";
@@ -77,7 +76,6 @@ class DefaultEventWebServiceTests {
   private static final Retry defaultKafkaRetry = Retry.backoff(2, Duration.ofMillis(500L))
       .filter(throwable -> throwable instanceof TimeoutException)
       .jitter(0.7D);
-
 
   @BeforeEach
   void setUp() {
@@ -120,6 +118,7 @@ class DefaultEventWebServiceTests {
   void getEvents_events_returned() {
 
     setupMockClocks();
+
     setupMockMapper();
 
     when(eventRepository.findAll()).thenReturn(createEventFlux());
@@ -132,6 +131,7 @@ class DefaultEventWebServiceTests {
   @Test
   @DisplayName("getEvents should return successfully even if not events are present")
   void getEvents_no_events_returned() {
+
     when(eventRepository.findAll()).thenReturn(Flux.empty());
 
     StepVerifier.create(webService.getEvents())
@@ -150,6 +150,7 @@ class DefaultEventWebServiceTests {
   @Test
   @DisplayName("getEvent should return 404 Mono Error when event with given id not in repo")
   void getEvent_nothing_found() {
+
     when(eventRepository.findById(eventId)).thenReturn(Mono.empty());
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
@@ -166,6 +167,7 @@ class DefaultEventWebServiceTests {
     setupMockClocks();
 
     var event = this.createEvent(EventParams.of(eventId, facilitator));
+
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(event)
         .delayElement(eventDuration)
     );
@@ -182,25 +184,32 @@ class DefaultEventWebServiceTests {
   @Test
   @DisplayName("getEvent should returns completed event when an in_progress event is found in repo via id param that has ended")
   void getEvent_returns_event_updated_to_completed() {
+
     setupMockClocks();
+
     setupMockMapper();
 
     var edt = LocalDateTime.now(clock).minusHours(2);
+
     var durationMinutes = 60;
 
     var param = EventParams.of(eventId, null);
+
     var event = createEvent(param)
         .withEventDateTime(edt)
         .withDurationInMinutes(durationMinutes)
         .withEventStatus(EventStatus.IN_PROGRESS);
+
     var eventDto = this.createEventDto(param)
         .withEventStatus(EventStatus.COMPLETED)
         .withDurationInMinutes(durationMinutes)
         .withEventDateTime(edt);
+
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
         args -> args.getArgument(0));
+
     when(eventRepository.save(any(Event.class))).thenAnswer(
         args -> Mono.just(args.getArgument(0)));
 
@@ -212,25 +221,32 @@ class DefaultEventWebServiceTests {
   @Test
   @DisplayName("getEvent should return an in_progress event when an awaiting event is found in repo via id param that has started")
   void getEvent_returns_event_updated_to_in_progress() {
+
     setupMockClocks();
+
     setupMockMapper();
 
     var edt = LocalDateTime.now(clock).minusMinutes(2);
+
     var durationMinutes = 60;
 
     var param = EventParams.of(eventId, null);
+
     var event = createEvent(param)
         .withEventDateTime(edt)
         .withDurationInMinutes(durationMinutes)
         .withEventStatus(EventStatus.AWAITING);
+
     var eventDto = this.createEventDto(param)
         .withEventStatus(EventStatus.IN_PROGRESS)
         .withDurationInMinutes(durationMinutes)
         .withEventDateTime(edt);
+
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
 
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
         args -> args.getArgument(0));
+
     when(eventRepository.save(any(Event.class))).thenAnswer(
         args -> Mono.just(args.getArgument(0)));
 
@@ -244,12 +260,17 @@ class DefaultEventWebServiceTests {
   void getEvent_returns_event() {
 
     setupMockClocks();
+
     setupMockMapper();
 
     var param = EventParams.of(eventId, null);
+
     var event = this.createEvent(param);
+
     var eventDto = this.createEventDto(param);
+
     when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
+
     when(transactionalOperator.transactional(ArgumentMatchers.<Mono<Event>>any())).thenAnswer(
         args -> args.getArgument(0));
 
@@ -271,18 +292,22 @@ class DefaultEventWebServiceTests {
   void createEvent_saved() {
 
     setupMockClocks();
+
     setupMockMapper();
 
     var eventCreateRequest = this.createEventRequest(
         new CreateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 60));
 
     var param = EventParams.of(eventId, null);
+
     var event = this.createEvent(param)
         .withEventStatus(EventStatus.AWAITING);
+
     var eventDto = this.createEventDto(param)
         .withEventStatus(EventStatus.AWAITING);
 
     when(eventMapper.toEntity(eventCreateRequest)).thenReturn(event.withId(null));
+
     when(eventRepository.save(event)).thenReturn(Mono.just(event));
 
     StepVerifier.create(webService.createEvent(eventCreateRequest))
@@ -298,10 +323,12 @@ class DefaultEventWebServiceTests {
 
     var cre = this.createEventRequest(
         new CreateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 60));
+
     var event = this.createEvent(EventParams.of(eventId, null))
         .withEventStatus(EventStatus.AWAITING);
 
     when(eventMapper.toEntity(cre)).thenReturn(event.withId(null));
+
     when(eventRepository.save(event)).thenReturn(Mono.just(event)
         .delayElement(eventDuration));
 
@@ -330,6 +357,7 @@ class DefaultEventWebServiceTests {
     setupMockClocks();
 
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
+
     var eventUpdateRequest = createEventUpdateRequest(
         new UpdateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 90));
 
@@ -369,8 +397,8 @@ class DefaultEventWebServiceTests {
 
     setupMockClocks();
 
-    var originalEvent = createEvent(EventParams.of(eventId, facilitator));
-    originalEvent.setEventDateTime(LocalDateTime.now(clock).minusMinutes(1));
+    var originalEvent = createEvent(EventParams.of(eventId, facilitator))
+        .withEventDateTime(LocalDateTime.now(clock).minusMinutes(1));
 
     var eventUpdateRequest = createEventUpdateRequest(
         new UpdateEventRequestParam(eventId, LocalDateTime.now(clock).plusHours(2), 90));
@@ -396,6 +424,7 @@ class DefaultEventWebServiceTests {
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
 
     var updateDurationInMinutes = originalEvent.getDurationInMinutes() + 30;
+
     var eventUpdateRequest = createEventUpdateRequest(
         new UpdateEventRequestParam(eventId, originalEvent.getEventDateTime(),
             updateDurationInMinutes));
@@ -421,11 +450,13 @@ class DefaultEventWebServiceTests {
   void updateEvent_update_success() {
 
     setupMockClocks();
+
     setupMockMapper();
 
     var originalEvent = createEvent(EventParams.of(eventId, facilitator));
 
     var updateDurationInMinutes = originalEvent.getDurationInMinutes() + 30;
+
     var eventUpdateRequest = createEventUpdateRequest(
         new UpdateEventRequestParam(eventId, originalEvent.getEventDateTime(),
             updateDurationInMinutes));
@@ -509,10 +540,11 @@ class DefaultEventWebServiceTests {
   @Test
   @DisplayName("cancelEvent should return EventCancellationException Mono when event is currently in progress")
   void cancelEvent_event_in_progress() {
+
     setupMockClocks();
 
-    var originalEvent = createEvent(EventParams.of(eventId, facilitator));
-    originalEvent.setEventDateTime(LocalDateTime.now(clock).minusMinutes(1));
+    var originalEvent = createEvent(EventParams.of(eventId, facilitator))
+        .withEventDateTime(LocalDateTime.now(clock).minusMinutes(1));
 
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(
         Mono.just(originalEvent));
@@ -527,10 +559,11 @@ class DefaultEventWebServiceTests {
   @Test
   @DisplayName("cancelEvent should return EventTimeoutException Mono when repo call save the cancelled event times out")
   void cancelEvent_save_times_out() {
+
     setupMockClocks();
 
-    var originalEvent = createEvent(EventParams.of(eventId, facilitator));
-    originalEvent.setEventDateTime(LocalDateTime.now(clock).plusDays(1));
+    var originalEvent = createEvent(EventParams.of(eventId, facilitator))
+        .withEventDateTime(LocalDateTime.now(clock).plusDays(1));
 
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(
         Mono.just(originalEvent));
@@ -551,11 +584,13 @@ class DefaultEventWebServiceTests {
   @Test
   @DisplayName("cancelEvent should return cancelled event mono when event is successfully deleted from the repo and event not started")
   void cancelEvent_success_event_not_started() {
+
     setupMockClocks();
+
     setupMockMapper();
 
-    var originalEvent = createEvent(EventParams.of(eventId, facilitator));
-    originalEvent.setEventDateTime(LocalDateTime.now(clock).plusHours(1));
+    var originalEvent = createEvent(EventParams.of(eventId, facilitator))
+        .withEventDateTime(LocalDateTime.now(clock).plusHours(1));
 
     when(eventRepository.findByIdAndFacilitator(eventId, facilitator)).thenReturn(
         Mono.just(originalEvent));
@@ -579,15 +614,25 @@ class DefaultEventWebServiceTests {
 
   //region Helper Methods
 
+  /**
+   * Helper method to optionally setup mock behavior of clock
+   */
   private void setupMockClocks() {
+
     Instant clockInstant = Instant.parse("2025-03-05T14:35:00Z");
+
     ZoneId zoneId = ZoneId.systemDefault();
 
     when(clock.instant()).thenReturn(clockInstant);
+
     when(clock.getZone()).thenReturn(zoneId);
   }
 
+  /**
+   * Helper function to optionally set up mock behavior of eventMapper
+   */
   private void setupMockMapper() {
+
     when(eventMapper.toDto(any(Event.class))).
         thenAnswer(invocation -> {
           Event argument = invocation.getArgument(0);
@@ -606,11 +651,10 @@ class DefaultEventWebServiceTests {
   }
 
   record CreateEventRequestParam(Integer id, LocalDateTime dateTime,
-                                 Integer durationInMinutes) {
-
-  }
+                                 Integer durationInMinutes) {}
 
   private EventCreateRequest createEventRequest(CreateEventRequestParam param) {
+
     return EventCreateRequest.builder()
         .facilitator("facilitator-" + param.id())
         .title("title-" + param.id())
@@ -623,9 +667,7 @@ class DefaultEventWebServiceTests {
   }
 
   record UpdateEventRequestParam(Integer id, LocalDateTime dateTime,
-                                 Integer durationInMinutes) {
-
-  }
+                                 Integer durationInMinutes) {}
 
   private EventUpdateRequest createEventUpdateRequest(UpdateEventRequestParam param) {
     return EventUpdateRequest.builder()

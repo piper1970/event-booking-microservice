@@ -65,7 +65,9 @@ class SchedulingServiceTests {
   @Test
   @DisplayName("checkForCompletedEvents should properly process completed events, saving updates and posting to Kafka")
   void checkForCompletedEvents_SomeEventsCompleted() {
+
     initializeMockKafkaMessage();
+
     // 3 non-complete events, 2 of which should be marked as complete
     var events = List.of(
         Event.builder()
@@ -214,6 +216,7 @@ class SchedulingServiceTests {
   @Test
   @DisplayName("checkForAwaitingEventsThatHaveStarted should properly process events, avoiding any updates to events when none have started without completion")
   void checkForAwaitingEventsThatHaveStarted_NoneFound() {
+
     // 2 still awaiting, one completed, none should be marked as started
     var events = List.of(
         Event.builder()
@@ -259,16 +262,25 @@ class SchedulingServiceTests {
         .verifyComplete();
   }
 
+  /**
+   * Helper method for optionally setting up mock behavior for messagePostingService
+   */
   private void initializeMockKafkaMessage() {
     when(messagePostingService.postEventCompletedMessage(any(EventCompleted.class)))
         .thenReturn(Mono.empty());
   }
 
+  /**
+   * Helper method for optionally setting up mock behavior for transactionalOperator
+   */
   private void initializeTransactionalMock() {
     when(transactionalOperator.transactional(ArgumentMatchers.<Flux<Event>>any()))
         .thenAnswer(i -> i.getArgument(0));
   }
 
+  /**
+   * Helper method for creating db table and schema
+   */
   private void initializeDatabase() {
     var statements = List.of(
         "DROP TABLE IF EXISTS event_service.events;",
@@ -301,6 +313,9 @@ class SchedulingServiceTests {
   @TestConfiguration
   static class TestConfig {
 
+    /**
+     * Use Mock Scheduler to avoid timing issues
+     */
     @Bean
     TaskScheduler taskScheduler() {
       // ignore scheduled runs
