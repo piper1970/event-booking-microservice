@@ -93,6 +93,7 @@ public class EventControllerTestsIT {
 
   //region Properties Setup
 
+  // TestContainer to run all docker entries from docker-compose file
   @Container
   static ComposeContainer composeContainer = createComposeContainer();
 
@@ -144,15 +145,21 @@ public class EventControllerTestsIT {
   @BeforeEach
   void setUp() throws JOSEException, JsonProcessingException {
 
+    // setup clock behavior
     given(clock.instant()).willReturn(clockInstant);
     given(clock.getZone()).willReturn(clockZone);
 
+    // initialize webclient with fake port
     webClient = WebTestClient.bindToServer()
         .baseUrl("http://localhost:" + port)
         .build();
+
+    // clear database
     eventRepository.deleteAll()
         .then()
         .block();
+
+    // setup mocked keycloak server
     setupKeyCloakServer();
   }
 
@@ -166,7 +173,9 @@ public class EventControllerTestsIT {
 
     var db = initializeDatabase()
         .block();
+
     var token = getJwtToken("test_member", "MEMBER");
+
     webClient.get()
         .uri("/api/events")
         .accept(MediaType.APPLICATION_JSON)
@@ -216,6 +225,7 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized members should be able to get individual event")
   void getEventById_Authenticated() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
 
@@ -237,6 +247,7 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("non-authenticated user should not be able to access individual events")
   void getEventById_NonAuthenticated() {
+
     var db = initializeDatabase()
         .block();
 
@@ -253,6 +264,7 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("non-authorized user should not be able to access individual events")
   void getEventById_NonAuthorized() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
 
@@ -370,14 +382,18 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("non-performers/owners cannot update event")
   void updateEvent_non_authorized() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var token = getJwtToken("non_performer", "MEMBER");
+
     var updateRequest = EventUpdateRequest.builder()
         .title("Test Title - Updated")
         .description("Test Description - Updated")
@@ -400,13 +416,16 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("non-authenticated user cannot update event")
   void updateEvent_non_authenticated() {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var updateRequest = EventUpdateRequest.builder()
         .title("Test Title - Updated")
         .description("Test Description - Updated")
@@ -428,14 +447,18 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized performers can update their event with info before cutoff window")
   void updateEvent_authorized_performer_good_values() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .title("Test Title - Updated")
         .description("Test Description - Updated")
@@ -459,14 +482,18 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized performers can update their event's event-date-time before the cutoff window prior to the event starting")
   void updateEvent_authorized_performer_update_event_date_time() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.AWAITING))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(event.getEventDateTime().plusMinutes(10)) // running a bit late...
         .build();
@@ -492,19 +519,23 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized performers cannot update their event's event-date-time if event after cutoff point")
   void updateEvent_authorized_performer_update_event_date_time_in_progress() throws JOSEException {
+
+    when(clock.instant()).thenReturn(clockInstant);
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.IN_PROGRESS))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status IN_PROGRESS"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(event.getEventDateTime().plusMinutes(5))
         .build();
-
-    when(clock.instant()).thenReturn(clockInstant);
 
     webClient.put()
         .uri("/api/events/{eventId}", event.getId())
@@ -520,14 +551,18 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized performer cannot update their event's event-date-time if event is completed")
   void updateEvent_authorized_performer_update_values_while_complete() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> eventStatusMatches(evt, EventStatus.COMPLETED))
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status COMPLETED"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(event.getEventDateTime().minusHours(5))
         .build();
@@ -546,14 +581,18 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized PERFORMER cannot update event by setting the date in the past")
   void updateEvent_authorized_PERFORMER_awaiting_to_in_progress_update_cost() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(10))
         .build();
@@ -573,14 +612,18 @@ public class EventControllerTestsIT {
   @DisplayName("authorized PERFORMER cannot update event available bookings if also updating awaiting to in progress")
   void updateEvent_authorized_PERFORMER_awaiting_to_in_progress_update_available_bookings()
       throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
         .availableBookings(99)
@@ -601,14 +644,18 @@ public class EventControllerTestsIT {
   @DisplayName("authorized PERFORMER cannot update event location if also updating awaiting to in progress")
   void updateEvent_authorized_PERFORMER_awaiting_to_in_progress_update_location()
       throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
         .location("Somewhere in the boonies")
@@ -629,14 +676,18 @@ public class EventControllerTestsIT {
   @DisplayName("authorized PERFORMER cannot update event date-time if also updating awaiting to in progress")
   void updateEvent_authorized_performer_awaiting_to_in_progress_update_event_date_time()
       throws JOSEException {
+
     var db = initializeDatabase()
         .block();
+
     var event = Objects.requireNonNull(db, dbInitializationFailure)
         .stream()
         .filter(evt -> EventStatus.AWAITING == evt.getEventStatus())
         .findAny()
         .orElseThrow(() -> new IllegalStateException("No event found with status AWAITING"));
+
     var token = getJwtToken("test_performer", "PERFORMER");
+
     var updateRequest = EventUpdateRequest.builder()
         .eventDateTime(LocalDateTime.now(clock).minusMinutes(2))
         .location("Somewhere in the boonies")
@@ -659,6 +710,7 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized performer can cancel event if it hasn't passed it's cutoff window")
   void cancelEvent_Authorized_Performer_Event_Not_Started() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
 
@@ -687,6 +739,7 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized performer cannot cancel event if it is in progress or ended")
   void cancelEvent_Authorized_Performer_Event_Already_Started() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
 
@@ -712,6 +765,7 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("authorized non-performer cannot cancel event")
   void cancelEvent_NonAuthorized() throws JOSEException {
+
     var db = initializeDatabase()
         .block();
 
@@ -736,6 +790,7 @@ public class EventControllerTestsIT {
   @Test
   @DisplayName("non-authenticated user cannot cancel event")
   void cancelEvent_NonAuthenticated() {
+
     var db = initializeDatabase()
         .block();
 
@@ -757,7 +812,9 @@ public class EventControllerTestsIT {
 
   //region Helper Methods
 
-  /// Initialize database for each run
+  /**
+   * Helper function to initialize DB with test data
+   */
   Mono<List<Event>> initializeDatabase() {
 
     return eventRepository.saveAll(List.of(
@@ -794,7 +851,14 @@ public class EventControllerTestsIT {
     )).collectList();
   }
 
-  ///  Generate Token based of RSA Key returned by Wire-mocked OAuth2 server
+  /**
+   * Helper function to generate JWT token from given parameters.
+   *
+   * @param username user (sub) for token
+   * @param authorities  array of authorities, such as MEMBER and/or PERFORMER
+   * @return JWT token string
+   * @throws JOSEException if token cannot be signed
+   */
   String getJwtToken(String username, String... authorities) throws JOSEException {
 
     var iat = Instant.now(clock);
@@ -838,7 +902,9 @@ public class EventControllerTestsIT {
     return signedJwt.serialize();
   }
 
-  /// Initialize RSA Key and set mock oauth2 server to return it when prompted
+  /**
+   * Helper function to set up mock keycloak server
+   */
   void setupKeyCloakServer()
       throws JOSEException, JsonProcessingException {
 
@@ -869,7 +935,7 @@ public class EventControllerTestsIT {
     return expectedStatus == event.getEventStatus();
   }
 
-  /// Setup TestContainer based off docker-compose test file
+  /** Setup TestContainer based off docker-compose test file **/
   @SuppressWarnings("all")
   static ComposeContainer createComposeContainer() {
 
@@ -894,7 +960,7 @@ public class EventControllerTestsIT {
   @ActiveProfiles({"test", "integration_test_containers"})
   public static class TestIntegrationConfiguration {
 
-    ///  Initializes database structure from schema
+    /** Initializes database structure from schema **/
     @Bean
     public ConnectionFactoryInitializer connectionFactoryInitializer(
         ConnectionFactory connectionFactory) {

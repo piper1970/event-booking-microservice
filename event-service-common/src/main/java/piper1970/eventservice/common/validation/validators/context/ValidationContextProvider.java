@@ -8,7 +8,7 @@ import org.springframework.lang.NonNull;
 import piper1970.eventservice.common.validation.validators.CustomFutureValidator;
 
 /**
- * Custom ApplicationContextAware component. Used to access spring-managed beans from outside
+ * Custom {@link ApplicationContextAware} component. Used to access spring-managed beans from outside
  * spring context. In this case, for CustomFutureValidator class, which is instantiated via Bean
  * validation mechanism.
  *

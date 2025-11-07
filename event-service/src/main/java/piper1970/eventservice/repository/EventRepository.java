@@ -11,6 +11,5 @@ import reactor.core.publisher.Mono;
 @Repository
 public interface EventRepository extends ReactiveCrudRepository<Event, Integer> {
   Mono<Event> findByIdAndFacilitator(Integer id, String facilitator);
-
   Flux<Event> findByEventStatusIn(Collection<EventStatus> eventStatus);
 }

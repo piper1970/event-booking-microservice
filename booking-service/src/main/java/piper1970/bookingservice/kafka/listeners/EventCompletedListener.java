@@ -22,7 +22,7 @@ import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
 /**
- * Listener for EventCompleted messages off the 'event-completed' topic.
+ * Listener for EventCompleted messages from the 'event-completed' topic.
  * <p>
  * These messages are sent periodically by the event-service when it determines an event has finished.
  */

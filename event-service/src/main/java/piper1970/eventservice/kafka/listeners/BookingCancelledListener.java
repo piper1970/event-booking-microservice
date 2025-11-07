@@ -21,6 +21,11 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
+/**
+ * Listener for BookingCancelled messages from the 'booking-cancelled' topic.
+ * <p>
+ * These messages are posted to kafka by the booking-service when a user cancels their booking for an event.
+ */
 @Component
 @Slf4j
 public class BookingCancelledListener extends DiscoverableListener {

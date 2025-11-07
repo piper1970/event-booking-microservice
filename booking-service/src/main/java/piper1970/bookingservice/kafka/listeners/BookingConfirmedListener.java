@@ -21,7 +21,7 @@ import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
 /**
- * Listener for BookingConfirmed messages off the 'booking-confirmed' topic.
+ * Listener for BookingConfirmed messages from the 'booking-confirmed' topic.
  * <p>
  * These messages are sent via the notification-service once the user clicks the confirmation link.
  */

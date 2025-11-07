@@ -19,6 +19,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
+/**
+ * Service for handling periodic cleanup updates to event status's
+ */
 @Service
 @Slf4j
 public class SchedulingService {

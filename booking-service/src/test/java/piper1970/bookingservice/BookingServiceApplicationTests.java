@@ -144,6 +144,7 @@ class BookingServiceApplicationTests {
         kafkaSender,
         bookingRepository, transactionalOperator, tracer, timeoutMillis, defaultRepositoryRetry, clock));
 
+    // initialize call listeners
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
 
@@ -168,7 +169,7 @@ class BookingServiceApplicationTests {
   }
 
   @Test
-  @DisplayName("should be able to post BookingCreated message to BOOKING_CREATED kafka topic")
+  @DisplayName("should be able to post BookingCreated message to booking-created kafka topic")
   void postBookingCreatedMessage() {
 
     var message = new BookingCreated();
@@ -195,7 +196,7 @@ class BookingServiceApplicationTests {
   }
 
   @Test
-  @DisplayName("should be able to post BookingCancelled message to BOOKING_CANCELLED kafka topic")
+  @DisplayName("should be able to post BookingCancelled message to booking-cancelled kafka topic")
   void postBookingCancelledMessage() {
 
     var message = new BookingCancelled();

@@ -76,6 +76,8 @@ import reactor.util.retry.Retry;
 @Order(1)
 public class EventServiceApplicationTests {
 
+  //region Properties Used
+
   @Autowired
   @Qualifier("repository")
   public Retry defaultRepositoryRetry;
@@ -86,8 +88,6 @@ public class EventServiceApplicationTests {
 
   @Autowired
   public Tracer tracer;
-
-  //region Properties Used
 
   private final Duration timeoutDuration = Duration.ofSeconds(4);
 
@@ -121,6 +121,7 @@ public class EventServiceApplicationTests {
 
   @BeforeAll
   void setupListeners() {
+    // setup all kafka listeners
     discoverableListeners.add(new BookingCancelledListener(receiverFactory,
         eventRepository, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry));
     discoverableListeners.add(
@@ -128,16 +129,19 @@ public class EventServiceApplicationTests {
             kafkaSender, tracer, dltProducer, timeoutInMilliseconds, defaultRepositoryRetry,
             defaultKafkaRetry, clock));
 
+    // initialize call listeners
     discoverableListeners.forEach(DiscoverableListener::initializeReceiverFlux);
   }
 
   @AfterAll
   void teardownListeners() {
+    // close all kafka listeners
     discoverableListeners.forEach(DiscoverableListener::close);
   }
 
   @BeforeEach
   void setUp() {
+    // clear database before each run
     eventRepository.deleteAll().block();
   }
 
@@ -150,6 +154,7 @@ public class EventServiceApplicationTests {
   }
 
   @Test
+  @DisplayName("should be able to consume a BookingCancelled message from the booking-cancelled kafka topic")
   void consumeBookingCancelledMessage() {
 
     var availableBookings = 10;
@@ -188,6 +193,11 @@ public class EventServiceApplicationTests {
   }
 
   @Test
+  @DisplayName("""
+      should be able to consume a BookingConfirmed message from the booking-confirmed kafka topic
+      and properly deduct 1 booking from event availability count given the event still has available
+      seats
+      """)
   void consumeBookingConfirmedMessage_AvailableBookings() {
     var availableBookings = 1;
     var facilitator = "test-facilitator-2";
@@ -224,6 +234,11 @@ public class EventServiceApplicationTests {
                     , () -> fail("Unable to access record in db")));
   }
 
+  @DisplayName("""
+      should be able to consume a BookingConfirmed message from the booking-confirmed kafka topic
+      AND post a BookingEventUnavailable message to the booking-event-unavailable kafka topic
+      if the event has no more available seats
+      """)
   @Test
   void consumeBookingConfirmedMessage_NoAvailableBookings() {
 
@@ -273,6 +288,7 @@ public class EventServiceApplicationTests {
             ));
   }
 
+  @DisplayName("should be able to post an EventCancelled message to the event-cancelled kafka topic")
   @Test
   void postEventCancelledMessage() {
 
@@ -296,6 +312,7 @@ public class EventServiceApplicationTests {
         );
   }
 
+  @DisplayName("should be able to post an EventChanged message to the event-changed kafka topic")
   @Test
   void postEventChangedMessage() {
 
@@ -319,6 +336,7 @@ public class EventServiceApplicationTests {
         );
   }
 
+  @DisplayName("should be able to post an EventCompleted message to the event-completed kafka topic")
   @Test
   void postEventCompletedMessage() {
 
@@ -346,6 +364,9 @@ public class EventServiceApplicationTests {
 
   // region Helpers
 
+  /**
+   * Helper metho to convert a KafkaReceiver object to a ConsumerRecord mono
+   */
   private Mono<ConsumerRecord<Integer, Object>> getReceiverAsMono(
       KafkaReceiver<Integer, Object> receiver) {
     return receiver.receiveAtmostOnce()
@@ -360,6 +381,9 @@ public class EventServiceApplicationTests {
   @ActiveProfiles({"test", "test_kafka"})
   static class TestConfig {
 
+    /**
+     * Mock schema registry client that accesses avro schemas locally from the filesystem
+     */
     @Bean
     public SchemaRegistryClient schemaRegistryClient(KafkaProperties kafkaProperties) {
       String registryUrl = kafkaProperties.getProperties().get("schema.registry.url");
@@ -367,6 +391,9 @@ public class EventServiceApplicationTests {
       return MockSchemaRegistry.getClientForScope(scope);
     }
 
+    /**
+     * Enhanced ReceiverFactory with extended range of Topics needed for tests.
+     */
     @Primary
     @Bean
     public ReactiveKafkaReceiverFactory reactiveKafkaReceiverFactory(ReceiverOptions<Integer, Object> receiverOptions) {

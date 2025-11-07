@@ -163,7 +163,7 @@ public class BookingControllerTestsIT {
     // clear database
     bookingRepository.deleteAll()
         .then()
-        .block();
+        .block()
 
     // setup mocked keycloak server
     setupKeyCloakServer();

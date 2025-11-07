@@ -39,7 +39,7 @@ public class BookingCreationValidationTests {
    * Main parameterized test to ensure all validation behavior works.
    *
    * @param description Message displayed if assertion fails
-   * @param consumer BookingCreateRequestBuilder consumer to apply to BookingCreationRequest,
+   * @param consumer {@link BookingCreateRequestBuilder} consumer to apply to all {@link BookingCreateRequest} parameters,
    *                 allowing fow individual field adjustment needed for tests
    * @param isValid flag to determine if test should or should not be considered valid
    *
@@ -87,7 +87,7 @@ public class BookingCreationValidationTests {
   /**
    * Helper record for capturing necessary parameters for tests.
    * @param message Message with expected behavior
-   * @param builder BookingCreateRequestBuilder consumer used to modify original BookingCreateRequestBuilder parameter
+   * @param builder Consumer used to modify original {@link BookingCreateRequestBuilder} parameters
    * @param isValid flag to determine if validation should succeed or fail
    */
   record MethodArgs(String message, Consumer<BookingCreateRequestBuilder> builder,

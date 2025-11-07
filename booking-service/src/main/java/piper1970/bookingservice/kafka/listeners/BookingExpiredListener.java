@@ -21,7 +21,7 @@ import reactor.kafka.receiver.ReceiverRecord;
 import reactor.util.retry.Retry;
 
 /**
- * Listener for BookingExpired messages off the 'booking-expired' topic.
+ * Listener for BookingExpired messages from the 'booking-expired' topic.
  * <p>
  * These messages are sent via the notification-service in one of two possibilities:
  * <ul>

@@ -31,6 +31,13 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
+/**
+ * Default reactive web service.
+ * Communicates with EventRequestService web client to access event availability info.
+ * Communicates with event repository to fetch, create, update and cancel events.
+ * Communicates asynchronously with neighboring microservices via kafka to post event cancellation, change, and completion
+ * messages.
+ */
 @Service
 @Slf4j
 public class DefaultEventWebService implements EventWebService {
@@ -68,6 +75,7 @@ public class DefaultEventWebService implements EventWebService {
 
   @Override
   public Flux<EventDto> getEvents() {
+
     log.debug("Get events called");
 
     return eventRepository.findAll()
@@ -81,23 +89,29 @@ public class DefaultEventWebService implements EventWebService {
 
   @Override
   public Mono<EventDto> getEvent(@NonNull Integer id) {
+
     log.debug("Get event with id [{}] called", id);
+
+    // TODO: this should NOT update status of event.  Violates REST/GET idempotency principle.
+    //    This scenario is handled by SchedulingService already
+    //    Also, should this need to be transactional???
 
     return eventRepository.findById(id)
         .subscribeOn(Schedulers.boundedElastic())
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found".formatted(id))))
         // ensure status is correct before returning to caller
-        .flatMap(this::handlePossibleStatusUpdate)
+        .flatMap(this::handlePossibleStatusUpdate) // FIXME: dangerous...mutates event from GET request
         .timeout(eventsTimeoutDuration)
-        .as(transactionalOperator::transactional)
+        .as(transactionalOperator::transactional) // FIXME: may be removed once mutation eliminated
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryException(ex, id, "attempting to get event"))
+        .onErrorResume(ex -> handleRepositoryMonoTimeout(ex, id, "attempting to get event"))
         .map(eventMapper::toDto)
         .doOnNext(this::logEventRetrieval);
   }
 
   @Override
   public Mono<EventDto> createEvent(@NonNull EventCreateRequest createRequest) {
+
     log.debug("Create event called [{}]", createRequest);
 
     var event = eventMapper.toEntity(createRequest)
@@ -107,7 +121,7 @@ public class DefaultEventWebService implements EventWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryException(ex, 0, "attempting to save event"))
+        .onErrorResume(ex -> handleRepositoryMonoTimeout(ex, 0, "attempting to save event"))
         .map(eventMapper::toDto)
         .doOnNext(dto -> log.debug("Event [{}] has been created", dto));
   }
@@ -122,7 +136,7 @@ public class DefaultEventWebService implements EventWebService {
         .subscribeOn(Schedulers.boundedElastic())
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryException(ex, id, "attempting to find event"))
+        .onErrorResume(ex -> handleRepositoryMonoTimeout(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException("Event [%d] not found for facilitator [%s]".formatted(id, facilitator))))
         .flatMap(event -> mergeWithUpdateRequest(event, updateRequest))
         .flatMap(updatedEvent -> {
@@ -141,13 +155,14 @@ public class DefaultEventWebService implements EventWebService {
 
   @Override
   public Mono<EventDto> cancelEvent(Integer id, String facilitator) {
+
     log.debug("Cancel event [{}] called by [{}]", id, facilitator);
 
     return eventRepository.findByIdAndFacilitator(id, facilitator)
         .subscribeOn(Schedulers.boundedElastic())
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
-        .onErrorResume(ex -> handleRepositoryException(ex, id, "attempting to find event"))
+        .onErrorResume(ex -> handleRepositoryMonoTimeout(ex, id, "attempting to find event"))
         .switchIfEmpty(Mono.error(new EventNotFoundException(
             "Event [%d} run by [%s]not found".formatted(id, facilitator))))
         .filter(this::safeToCancel)
@@ -169,6 +184,9 @@ public class DefaultEventWebService implements EventWebService {
 
   }
 
+  /**
+   * Helper method: EventDto => EventChanged
+   */
   private EventChanged createEventChangedMessage(EventDto updatedEvent) {
     var message = new EventChanged();
     message.setEventId(updatedEvent.getId());
@@ -176,6 +194,9 @@ public class DefaultEventWebService implements EventWebService {
     return message;
   }
 
+  /**
+   * Helper method: EventDto => EventCancelled
+   */
   private EventCancelled createEventCancelledMessage(EventDto dto) {
     var message = new EventCancelled();
     message.setEventId(dto.getId());
@@ -197,11 +218,13 @@ public class DefaultEventWebService implements EventWebService {
         .retryWhen(defaultRepositoryRetry)
         .doOnNext(
             savedEvent -> log.debug("Event [{}] has been cancelled in the database", savedEvent.getId()))
-        .onErrorResume(ex -> handleRepositoryException(ex, event.getId(), "save cancelled event"));
+        .onErrorResume(ex -> handleRepositoryMonoTimeout(ex, event.getId(), "save cancelled event"));
   }
 
-  /// Handles logic for merging update with current request Updates can only happen if the event has
-  /// not started, and the updateCutoffMinutes window has already been passed
+  /**
+   * Handles logic for merging update with current request Updates can only happen if the event has
+   * not started, and the updateCutoffMinutes window has already been passed
+   */
   private Mono<Event> mergeWithUpdateRequest(Event event, EventUpdateRequest updateRequest) {
 
     var isSafeToChange = safeToChange(event, updateRequest.getEventDateTime());
@@ -237,9 +260,15 @@ public class DefaultEventWebService implements EventWebService {
         .timeout(eventsTimeoutDuration)
         .retryWhen(defaultRepositoryRetry)
         .doOnNext(dto -> log.debug("Event [{}] has been updated in the database", dto.getId()))
-        .onErrorResume(ex -> handleRepositoryException(ex, event.getId(), "update event "));
+        .onErrorResume(ex -> handleRepositoryMonoTimeout(ex, event.getId(), "update event "));
   }
 
+  /**
+   * Helper method to determine if event can be cancelled.
+   *
+   * @param event to test
+   * @return true if event's date-time is in the future
+   */
   private boolean safeToCancel(Event event) {
     LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES);
     LocalDateTime cutoffTime = event.getEventDateTime()
@@ -247,7 +276,7 @@ public class DefaultEventWebService implements EventWebService {
     return now.isBefore(cutoffTime);
   }
 
-  private Mono<Event> handleRepositoryException(Throwable ex, Integer eventId, String subMessage) {
+  private Mono<Event> handleRepositoryMonoTimeout(Throwable ex, Integer eventId, String subMessage) {
     if(ex instanceof EventNotFoundException) {
       return Mono.error(ex);
     }
@@ -290,6 +319,12 @@ public class DefaultEventWebService implements EventWebService {
         eventRepositoryTimeoutInMilliseconds, subMessage);
   }
 
+  /**
+   * Helper method to determine if event can be changed/updated.
+   *
+   * @param event to test
+   * @return true if event's date-time is in the future and status is neither cancelled nor completed
+   */
   private boolean safeToChange(Event event, LocalDateTime eventDateTime) {
     if (EventStatus.CANCELLED == event.getEventStatus()) {
       return false;

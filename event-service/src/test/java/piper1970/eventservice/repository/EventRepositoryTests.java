@@ -49,6 +49,7 @@ class EventRepositoryTests {
               );
             """);
 
+    // Drop and recreate events table
     statements.forEach(stmt -> databaseClient.sql(stmt)
         .fetch()
         .rowsUpdated()
@@ -152,6 +153,11 @@ class EventRepositoryTests {
         .verifyComplete();
   }
 
+  /**
+   * Helper method to initialize repo with given events.
+   *
+   * @param events variable-sized list of events to insert into repository
+   */
   private void insertEvents(Event... events) {
     eventRepository.saveAll(List.of(events))
         .as(StepVerifier::create)

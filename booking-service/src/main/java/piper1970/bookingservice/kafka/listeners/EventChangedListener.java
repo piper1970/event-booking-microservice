@@ -32,7 +32,7 @@ import reactor.kafka.sender.KafkaSender;
 import reactor.util.retry.Retry;
 
 /**
- * Listener for EventChanged messages off the 'event-changed' topic.
+ * Listener for EventChanged messages from the 'event-changed' topic.
  * These messages are sent via the event-service if the event-owner makes modifications to the event
  * before it starts.
  * <p>

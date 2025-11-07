@@ -19,7 +19,15 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 
 /**
- * Service for posting kafka messages reactively to
+ * Service for posting kafka messages reactively to given topics
+ * <p>
+ * The following messages are posted by this service:
+ * <ul>
+ *   <li>BookingCancelled message => booking-cancelled topic</li>
+ *   <li>BookingCreated message => booking-created topic</li>
+ *   <li>BookingsCancelled message => bookings-cancelled topic</li>
+ *   <li>BookingsUpdated message => bookings-updated topic</li>
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
@@ -31,12 +39,13 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
   private final Tracer tracer;
   private static final String SERVICE_NAME = "booking-service";
 
+  // TODO: Mono.deferContextual even working? context not being used inside try block
+  //   This was added because zipkin tracing was not capturing the traceId/spanId values
+  //   from kafka posts. Currently, traceId is captured, but spanId isn't.
+  //   does `spring.reactor.context-propagation=auto` property invalidate the need for this?
+
   @Override
   public Mono<Void> postBookingCreatedMessage(BookingCreated message) {
-    // TODO: is these even working?  context not being used inside try block
-    //   This was added because zipkin tracing was not capturing the traceId/spanId values
-    //   from kafka posts. Currently, traceId is captured, but spanId isn't.
-    //   does `spring.reactor.context-propagation=auto` property invalidate the need for this?
     return Mono.deferContextual(context -> {
       try {
         var key = message.getBooking().getId();

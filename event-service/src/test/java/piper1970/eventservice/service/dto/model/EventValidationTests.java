@@ -40,6 +40,15 @@ public class EventValidationTests {
 
   //region EventCreateRequest Validation Checks
 
+  /**
+   * Main parameterized test to ensure all EventCreateRequest validation behavior works.
+   *
+   * @param message Message displayed if assertion fails
+   * @param consumer {@link EventCreateRequestBuilder} consumer to apply to all {@link EventCreateRequest} parameters
+   * @param isValid flag to indicate if test should or should not be considered valid
+   *
+   * @see #namedCreateRequestArguments
+   */
   @DisplayName("EventCreateRequest validation assertions")
   @ParameterizedTest(name = "{index} ==> {0}")
   @MethodSource("namedCreateRequestArguments")
@@ -73,6 +82,15 @@ public class EventValidationTests {
 
   //region EventUpdateRequest Validation Checks
 
+  /**
+   * Main parameterized test to ensure all EventUpdateRequest validation behavior works.
+   *
+   * @param message Message displayed if assertion fails
+   * @param consumer {@link EventUpdateRequestBuilder} consumer to apply to all {@link EventUpdateRequest} parameters
+   * @param isValid flag to indicate if test should or should not be considered valid
+   *
+   * @see #namedUpdateRequestArguments
+   */
   @DisplayName("EventUpdateRequest validation assertions")
   @ParameterizedTest(name = "{index} ==> {0}")
   @MethodSource("namedUpdateRequestArguments")
@@ -106,6 +124,9 @@ public class EventValidationTests {
 
   //region Helper Methods
 
+  /**
+   * Stock Helper method to build a good EventCreateRequest
+   */
   private EventCreateRequest.EventCreateRequestBuilder goodEventCreateRequestBuilder() {
     return EventCreateRequest.builder()
         .facilitator(null)
@@ -117,6 +138,9 @@ public class EventValidationTests {
         .availableBookings(50);
   }
 
+  /**
+   * Stock Helper method to build a good EventUpdateRequest
+   */
   private EventUpdateRequest.EventUpdateRequestBuilder goodEventUpdateRequestBuilder() {
     return EventUpdateRequest.builder()
         .title("title")
@@ -127,6 +151,9 @@ public class EventValidationTests {
         .availableBookings(50);
   }
 
+  /**
+   * Helper method to convert EventCreateRequest violation set int single message
+   */
   private String convertCreateViolationsToString(
       Set<ConstraintViolation<EventCreateRequest>> constraintViolations
   ) {
@@ -136,6 +163,9 @@ public class EventValidationTests {
         .collect(Collectors.joining(", "));
   }
 
+  /**
+   * Helper method to convert EventUpdateRequest violation set int single message
+   */
   private String convertUpdateViolationsToString(
       Set<ConstraintViolation<EventUpdateRequest>> constraintViolations
   ) {
@@ -145,6 +175,9 @@ public class EventValidationTests {
         .collect(Collectors.joining(", "));
   }
 
+  /**
+   * Method source function used to build stream of arguments for EventCreateRequest validation test method
+   */
   private static Stream<Arguments> namedCreateRequestArguments() {
 
     record MethodArgs(String message, Consumer<EventCreateRequestBuilder> builder,
@@ -229,6 +262,9 @@ public class EventValidationTests {
 
   }
 
+  /**
+   * Method source function used to build stream of arguments for EventUpdateRequest validation test method
+   */
   private static Stream<Arguments> namedUpdateRequestArguments() {
 
     record MethodArgs(String message, Consumer<EventUpdateRequestBuilder> builder,

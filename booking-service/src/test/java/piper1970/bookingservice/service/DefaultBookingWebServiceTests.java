@@ -562,9 +562,6 @@ class DefaultBookingWebServiceTests {
 
   //region Helper Methods
 
-  /**
-   * Helper method to build EventDto from an event-date-time and duration.
-   */
   private EventDto buildEventDto(LocalDateTime eventDateTime, Integer duration) {
 
     // set event-status based on comparison of now, eventDateTime and duration
@@ -594,9 +591,6 @@ class DefaultBookingWebServiceTests {
         .build();
   }
 
-  /**
-   * Helper method to build BookingCreateRequest from static eventId and userName constants
-   */
   private BookingCreateRequest createBookingRequest() {
     return BookingCreateRequest.builder()
         .eventId(eventId)
@@ -604,19 +598,10 @@ class DefaultBookingWebServiceTests {
         .build();
   }
 
-  /**
-   * Helper method to create a flux of bookings based off testUser argument.
-   *
-   * @see #createBookingStream for additinal info
-   */
   private Flux<Booking> createBookingFlux(@Nullable String testUser) {
     return Flux.fromStream(createBookingStream(testUser));
   }
 
-  /**
-   * Helper method to create a Booking stream based of given test user. Odd bookings in stream
-   * have BookingParams::testUser parameter set to testUser argument of method
-   */
   private Stream<Booking> createBookingStream(@Nullable String testUser) {
     return IntStream.range(0, allBookingsCount)
         .mapToObj(id -> {
@@ -629,11 +614,6 @@ class DefaultBookingWebServiceTests {
         .map(this::createBooking);
   }
 
-  /**
-   * Helper Record to encapsulate id, eventId, and user into single record in stream processing.
-   *
-   * @see #createBooking
-   */
   private record BookingParams(int id, int eventId, @Nullable String user) {
 
     static BookingParams of(int id, int eventId) {
@@ -645,9 +625,6 @@ class DefaultBookingWebServiceTests {
     }
   }
 
-  /**
-   * Helper function to convert {@link BookingParams} object to {@link BookingDto}
-   */
   private BookingDto createBookingDto(BookingParams bookingParams) {
 
     var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();
@@ -660,9 +637,6 @@ class DefaultBookingWebServiceTests {
         .build();
   }
 
-  /**
-   * Helper function to convert {@link BookingParams} object to {@link Booking}
-   */
   private Booking createBooking(BookingParams bookingParams) {
 
     var user = bookingParams.user() == null ? "User-" + username : bookingParams.user();
@@ -676,7 +650,7 @@ class DefaultBookingWebServiceTests {
   }
 
   /**
-   * Helper method to mock booking mapper behavior. Not all tests require this.
+   * Helper method to optionally mock booking mapper behavior
    */
   private void mockBookingMapper() {
     when(bookingMapper.entityToDto(any())).thenAnswer(
@@ -693,7 +667,7 @@ class DefaultBookingWebServiceTests {
   }
 
   /**
-   * Helper method to mock clock behavior. Not all tests require this.
+   * Helper method to optionally mock clock behavior
    */
   private void mockClock() {
     given(clock.instant()).willReturn(clockInstant);

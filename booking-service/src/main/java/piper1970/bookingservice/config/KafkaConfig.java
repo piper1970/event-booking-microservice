@@ -44,12 +44,12 @@ public class KafkaConfig {
     kafkaRetentionProperty = String.valueOf(Duration.ofDays(retentionDays).toMillis());
   }
 
+  //region Topic Creation
+
   @Bean
   TopicCreater topicCreater() {
     return new TopicCreater(partitionCount, replicationFactor, kafkaRetentionProperty);
   }
-
-  //region Topic Creation
 
   //region Producer Topics
 

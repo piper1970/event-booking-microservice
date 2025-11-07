@@ -24,7 +24,6 @@ public class SystemSSLConfig {
 
   @PostConstruct
   public void configureTrustStore() {
-
     System.setProperty("javax.net.ssl.trustStore", trustStorePath);
     System.setProperty("javax.net.ssl.trustStorePassword", trustStorePassword);
     System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");

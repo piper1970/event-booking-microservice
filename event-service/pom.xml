@@ -15,6 +15,7 @@
   <name>event-service</name>
   <description>Event Service: Setup and manage upcoming events</description>
 
+<!--  Spring Cloud Management -->
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -29,37 +30,26 @@
 
   <dependencies>
 
+<!-- Common -->
     <dependency>
       <groupId>piper1970</groupId>
       <artifactId>event-service-common</artifactId>
       <version>0.0.1-SNAPSHOT</version>
     </dependency>
 
+<!-- Bean Validation -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+<!-- Webflux -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webflux</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-security</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-r2dbc</artifactId>
-    </dependency>
-
+<!-- Cloud Bootstrap -->
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-bootstrap</artifactId>
@@ -68,12 +58,48 @@
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.thoughtworks.xstream</groupId>
+          <artifactId>xstream</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+ <!-- Fix for vulnerabilities above -->
+    <dependency>
+      <groupId>com.thoughtworks.xstream</groupId>
+      <artifactId>xstream</artifactId>
+      <version>1.4.21</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.14</version>
+    </dependency>
+
+<!-- Spring Security w/OAuth2-->
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-oauth2-jose</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
+<!-- Kafka -->
 
     <dependency>
       <groupId>org.springframework.kafka</groupId>
@@ -86,6 +112,8 @@
       <version>${reactive-kafka.version}</version>
     </dependency>
 
+<!-- DB / R2DBC -->
+
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
@@ -97,6 +125,13 @@
       <artifactId>r2dbc-postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+    </dependency>
+
+<!-- DB / Flyway -->
 
     <dependency>
       <groupId>org.flywaydb</groupId>
@@ -128,6 +163,8 @@
       <scope>runtime</scope>
     </dependency>
 
+<!-- Shedlock -->
+
     <dependency>
       <groupId>net.javacrumbs.shedlock</groupId>
       <artifactId>shedlock-spring</artifactId>
@@ -140,7 +177,7 @@
       <version>${shedlock-spring.version}</version>
     </dependency>
 
-    <!-- OpenAPI/Swagger Api Documentation-->
+<!-- OpenAPI/Swagger Api Documentation-->
     <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
@@ -153,20 +190,47 @@
       <version>${swagger-annotations.version}</version>
     </dependency>
 
-    <!--  Test Dependencies  -->
+<!--  Test Dependencies  -->
 
+<!-- Security / Testing -->
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
 
+<!--  Kafka / Testing-->
     <dependency>
       <groupId>org.springframework.kafka</groupId>
       <artifactId>spring-kafka-test</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-library</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-io</groupId>
+          <artifactId>commons-io</artifactId>
+        </exclusion>
+      </exclusions>
       <scope>test</scope>
     </dependency>
 
+<!-- Fix for transitive dependencies above   -->
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>2.13.9</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.20.0</version>
+      <scope>test</scope>
+    </dependency>
+
+<!-- Wiremock / Testing -->
     <dependency>
       <groupId>org.wiremock.integrations</groupId>
       <artifactId>wiremock-spring-boot</artifactId>
@@ -174,15 +238,23 @@
       <scope>test</scope>
     </dependency>
 
+<!-- Reactor / Testing -->
     <dependency>
       <groupId>io.projectreactor</groupId>
       <artifactId>reactor-test</artifactId>
       <scope>test</scope>
     </dependency>
 
+<!--  TestContainers / Testing -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-testcontainers</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-compress</artifactId>
+        </exclusion>
+      </exclusions>
       <scope>test</scope>
     </dependency>
 
@@ -190,6 +262,20 @@
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
       <version>${testcontainers.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-compress</artifactId>
+        </exclusion>
+      </exclusions>
+      <scope>test</scope>
+    </dependency>
+
+<!-- Fix for cve in above testcontainer artifacts-->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.28.0</version>
       <scope>test</scope>
     </dependency>
 
@@ -200,6 +286,7 @@
       <scope>test</scope>
     </dependency>
 
+<!--  DB / Testing -->
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
