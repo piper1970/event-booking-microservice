@@ -33,7 +33,7 @@ import reactor.kafka.sender.KafkaSender;
 import reactor.util.retry.Retry;
 
 /**
- * Listener for EnventCancelled messages off the 'event-cancelled' topic.
+ * Listener for EnventCancelled messages from the 'event-cancelled' topic.
  * These messages are sent via the event-service if the event-owner cancels the event.
  * <p>
  * This message triggers a BOOKINGS_CANCELLED message being sent out to the

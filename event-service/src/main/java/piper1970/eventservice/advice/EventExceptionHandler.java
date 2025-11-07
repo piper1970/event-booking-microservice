@@ -21,6 +21,11 @@ import piper1970.eventservice.exceptions.EventUpdateException;
 @Slf4j
 public class EventExceptionHandler {
 
+  /** 
+   * Exception handler for {@link EventNotFoundException} exceptions.
+   * <p>
+   * Thrown when a specific event cannot be found.
+   */
   @ExceptionHandler(EventNotFoundException.class)
   public ProblemDetail handleNotFound(EventNotFoundException exc) {
     log.warn("Event not found [{}]", exc.getMessage(), exc);
@@ -31,6 +36,9 @@ public class EventExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventCancellationException} exceptions 
+   */
   @ExceptionHandler(EventCancellationException.class)
   public ProblemDetail handleCancellation(EventCancellationException exc) {
     log.warn("Event cancellation failed. [{}]", exc.getMessage(), exc);
@@ -41,6 +49,9 @@ public class EventExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventTimeoutException} exceptions 
+   */
   @ExceptionHandler(EventTimeoutException.class)
   public ProblemDetail handleTimeout(EventTimeoutException exc) {
     log.error("Timeout occurred accessing events repository. [{}]", exc.getMessage(), exc);
@@ -51,6 +62,9 @@ public class EventExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventUpdateException} exceptions
+   */
   @ExceptionHandler(EventUpdateException.class)
   public ProblemDetail handleTransition(EventUpdateException exc) {
     log.warn("Event update failed. [{}]", exc.getMessage(), exc);
@@ -61,6 +75,11 @@ public class EventExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link KafkaPostingException} exceptions.
+   * <p>
+   * Thrown when kafka times out attempting to post a message.
+   */
   @ExceptionHandler(KafkaPostingException.class)
   public ProblemDetail handlePosting(KafkaPostingException exc) {
     log.warn("Event posting failed. [{}]", exc.getMessage(), exc);
@@ -71,6 +90,9 @@ public class EventExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link WebExchangeBindException} exceptions. Thrown when bean validation fails. 
+   */
   @ExceptionHandler(WebExchangeBindException.class)
   public ProblemDetail handleException(WebExchangeBindException exc){
     var message = exc.getBindingResult().getAllErrors()
@@ -86,7 +108,11 @@ public class EventExceptionHandler {
     });
   }
 
-  // Title field must be unique for posting new events
+  /**
+   * Exception handler for {@link DuplicateKeyException} exceptions.
+   * <p>
+   * Title field must be unique for posting new events.
+   */
   @ExceptionHandler(DuplicateKeyException.class)
   public ProblemDetail handleException(DuplicateKeyException exc){
     log.warn("Duplicate key [{}]", exc.getMessage(), exc);
@@ -99,7 +125,15 @@ public class EventExceptionHandler {
     });
   }
 
-  // Helper method for building base portion of problem-detail message
+  // TODO: consider exporting this into a helper file, since same code used in multiple ControllerAdvice files
+  /**
+   * Helper method for building base portion of {@link ProblemDetail} message.
+   *
+   * @param status HttpStatus to apply to ProblemDetail object
+   * @param message Message to apply to ProblemDetail object
+   * @param handler ProblemDetail consumer used to apply changes to ProblemDetail object
+   * @return adjusted ProblemDetail object for displaying consistent json error messages
+   */
   private ProblemDetail buildProblemDetail(HttpStatus status, String message,
       Consumer<ProblemDetail> handler) {
     var problem = ProblemDetail.forStatusAndDetail(status, message);

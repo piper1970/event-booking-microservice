@@ -27,6 +27,11 @@ import reactor.kafka.receiver.ReceiverRecord;
 import reactor.kafka.sender.KafkaSender;
 import reactor.util.retry.Retry;
 
+/**
+ * Listener for BookingConfirmed messages from the 'booking-confirmed' topic.
+ * <p>
+ * These messages are sent via the notification-service once the user clicks the confirmation link.
+ */
 @Component
 @Slf4j
 public class BookingConfirmedListener extends DiscoverableListener {

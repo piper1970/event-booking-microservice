@@ -5,6 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
+/**
+ * SSL Configuration for setting trust-store system properties
+ */
 @Configuration
 @Profile({"ssl_local", "ssl_compose"})
 public class SystemSSLConfig {

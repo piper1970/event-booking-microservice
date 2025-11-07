@@ -25,6 +25,9 @@ import reactor.kafka.sender.MicrometerProducerListener;
 import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.observation.KafkaSenderObservation.DefaultKafkaSenderObservationConvention;
 
+/**
+ * Kafka configuration for event-service handling topics, dlt, sender/producers, and receiver-factory beans.
+ */
 @Configuration
 @EnableKafka
 public class KafkaConfig {
@@ -41,12 +44,12 @@ public class KafkaConfig {
     kafkaRetentionProperty = String.valueOf(Duration.ofDays(retentionDays).toMillis());
   }
 
+  //region Topic Creation
+
   @Bean
   TopicCreater topicCreater() {
     return new TopicCreater(partitionCount, replicationFactor, kafkaRetentionProperty);
   }
-
-  //region Topic Creation
 
   //region Producer Topics
 

@@ -17,6 +17,16 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 
+/**
+ * Service for posting kafka messages reactively to given topics.
+ * <p>
+ * The following messages are posted by this service:
+ * <ul>
+ *   <li>EventCancelled message => event-cancelled topic</li>
+ *   <li>EventChanged message => event-changed topic</li>
+ *   <li>EventCompleted message => event-completed topic</li>
+ * </ul>
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -27,13 +37,16 @@ public class ReactiveKafkaMessagePostingService implements MessagePostingService
   private final Clock clock;
   private static final String SERVICE_NAME = "event-service";
 
+  // TODO: Mono.deferContextual even working? context not being used inside try block
+  //   This was added because zipkin tracing was not capturing the traceId/spanId values
+  //   from kafka posts. Currently, traceId is captured, but spanId isn't.
+  //   does `spring.reactor.context-propagation=auto` property invalidate the need for this?
 
   @Override
   public Mono<Void> postEventCancelledMessage(EventCancelled message) {
     return Mono.deferContextual(context -> {
       try {
         var eventId = message.getEventId();
-
         log.info("Posting EVENT_CANCELLED message [{}]", eventId);
         return kafkaSender.send(
                 createSenderMono(Topics.EVENT_CANCELLED, eventId, message, clock, extractMDCIntoHeaders(tracer)))

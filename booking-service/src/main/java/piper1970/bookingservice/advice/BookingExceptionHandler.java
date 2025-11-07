@@ -17,6 +17,7 @@ import piper1970.bookingservice.exceptions.BookingNotFoundException;
 import piper1970.bookingservice.exceptions.BookingTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceTimeoutException;
 import piper1970.bookingservice.exceptions.EventRequestServiceUnavailableException;
+import piper1970.bookingservice.service.DefaultEventRequestService;
 import piper1970.eventservice.common.exceptions.EventForbiddenException;
 import piper1970.eventservice.common.exceptions.EventNotFoundException;
 import piper1970.eventservice.common.exceptions.EventUnauthorizedException;
@@ -27,6 +28,9 @@ import piper1970.eventservice.common.exceptions.UnknownCauseException;
 @Slf4j
 public class BookingExceptionHandler {
 
+  /**
+   * Exception handler for {@link BookingNotFoundException} exceptions
+   */
   @ExceptionHandler(BookingNotFoundException.class)
   public ProblemDetail handleException(BookingNotFoundException exc){
     log.warn("Booking not found [{}]", exc.getMessage(), exc);
@@ -37,6 +41,9 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link BookingCancellationException} exceptions
+   */
   @ExceptionHandler(BookingCancellationException.class)
   public ProblemDetail handleException(BookingCancellationException exc){
     log.warn("Attempt to cancel booking failed [{}]", exc.getMessage(), exc);
@@ -47,6 +54,9 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link BookingCreationException} exceptions
+   */
   @ExceptionHandler(BookingCreationException.class)
   public ProblemDetail handleException(BookingCreationException exc){
     log.warn("Attempt to create booking failed [{}]", exc.getMessage(), exc);
@@ -57,6 +67,11 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventNotFoundException} exceptions.
+   * <p>
+   * Thrown when inner call to event-service api returns a 404/Not Found.
+   */
   @ExceptionHandler(EventNotFoundException.class)
   public ProblemDetail handleException(EventNotFoundException exc){
     log.warn("Event not found [{}]", exc.getMessage(), exc);
@@ -67,6 +82,9 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link WebExchangeBindException} exceptions. Thrown when bean validation fails.
+   */
   @ExceptionHandler(WebExchangeBindException.class)
   public ProblemDetail handleException(WebExchangeBindException exc){
     var message = exc.getBindingResult().getAllErrors()
@@ -82,6 +100,9 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link BookingTimeoutException} exceptions
+   */
   @ExceptionHandler(BookingTimeoutException.class)
   public ProblemDetail handleException(BookingTimeoutException exc){
     log.error("Booking repository action timed out [{}]", exc.getMessage(), exc);
@@ -92,6 +113,9 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventRequestServiceTimeoutException} exceptions
+   */
   @ExceptionHandler(EventRequestServiceTimeoutException.class)
   public ProblemDetail handleException(EventRequestServiceTimeoutException exc){
     log.error("event-request-service timed out [{}]", exc.getMessage(), exc);
@@ -102,6 +126,9 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventRequestServiceUnavailableException} exceptions
+   */
   @ExceptionHandler(EventRequestServiceUnavailableException.class)
   public ProblemDetail handleException(EventRequestServiceUnavailableException exc){
     log.error("event-request-service temporarily unavailable [{}]", exc.getMessage(), exc);
@@ -112,6 +139,11 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventForbiddenException} exceptions.
+   * <p>
+   * Thrown when inner call to event-service API returns a 403/Forbidden response.
+   */
   @ExceptionHandler(EventForbiddenException.class)
   public ProblemDetail handleException(EventForbiddenException exc){
     // at this stage, token already authorized through booking controller (auth=MEMBER).
@@ -127,6 +159,11 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link EventUnauthorizedException} exceptions.
+   * <p>
+   * Thrown when inner call to event-service API returns a 401/UnAuthorized response.
+   */
   @ExceptionHandler(EventUnauthorizedException.class)
   public ProblemDetail handleException(EventUnauthorizedException exc){
 
@@ -140,6 +177,18 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link UnknownCauseException} exceptions.
+   * <p>
+   * Thrown by {@link DefaultEventRequestService} when unrecognized 400 status code is returned from call to event-service api.
+   * <p>
+   * Recognized 400 responses are:
+   * <ul>
+   *   <li>404: Not Found</li>
+   *   <li>401: Unauthorized</li>
+   *   <li>403: Forbidden</li>
+   * </ul>
+   */
   @ExceptionHandler(UnknownCauseException.class)
   public ProblemDetail handleException(UnknownCauseException exc){
     log.error("An exception has occurred for unknown reasons [{}]", exc.getMessage(), exc);
@@ -150,6 +199,11 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link KafkaPostingException} exceptions.
+   * <p>
+   * Thrown when kafka times out attempting to post a message.
+   */
   @ExceptionHandler(KafkaPostingException.class)
   public ProblemDetail handleException(KafkaPostingException exc) {
     log.warn("Booking posting failed. [{}]", exc.getMessage(), exc);
@@ -160,17 +214,28 @@ public class BookingExceptionHandler {
     });
   }
 
+  /**
+   * Exception handler for {@link WebClientResponseException} exceptions. StatusCode from
+   * WebClientResponseException used directly in the ProblemDetail response
+   */
   @ExceptionHandler(WebClientResponseException.class)
   public ProblemDetail handleException(WebClientResponseException exc){
     log.error("Problems accessing event-service [{}]", exc.getMessage(), exc);
 
-    return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, exc.getMessage(), pd -> {
+    return buildProblemDetail(HttpStatus.valueOf(exc.getStatusCode().value()), exc.getMessage(), pd -> {
       pd.setTitle("Events-Service-Not-Available");
       pd.setType(URI.create("http://booking-service/problem/events-service-not-available"));
     });
   }
 
-  // Helper method for building base portion of problem-detail message
+  /**
+   * Helper method for building base portion of {@link ProblemDetail} message.
+   * 
+   * @param status HttpStatus to apply to ProblemDetail object
+   * @param message Message to apply to ProblemDetail object
+   * @param handler ProblemDetail consumer used to apply changes to ProblemDetail object
+   * @return adjusted ProblemDetail object for displaying consistent json error messages
+   */
   private ProblemDetail buildProblemDetail(HttpStatus status, String message,
       Consumer<ProblemDetail> handler) {
     var problem = ProblemDetail.forStatusAndDetail(status, message);
