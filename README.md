@@ -152,7 +152,7 @@ To use the Swagger UI while the system is running:
 
 ### Accessing the API via Postman
 
-If you want to run this system using __Postman__, there are four JSON files in the _data/postman_ directory: two for local (http/https) use and the other two for with fully dockerized use (http/https).
+If you want to run this system using __Postman__, there are four JSON files in the [data/postman](data/postman) directory: two for local (http/https) use and the other two for with fully dockerized use (http/https).
 
 All Postman configurations require the following properties to be set as secrets in the Postman Environments area: `oauth_client_id` and `oauth_client_secret`.
 
