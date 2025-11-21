@@ -1,3 +1,8 @@
+---
+config:
+  theme: 'dark'
+---
+
 graph TB
     Client[Client Applications]
     Gateway[API Gateway]
@@ -22,6 +27,12 @@ graph TB
         Prometheus[(Prometheus - Metrics)]
         Grafana[(Grafana - Metrics UI)]
     end
+
+    subgraph Logging
+        LogStash[(LogStash - Log Aggregation)]
+        ElasticSearch[(ElasticSearch - Log Indexing)]
+        Kibana[(Kibana - Log UI)]
+    end
     
     subgraph Messaging
         Kafka[Kafka Message Broker]
@@ -42,48 +53,50 @@ graph TB
 
     Client --> Gateway
 
-    Gateway --> EventService
-    Gateway --> BookingService
-    Gateway --> NotificationService
-    Gateway --> Cache
-
-    Gateway --> Keycloak
-    BookingService --> Keycloak
-    EventService --> Keycloak
-    NotificationService --> Keycloak
-
-    Gateway --> Prometheus
-    BookingService --> Prometheus
-    EventService --> Prometheus
-    NotificationService --> Prometheus
-
     Prometheus --> Grafana
-
     EventService --> EventDB
     BookingService --> BookingDB
     NotificationService --> NotificationDB
-    
-    EventService --> Eureka
-    BookingService --> Eureka
-    NotificationService --> Eureka
-    Gateway --> Eureka
-    Config --> Eureka
-
-    Gateway --> Config
-    BookingService --> Config
-    EventService --> Config
-    NotificationService --> Config
-
-    BookingService --> Kafka
-    NotificationService --> Kafka
-    EventService --> Kafka
-
     BookingService --> EventService
+    LogStash --> ElasticSearch
+    ElasticSearch --> Kibana
 
-    style Gateway fill:#f9f,stroke:#333
-    style Eureka fill:#ff9,stroke:#333
-    style Config fill:#ff9,stroke:#333
-    style Kafka fill:#dfd,stroke:#333
-    style Keycloak fill:#fdd,stroke:#333
-    style Prometheus fill:#dfd,stroke:#333
-    style Grafana fill:#ff9,stroke:#333
+    Gateway --> EventService & BookingService & NotificationService & Cache
+
+    Gateway & BookingService & EventService & NotificationService --> Keycloak
+    Gateway & BookingService & EventService & NotificationService --> Prometheus
+    Gateway & BookingService & EventService & NotificationService --> Config
+    Gateway & BookingService & EventService & NotificationService --> LogStash
+    EventService & BookingService & NotificationService & Gateway & Config --> Eureka
+    BookingService & NotificationService & EventService --> Kafka
+
+
+    style Gateway fill:#4a9,stroke:#333
+    style Eureka fill:#4a9,stroke:#333
+    style Config fill:#479,stroke:#333
+    style Kafka fill:#479,stroke:#333
+    style Keycloak fill:#4a9,stroke:#333
+    style Prometheus fill:#4a9,stroke:#333
+    style Grafana fill:#479,stroke:#333
+    style LogStash fill:#479,stroke:#333
+    style ElasticSearch fill:#49a,stroke:#333
+    style Kibana fill:#4a9,stroke:#333
+    style Client fill:#479,stroke:#333
+    style EventDB fill:#479,stroke:#333
+    style BookingDB fill:#479,stroke:#333
+    style NotificationDB fill:#479,stroke:#333
+    style Cache fill:#4a9,stroke:#333
+    style EventService fill:#49a,stroke:#333
+    style BookingService fill:#49a,stroke:#333
+    style NotificationService fill:#49a,stroke:#333
+    style topic1 fill:#4a9,stroke:#333
+    style topic2 fill:#49a,stroke:#333
+    style topic3 fill:#4a9,stroke:#333
+    style topic4 fill:#49a,stroke:#333
+    style topic5 fill:#4a9,stroke:#333
+    style topic6 fill:#49a,stroke:#333
+    style topic7 fill:#4a9,stroke:#333
+    style topic8 fill:#49a,stroke:#333
+    style topic9 fill:#4a9,stroke:#333
+    style topic10 fill:#49a,stroke:#333
+
