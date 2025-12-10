@@ -90,9 +90,12 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: false
       KC_HOSTNAME: keycloak
       KC_HTTPS_PORT: 8443
+      KC_REALM: ${KC_REALM}
     volumes:
+      - ./data/keycloak/entrypoint.sh:/entrypoint.sh:ro
       - ./data/keycloak/compose-ssl/:/opt/keycloak/data/import/
       - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     command:
       - start-dev
       - --import-realm

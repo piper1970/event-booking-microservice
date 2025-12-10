@@ -51,10 +51,10 @@ spring:
             scope: openid, profile, roles
         provider:
           keycloak:
-            jwk-set-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/certs
-            authorization-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/auth
-            token-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/token
-            user-info-uri: http://localhost:8180/realms/piper1970/protocol/openid-connect/userinfo
+            jwk-set-uri: http://localhost:8180/realms/${KC_REALM}/protocol/openid-connect/certs
+            authorization-uri: http://localhost:8180/realms/${KC_REALM}/protocol/openid-connect/auth
+            token-uri: http://localhost:8180/realms/${KC_REALM}/protocol/openid-connect/token
+            user-info-uri: http://localhost:8180/realms/${KC_REALM}/protocol/openid-connect/userinfo
             user-name-attribute: sub
 
   # Routing
