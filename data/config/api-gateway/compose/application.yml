@@ -17,10 +17,10 @@ spring:
       client:
         provider:
           keycloak:
-            jwk-set-uri: http://keycloak:8080/realms/piper1970/protocol/openid-connect/certs # must be 8080
-            authorization-uri: http://keycloak:8180/realms/piper1970/protocol/openid-connect/auth # must be 8180
-            token-uri: http://keycloak:8080/realms/piper1970/protocol/openid-connect/token # must be 8080
-            user-info-uri: http://keycloak:8080/realms/piper1970/protocol/openid-connect/userinfo  # must be 8080
+            jwk-set-uri: http://keycloak:8080/realms/${KC_REALM}/protocol/openid-connect/certs # must be 8080
+            authorization-uri: http://keycloak:8180/realms/${KC_REALM}/protocol/openid-connect/auth # must be 8180
+            token-uri: http://keycloak:8080/realms/${KC_REALM}/protocol/openid-connect/token # must be 8080
+            user-info-uri: http://keycloak:8080/realms/${KC_REALM}/protocol/openid-connect/userinfo  # must be 8080
 
   # API Gateway
   cloud:

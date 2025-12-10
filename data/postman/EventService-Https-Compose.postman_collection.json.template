@@ -1,7 +1,7 @@
 {
 	"info": {
-		"_postman_id": "24398a5a-0283-444b-9755-87d2e0d6a6a3",
-		"name": "EventService-Http-Local",
+		"_postman_id": "8e704a7a-1369-4177-bb38-5a77e90235b0",
+		"name": "EventService-Https-Compose",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "4616004"
 	},
@@ -93,12 +93,12 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/bookings",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings"
@@ -188,16 +188,15 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/bookings/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings1",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
-										"bookings",
-										"1"
+										"bookings1"
 									]
 								}
 							},
@@ -279,16 +278,16 @@
 								"method": "PATCH",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/bookings/33/cancel",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings/2/cancel",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings",
-										"33",
+										"2",
 										"cancel"
 									]
 								}
@@ -380,12 +379,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/bookings/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings/1",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings",
@@ -472,7 +471,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"eventId\": 1\n}",
+									"raw": "{\n    \"eventId\": 2\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -480,12 +479,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/bookings",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/bookings",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"bookings"
@@ -575,12 +574,12 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/events",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events"
@@ -665,16 +664,16 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/events/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events/2",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events",
-										"1"
+										"2"
 									]
 								}
 							},
@@ -757,7 +756,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n        \"id\": 1,\n        \"title\": \"Event1\",\n        \"description\": \"Description1\",\n        \"location\": \"Location1\",\n        \"eventDateTime\": \"2024-12-07T12:58:30.409739\",\n        \"cost\": 100.00,\n        \"availableBookings\": 95,\n        \"eventStatus\": \"IN_PROGRESS\"\n    }",
+									"raw": "{\n    \"title\": \"Backing with Bart2\",\n    \"description\": \"I will not bake with bad ingredients...\",\n    \"location\": \"Pioneer Square\",\n    \"eventDateTime\": \"2025-12-06T15:00\",\n    \"durationInMinutes\": 60,\n    \"availableBookings\": 20\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -765,12 +764,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/events/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events/1",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events",
@@ -862,7 +861,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"title\": \"Backing with Bart2\",\n    \"description\": \"I will not bake with bad ingredients...\",\n    \"location\": \"Pioneer Square\",\n    \"eventDateTime\": \"2025-12-06T15:00\",\n    \"cost\": \"15.00\",\n    \"availableBookings\": 0,\n    \"eventStatus\": \"COMPLETED\"\n}",
+									"raw": "{\n    \"title\": \"Backing with Bart2 - Revisited\",\n    \"description\": \"I will not bake with bad ingredients...\",\n    \"location\": \"Pioneer Square\",\n    \"eventDateTime\": \"2025-12-06T15:00\",\n    \"durationInMinutes\": 60,\n    \"availableBookings\": 30\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -870,12 +869,12 @@
 									}
 								},
 								"url": {
-									"raw": "http://localhost:8080/api/events",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events"
@@ -965,16 +964,17 @@
 								"method": "PATCH",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/api/events/1",
-									"protocol": "http",
+									"raw": "https://localhost:9000/api/events/1/cancel",
+									"protocol": "https",
 									"host": [
 										"localhost"
 									],
-									"port": "8080",
+									"port": "9000",
 									"path": [
 										"api",
 										"events",
-										"1"
+										"1",
+										"cancel"
 									]
 								}
 							},
@@ -1012,15 +1012,15 @@
 	"variable": [
 		{
 			"key": "callback_url",
-			"value": "http://localhost:8080/v1/callback"
+			"value": "https://localhost:9000/v1/callback"
 		},
 		{
 			"key": "auth_url",
-			"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/auth"
+			"value": "https://keycloak:8443/realms/${KC_REALM}/protocol/openid-connect/auth"
 		},
 		{
 			"key": "token_url",
-			"value": "http://localhost:8180/realms/piper1970/protocol/openid-connect/token"
+			"value": "https://keycloak:8443/realms/${KC_REALM}/protocol/openid-connect/token"
 		}
 	]
 }

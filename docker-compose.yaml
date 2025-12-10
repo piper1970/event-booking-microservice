@@ -85,8 +85,11 @@ services:
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
+      KC_REALM: ${KC_REALM}
     volumes:
+      - ./data/keycloak/entrypoint.sh:/entrypoint.sh:ro
       - ./data/keycloak/compose/:/opt/keycloak/data/import/
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     command:
       - start-dev
       - --import-realm

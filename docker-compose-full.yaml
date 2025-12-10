@@ -103,8 +103,11 @@ services:
       KC_METRICS_ENABLED: true
       KC_HOSTNAME: http://keycloak:8180 # using external port, 8180
       KC_HOSTNAME_STRICT: false
+      KC_REALM: ${KC_REALM}
     volumes:
+      - ./data/keycloak/entrypoint.sh:/entrypoint.sh:ro
       - ./data/keycloak/compose-full/:/opt/keycloak/data/import/
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     command:
       - start-dev
       - --import-realm
@@ -425,6 +428,7 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_PORT=${MAIL_PORT}
       - MAIL_MESSAGE_FROM=${MAIL_MESSAGE_FROM}
+      - KC_REALM=${KC_REALM}
     healthcheck:
       test: "curl --silent --fail http://localhost:8084/actuator/health | grep UP  || exit 1"
       interval: 30s
@@ -455,6 +459,7 @@ services:
       - EVENTS_ADMIN_DB_PASSWORD=${EVENTS_ADMIN_DB_PASSWORD}
       - EVENTS_DB_USER=${EVENTS_DB_USER}
       - EVENTS_DB_PASSWORD=${EVENTS_DB_PASSWORD}
+      - KC_REALM=${KC_REALM}
     healthcheck:
       test: "curl --silent --fail http://localhost:8081/actuator/health | grep UP  || exit 1"
       interval: 30s
@@ -485,6 +490,7 @@ services:
       - BOOKINGS_ADMIN_DB_PASSWORD=${BOOKINGS_ADMIN_DB_PASSWORD}
       - BOOKINGS_DB_USER=${BOOKINGS_DB_USER}
       - BOOKINGS_DB_PASSWORD=${BOOKINGS_DB_PASSWORD}
+      - KC_REALM=${KC_REALM}
     healthcheck:
       test: "curl --silent --fail http://localhost:8083/actuator/health | grep UP  || exit 1"
       interval: 30s
@@ -516,6 +522,7 @@ services:
       - OAUTH2_CLIENT_ID=${OAUTH2_CLIENT_ID}
       - OAUTH2_CLIENT_SECRET=${OAUTH2_CLIENT_SECRET}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - KC_REALM=${KC_REALM}
     healthcheck:
       test: "curl --silent --fail http://localhost:8080/actuator/health | grep UP  || exit 1"
       interval: 30s

@@ -109,9 +109,12 @@ services:
       KC_HTTPS_PORT: 8443
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
+      KC_REALM: ${KC_REALM}
     volumes:
+      - ./data/keycloak/entrypoint.sh:/entrypoint.sh:ro
       - ./data/keycloak/compose-ssl-full/:/opt/keycloak/data/import/
       - '${KEYCLOAK_KEYSTORE_PATH}:/opt/keycloak/conf/server.keystore:ro'
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     command:
       - start-dev
       - --import-realm
@@ -432,6 +435,7 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_PORT=${MAIL_PORT}
       - MAIL_MESSAGE_FROM=${MAIL_MESSAGE_FROM}
+      - KC_REALM=${KC_REALM}
     healthcheck:
       test: "curl --silent --fail http://localhost:8084/actuator/health | grep UP  || exit 1"
       interval: 30s
@@ -464,6 +468,7 @@ services:
       - EVENTS_DB_PASSWORD=${EVENTS_DB_PASSWORD}
       - EVENTS_TRUSTSTORE_PATH=/truststore.p12
       - EVENTS_TRUSTSTORE_PASSWORD=${EVENTS_TRUSTSTORE_PASSWORD}
+      - KC_REALM=${KC_REALM}
     volumes:
       - '${EVENTS_TRUSTSTORE_PATH}:/truststore.p12'
     healthcheck:
@@ -498,6 +503,7 @@ services:
       - BOOKINGS_DB_PASSWORD=${BOOKINGS_DB_PASSWORD}
       - BOOKINGS_TRUSTSTORE_PATH=/truststore.p12
       - BOOKINGS_TRUSTSTORE_PASSWORD=${BOOKINGS_TRUSTSTORE_PASSWORD}
+      - KC_REALM=${KC_REALM}
     volumes:
       - '${BOOKINGS_TRUSTSTORE_PATH}:/truststore.p12'
     healthcheck:
@@ -536,6 +542,7 @@ services:
       - API_KEYSTORE_ALIAS=${API_KEYSTORE_ALIAS}
       - API_TRUSTSTORE_PATH=/truststore.p12
       - API_TRUSTSTORE_PASSWORD=${API_TRUSTSTORE_PASSWORD}
+      - KC_REALM=${KC_REALM}
     volumes:
       - '${API_KEYSTORE_PATH}:/keystore.p12'
       - '${API_TRUSTSTORE_PATH}:/truststore.p12'

@@ -78,7 +78,7 @@
       "composites" : {
         "realm" : [ "create-realm" ],
         "client" : {
-          "piper1970-realm" : [ "impersonation", "manage-clients", "view-realm", "view-events", "manage-users", "query-users", "manage-identity-providers", "query-clients", "manage-authorization", "view-clients", "view-users", "view-authorization", "manage-events", "query-groups", "manage-realm", "query-realms", "view-identity-providers", "create-client" ],
+          "${KC_REALM}-realm" : [ "impersonation", "manage-clients", "view-realm", "view-events", "manage-users", "query-users", "manage-identity-providers", "query-clients", "manage-authorization", "view-clients", "view-users", "view-authorization", "manage-events", "query-groups", "manage-realm", "query-realms", "view-identity-providers", "create-client" ],
           "master-realm" : [ "view-identity-providers", "manage-clients", "create-client", "manage-users", "manage-identity-providers", "query-groups", "view-authorization", "view-users", "view-clients", "impersonation", "query-realms", "query-clients", "manage-authorization", "query-users", "manage-events", "view-events", "view-realm", "manage-realm" ]
         }
       },
@@ -105,7 +105,7 @@
     "client" : {
       "security-admin-console" : [ ],
       "admin-cli" : [ ],
-      "piper1970-realm" : [ {
+      "${KC_REALM}-realm" : [ {
         "id" : "9b9478b6-c4e2-4629-83b4-957c4b35e52a",
         "name" : "query-groups",
         "description" : "${role_query-groups}",
@@ -216,7 +216,7 @@
         "composite" : true,
         "composites" : {
           "client" : {
-            "piper1970-realm" : [ "query-clients" ]
+            "${KC_REALM}-realm" : [ "query-clients" ]
           }
         },
         "clientRole" : true,
@@ -237,7 +237,7 @@
         "composite" : true,
         "composites" : {
           "client" : {
-            "piper1970-realm" : [ "query-groups", "query-users" ]
+            "${KC_REALM}-realm" : [ "query-groups", "query-users" ]
           }
         },
         "clientRole" : true,
@@ -711,8 +711,8 @@
     "optionalClientScopes" : [ "address", "phone", "offline_access", "organization", "microprofile-jwt" ]
   }, {
     "id" : "27eed423-d813-4184-826e-5e188b9f4a6a",
-    "clientId" : "piper1970-realm",
-    "name" : "piper1970 Realm",
+    "clientId" : "${KC_REALM}-realm",
+    "name" : "${KC_REALM} Realm",
     "surrogateAuthRequired" : false,
     "enabled" : true,
     "alwaysDisplayInConsole" : false,
@@ -2123,7 +2123,7 @@
   }
 }, {
   "id" : "173ce078-0d46-4701-9770-07deac400b3a",
-  "realm" : "piper1970",
+  "realm" : "${KC_REALM}",
   "displayName" : "",
   "displayNameHtml" : "",
   "notBefore" : 0,
@@ -2671,12 +2671,12 @@
     "clientId" : "account",
     "name" : "${client_account}",
     "rootUrl" : "${authBaseUrl}",
-    "baseUrl" : "/realms/piper1970/account/",
+    "baseUrl" : "/realms/${KC_REALM}/account/",
     "surrogateAuthRequired" : false,
     "enabled" : true,
     "alwaysDisplayInConsole" : false,
     "clientAuthenticatorType" : "client-secret",
-    "redirectUris" : [ "/realms/piper1970/account/*" ],
+    "redirectUris" : [ "/realms/${KC_REALM}/account/*" ],
     "webOrigins" : [ ],
     "notBefore" : 0,
     "bearerOnly" : false,
@@ -2702,12 +2702,12 @@
     "clientId" : "account-console",
     "name" : "${client_account-console}",
     "rootUrl" : "${authBaseUrl}",
-    "baseUrl" : "/realms/piper1970/account/",
+    "baseUrl" : "/realms/${KC_REALM}/account/",
     "surrogateAuthRequired" : false,
     "enabled" : true,
     "alwaysDisplayInConsole" : false,
     "clientAuthenticatorType" : "client-secret",
-    "redirectUris" : [ "/realms/piper1970/account/*" ],
+    "redirectUris" : [ "/realms/${KC_REALM}/account/*" ],
     "webOrigins" : [ ],
     "notBefore" : 0,
     "bearerOnly" : false,
@@ -2808,8 +2808,8 @@
     "enabled" : true,
     "alwaysDisplayInConsole" : false,
     "clientAuthenticatorType" : "client-secret",
-    "redirectUris" : [ "http://localhost:8080/*", "http://api-gateway:8080/*", "http://booking-service:8083/*", "http://event-service:8081/*" ],
-    "webOrigins" : [ "http://booking-service:8083", "http://localhost:8080", "http://api-gateway:8080", "http://event-service:8081" ],
+    "redirectUris" : [ "https://localhost:9000/*", "http://localhost:8083/*", "http://localhost:8081/*" ],
+    "webOrigins" : [ "http://localhost:8083", "https://localhost:9000", "http://localhost:8081" ],
     "notBefore" : 0,
     "bearerOnly" : false,
     "consentRequired" : false,
@@ -2824,7 +2824,7 @@
       "client.secret.creation.time" : "1738171335",
       "client.introspection.response.allow.jwt.claim.enabled" : "false",
       "frontchannel.logout.session.required" : "true",
-      "post.logout.redirect.uris" : "http://localhost:8080/*##http://localhost:8081/*##http://localhost:8083/*",
+      "post.logout.redirect.uris" : "https://localhost:9000/*##http://localhost:8081/*##http://localhost:8083/*",
       "oauth2.device.authorization.grant.enabled" : "false",
       "backchannel.logout.revoke.offline.tokens" : "false",
       "use.refresh.tokens" : "true",
@@ -2907,12 +2907,12 @@
     "clientId" : "security-admin-console",
     "name" : "${client_security-admin-console}",
     "rootUrl" : "${authAdminUrl}",
-    "baseUrl" : "/admin/piper1970/console/",
+    "baseUrl" : "/admin/${KC_REALM}/console/",
     "surrogateAuthRequired" : false,
     "enabled" : true,
     "alwaysDisplayInConsole" : false,
     "clientAuthenticatorType" : "client-secret",
-    "redirectUris" : [ "/admin/piper1970/console/*" ],
+    "redirectUris" : [ "/admin/${KC_REALM}/console/*" ],
     "webOrigins" : [ "+" ],
     "notBefore" : 0,
     "bearerOnly" : false,
