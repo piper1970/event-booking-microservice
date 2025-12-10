@@ -162,8 +162,6 @@ All Postman configurations require the following properties to be set as secrets
 
 Refer to the `OAUTH2_CLIENT_ID` and `OAUTH2_CLIENT_SECRET` properties in the `.env` file.
 
-
-
 ---
 
 ## Architectural Diagrams
